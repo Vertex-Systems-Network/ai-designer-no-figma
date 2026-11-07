@@ -1,28 +1,30 @@
 # AI work tracker
 
-This file is the durable checkpoint for an AI coding agent resuming work without relying on chat history.
+This is the persistent resume point for an AI coding agent. It records verified implementation state, not a promise of completion.
 
 ## Resume protocol
 
-1. Read this tracker, `docs/BACKLOG.md`, and `docs/ARCHITECTURE.md`.
-2. Inspect the current files and recent repository state through the GitHub connector or filesystem. Never use Git CLI.
-3. Pick the earliest incomplete acceptance gate, inspect existing implementation and tests, then implement the smallest complete vertical slice.
-4. Run the relevant checks. Repair real failures; do not replace implementations with mocks just to pass.
-5. Update this tracker with exact file paths, commands, results, and the next unblocked task.
-6. Continue while tools and execution time permit. If blocked, record the precise external dependency and a reproducible next action.
+1. Read this file, `docs/BACKLOG.md`, `docs/PRODUCT-SPEC.md`, and `docs/ARCHITECTURE.md`.
+2. Inspect workspace files and public repo state through the GitHub connector or filesystem. Never execute Git CLI.
+3. Take the earliest incomplete acceptance gate and implement a testable vertical slice.
+4. Run relevant checks, fix genuine failures, and record evidence.
+5. Update this tracker, backlog, product acceptance checklist, package, checksum, and public repository after meaningful changes.
+6. Continue while the tools and execution environment permit. Mark unavailable live checks accurately.
 
 ## Current checkpoint
 
-- **Repository:** `Vertex-Systems-Network/ai-designer-no-figma` (public, default branch `main`).
-- **Starting point:** Empty repository created for this project; no source files were present in the provided workspace.
-- **Related source reviewed:** `Vertex-Systems-Network/open-designer` is a large standalone design editor with AI tooling and a different product/privacy architecture. It was not copied because it is not the requested Figma plugin + local-only runtime.
-- **Current work:** Establishing typed spec, plugin renderer, UI, local runtime, and automated validation foundations.
-- **Most recent checks:** `npm run typecheck`, `npm run lint`, `npm test`, and `npm run test:integration` pass (after the latest UI/renderer changes they must be rerun before release).
-- **Next task:** Run the full verification pipeline, inspect the bundled manifest and ZIP, publish all source files, then create GitHub issues for remaining phase gates.
+- **Repository:** `Vertex-Systems-Network/ai-designer-no-figma` (public, `main`).
+- **Product workflow:** AI app selection is user-controlled. Default generation/editing prepares structured prompts for Claude Desktop or any other AI the user can access. The plugin calls no provider API and needs no API key. User pastes returned JSON into the plugin for validation and native rendering. Ollama is an optional local alternative.
+- **Current implementation:** Typed design schema, editable Figma renderer, provider-neutral design/edit prompt builders, bounded pasted-patch validator, React plugin UI, optional loopback Ollama sidecar, tests, packaging, architecture docs, backlog, and GitHub issues.
+- **Current unavailable validation:** CUA reports no attached native apps, and the executor has no Figma binary on its path. The user reports installing Figma on their own machine, but this executor cannot see or drive that separate desktop installation. No live Figma result is claimed.
+- **Process note:** A read-only `git status --short` invocation was accidentally attempted during this continuation despite the project's Git CLI prohibition. No mutating Git command was run; repository writes and publication used the GitHub connector.
+- **Next unblocked task:** Continue implementing the earliest open phase from `docs/BACKLOG.md`; expand schema and native rendering coverage, then run UI visual checks if an application surface becomes available.
 
 ## Evidence log
 
 | Date (UTC) | Work | Evidence |
 |---|---|---|
-| 2026-11-07 | Created target public repository and verified public visibility/default branch | GitHub UI and GitHub repository metadata |
-| 2026-11-07 | Implemented initial TypeScript plugin/runtime/UI foundation | Source files, strict TypeScript check, ESLint, seven unit tests, six local HTTP integration tests with a test Ollama server |
+| 2026-11-07 | Created public repository, source distribution and GitHub tracking issues | Repository metadata and GitHub tree/issues verified; no Git CLI used. |
+| 2026-11-07 | Built initial editable plugin, schema, import path, optional local runtime, UI, tests and source ZIP | `npm run verify`; `npm audit`; ZIP integrity and SHA-256 checks recorded in `artifacts/`. |
+| 2026-11-07 | Changed AI workflow to provider-neutral external handoff by default | `src/shared/prompts.ts`, `src/shared/edit-patch.ts`, Generate/Edit UI paths, and unit tests; full verification still required after this change. |
+| 2026-11-07 | Completed verification after the provider handoff change | `npm run verify`, `npm audit`, repeat package hash, and ZIP integrity pass: 12 unit tests, 8 optional-runtime integration tests, 0 dependency vulnerabilities. |

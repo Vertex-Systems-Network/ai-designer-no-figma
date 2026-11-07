@@ -97,6 +97,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
 
 export function parseDesignSpec(json: string): ValidationResult {
   if (new TextEncoder().encode(json).byteLength > MAX_SPEC_BYTES) return { valid: false, issues: [{ path: '$', message: `JSON exceeds ${MAX_SPEC_BYTES} bytes.` }] };
-  try { return validateDesignSpec(JSON.parse(json), new TextEncoder().encode(json).byteLength); }
+  const source = json.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try { return validateDesignSpec(JSON.parse(source), new TextEncoder().encode(source).byteLength); }
   catch { return { valid: false, issues: [{ path: '$', message: 'Invalid JSON syntax. Check commas, quotes, and braces.' }] }; }
 }

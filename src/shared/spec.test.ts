@@ -12,6 +12,9 @@ const valid: DesignSpec = {
 describe('design specification validation', () => {
   it('accepts a well-formed editable design tree', () => expect(validateDesignSpec(valid).valid).toBe(true));
   it('reports invalid JSON syntax', () => expect(parseDesignSpec('{broken').issues[0]?.message).toMatch(/syntax/i));
+  it('accepts a JSON code block pasted from an external AI chat', () => {
+    expect(parseDesignSpec(`\`\`\`json\n${JSON.stringify(valid)}\n\`\`\``).valid).toBe(true);
+  });
   it('rejects unsupported node types', () => {
     const result = validateDesignSpec({ ...valid, pages: [{ ...valid.pages[0]!, children: [{ ...valid.pages[0]!.children[0]!, type: 'script' }] }] });
     expect(result.valid).toBe(false);

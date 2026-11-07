@@ -4,9 +4,10 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 
 ## Product and privacy
 
-- [x] Figma plugin host owns all document mutations; optional companion service handles inference.
-- [x] Local Ollama discovery/generation path; no paid inference SDK dependency.
-- [x] Manual structured JSON import remains available without Ollama.
+- [x] Figma plugin host owns all document mutations; companion inference service is optional.
+- [x] Provider-neutral prompt handoff lets users generate/edit with any AI app they can access, without a provider API key or automated provider calls.
+- [x] Local Ollama discovery/generation is an optional path, not a prerequisite.
+- [x] Structured JSON import and validated patch paste remain available when all model runtimes are absent.
 - [x] No telemetry or remote assets in the current implementation.
 - [x] Runtime defaults to loopback and rejects non-loopback model/runtime hosts.
 - [x] Model output is treated as data, validated, and never evaluated as code.
@@ -22,10 +23,12 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 - [ ] Export the current Figma document as a design specification; import/deduplicate local image assets.
 - [ ] Renderer tests against official Figma API mocks and a separate live-editor smoke test.
 
-## Generate and model workflows
+## Generate and AI workflows
 
 - [x] Prompt, category, platform/canvas dimensions, visual direction, brand color, density, typography and complexity inputs.
-- [x] Installed local model list, runtime connection state, model selection, bounded request and cancellation.
+- [x] Self-contained design and selection-edit prompt builders for external AI apps.
+- [x] Fenced JSON import and strict patch validation, including current-selection target checks.
+- [x] Optional installed local model list, runtime connection state, model selection, bounded request and cancellation.
 - [ ] Streaming responses, retry strategy, detailed capability/error diagnostics, GPU/CPU status.
 - [ ] Validate multiple design categories with deterministic fixtures and an installed local model.
 
@@ -45,14 +48,14 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 ## UI, accessibility, and history
 
 - [x] Generate, Edit, Design System, Import, History, and Settings screens; shared dark/light semantic tokens.
-- [x] Local prompt history and result reuse/export/delete; endpoint/font settings; keyboard focus/reduced motion styles.
+- [x] Local prompt history and result reuse/export/delete; optional local endpoint/font settings; keyboard focus/reduced motion styles.
 - [ ] Revision snapshots, restore, full settings/performance/privacy controls, and capability/error help.
 - [ ] Browser/Figma screenshot review at narrow, standard, and tall plugin sizes; contrast and keyboard-only QA.
 - [ ] Confirm each product control maps to real native functionality; remove any control that cannot be completed.
 
 ## Quality and release
 
-- [x] Typecheck, lint, unit tests, sidecar HTTP integration tests, local privacy audit, source ZIP, SHA-256.
+- [x] Typecheck, lint, unit tests, optional sidecar HTTP integration tests, zero-vulnerability npm audit, local privacy audit, source ZIP, SHA-256.
 - [ ] Test actual Ollama runtime/model, real Figma rendering, patch preservation and release installation.
 - [ ] Produce final requirement-by-requirement evidence report and disclose the official plugin ID registration step.
 
@@ -60,4 +63,5 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 
 - Never run Git CLI or invoke Git indirectly from scripts.
 - Never add Figma AI, Figma MCP, a paid inference API, public-facing local runtime bind, telemetry, or executable model output.
+- Never require Ollama or any one AI provider; provider-neutral copy/paste handoff remains available with no API key.
 - Never label a mock-backed check as a live Figma or real Ollama verification.

@@ -3,19 +3,21 @@
 ## Data flow
 
 ```text
-Plugin UI ──validated JSON──▶ Figma plugin host ──▶ native Figma nodes
-    │
-    └──prompt──▶ loopback runtime ──local Ollama──▶ structured design JSON
+Any AI app (user-operated) ──structured prompt / JSON paste──▶ Plugin UI
+Plugin UI ──validated JSON or bounded patch──▶ Figma plugin host ──▶ native Figma nodes
+Optional local mode: Plugin UI ──loopback──▶ companion runtime ──▶ Ollama
 ```
 
-The plugin host is the only layer that mutates the Figma document. The UI and runtime exchange data, never executable source. The runtime validates request sizes, uses a loopback bind address, and proxies only to a loopback Ollama endpoint. Manual specification import remains available when Ollama is absent.
+The plugin host is the only layer that mutates the Figma document. The UI accepts validated structured output from any AI app through a user-controlled copy/paste handoff; it does not automate, scrape, or send requests to external providers. The companion runtime and Ollama are optional. When enabled, the runtime validates request sizes, uses a loopback bind address, and proxies only to a loopback Ollama endpoint. Generation, editing, and rendering remain usable through the external handoff/import workflow when the runtime or a model is absent.
 
 ## Boundaries
 
 - `src/shared`: versioned design contract and safe validation.
 - `src/plugin`: Figma lifecycle, message protocol, native renderer, edit operations.
 - `src/ui`: React interface and local persistence.
-- `src/runtime`: local model discovery and bounded generation API.
+- `src/runtime`: optional local Ollama discovery and bounded generation API.
+- `src/shared/prompts.ts`: self-contained provider-neutral design and edit prompts.
+- `src/shared/edit-patch.ts`: bounded, target-aware patch validation for local and pasted AI output.
 - `docs`: decisions, release gates, and human-readable work tracking.
 
 ## Safety invariants
@@ -28,7 +30,7 @@ The plugin host is the only layer that mutates the Figma document. The UI and ru
 
 ## ADRs
 
-- **ADR-001:** Use a plugin plus optional local sidecar. Manual JSON import is a first-class mode, not an error fallback.
+- **ADR-001:** Use a plugin with a provider-neutral external AI handoff as the default path; local inference is optional. Structured import is the interface between the user's chosen AI app and the plugin.
 - **ADR-002:** Use a versioned JSON AST. AI output is data; never executable code.
 - **ADR-003:** Native Figma API operations remain in the plugin host because document mutation is editor-owned.
 - **ADR-004:** Defer live Figma validation until an editor session is available; mocks cannot prove plugin lifecycle behavior.
