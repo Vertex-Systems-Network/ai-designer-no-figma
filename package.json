@@ -1,0 +1,41 @@
+{
+  "name": "ai-designer-no-figma",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first AI-assisted native Figma design generation",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "build": "node scripts/build.mjs",
+    "runtime": "tsx src/runtime/server.ts",
+    "package": "node scripts/package.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build && npm run audit:local && npm run package",
+    "audit:local": "node scripts/audit-local.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.117.0",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.7.0",
+    "esbuild": "^0.25.5",
+    "eslint": "^9.29.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^6.3.5",
+    "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
+  }
+}

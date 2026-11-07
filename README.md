@@ -16,7 +16,10 @@ This repository is at the engineering foundation stage. Manual JSON import and e
 
 ```sh
 npm install
-npm run verify
+npm run typecheck
+npm test
+npm run build
+npm run package
 ```
 
 Load `dist/manifest.json` in Figma using **Plugins → Development → Import plugin from manifest…**. Start the local service separately with `npm run runtime`. Its default bind address is `127.0.0.1`; do not expose it to a LAN or public interface.
