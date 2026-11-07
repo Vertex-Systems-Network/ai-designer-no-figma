@@ -54,5 +54,5 @@ const bytes = await readFile(archive);
 const digest = createHash('sha256').update(bytes).digest('hex');
 await writeFile(join(artifactDir, 'SHA256SUMS.txt'), `${digest}  ai-designer-no-figma-0.1.0.zip\n`);
 const bundleFiles = await readdir('dist');
-await writeFile(join(artifactDir, 'BUILD-REPORT.json'), JSON.stringify({ status: 'BUILT', artifact: archive, sha256: digest, bundleFiles, sourceFiles: stagedFiles.length, generatedAt: new Date().toISOString(), gitCliUsed: false, normalizedArchiveTimestamps: true }, null, 2));
+await writeFile(join(artifactDir, 'BUILD-REPORT.json'), JSON.stringify({ status: 'BUILT', artifact: 'artifacts/ai-designer-no-figma-0.1.0.zip', sha256: digest, bundleFiles, sourceFiles: stagedFiles.length, generatedAt: new Date().toISOString(), gitCliUsed: false, normalizedArchiveTimestamps: true }, null, 2));
 console.log(`Package: ${archive}\nSHA-256: ${digest}`);

@@ -1,7 +1,7 @@
 {
   "status": "BUILT",
-  "artifact": "/workspace/scratch/5085cea1b4fa/artifacts/ai-designer-no-figma-0.1.0.zip",
-  "sha256": "52c62bd9f06ba1d21bfff02aaa2af09c51ec7491ca3bbd781cb39acd3d48e8be",
+  "artifact": "artifacts/ai-designer-no-figma-0.1.0.zip",
+  "sha256": "5c15c61c18db9dbf89fd623db995527f456c1be6dcd21f99fb740eb3fcadf672",
   "bundleFiles": [
     "index.css",
     "manifest.json",
@@ -13,7 +13,7 @@
     "ui.js"
   ],
   "sourceFiles": 35,
-  "generatedAt": "2026-11-07T16:11:30.496Z",
+  "generatedAt": "2026-11-07T16:15:24.509Z",
   "gitCliUsed": false,
   "normalizedArchiveTimestamps": true
 }
