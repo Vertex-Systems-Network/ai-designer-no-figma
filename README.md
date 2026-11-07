@@ -8,6 +8,24 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 - Download: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
+## Project progress
+
+| Phase | Progress | Status | Remaining gate |
+|---|---:|---|---|
+| 0 · Environment audit | `████████████████████` 100% | PASS | — |
+| 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
+| 2 · Figma plugin and renderer | `███████████░░░░░░░░░` 55% | IN PROGRESS | Live Figma editor test; broader native node support |
+| 3 · Specification and validation | `███████░░░░░░░░░░░░░` 35% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
+| 4 · AI integration | `█████████████░░░░░░░` 65% | IN PROGRESS | Direct desktop bridges and live local-model checks |
+| 5 · Selection editing | `███████████░░░░░░░░░` 55% | IN PROGRESS | Layout edits, revision checkpoints, live preservation test |
+| 6 · Design system | `██████░░░░░░░░░░░░░░` 30% | IN PROGRESS | Typography/spacing scales and native reusable components |
+| 7 · Application UI | `████████████░░░░░░░░` 60% | IN PROGRESS | Complete controls and visual/accessibility QA |
+| 8 · Testing and hardening | `█████████████░░░░░░░` 65% | IN PROGRESS | Live Figma test, UI review, broader feature coverage |
+| 9 · Build and packaging | `████████████████████` 100% | PASS | — |
+| 10 · Final audit | `███████░░░░░░░░░░░░░` 35% | IN PROGRESS | Close open gates and publish final evidence report |
+
+Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
+
 ## Requirements
 
 - Node.js 20+ and npm to build/package the plugin.
