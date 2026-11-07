@@ -6,7 +6,7 @@
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
-    "allowedDomains": ["http://127.0.0.1:8787", "http://localhost:8787"],
+    "allowedDomains": ["http://localhost:8787"],
     "reasoning": "Connect to the optional local companion service for Ollama model discovery and inference. The service binds only to loopback."
   }
 }

@@ -42,6 +42,8 @@ npm run verify
 
 In Figma, open **Plugins → Development → Import plugin from manifest…** and select `dist/manifest.json`. The development manifest intentionally has no invented plugin ID; Figma supplies the ID when the plugin is registered for distribution.
 
+The manifest allowlists `http://localhost:8787`, which Figma accepts for local development. The optional companion process itself still binds only to `127.0.0.1`.
+
 ## Use any AI app without an API
 
 1. Keep **AI workflow → Use any AI app · no API key** selected.

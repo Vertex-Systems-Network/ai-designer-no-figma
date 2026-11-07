@@ -11,7 +11,14 @@ type Model = { name: string; details?: { parameter_size?: string } };
 type HistoryItem = { id: string; prompt: string; model: string; createdAt: string; spec: DesignSpec };
 type Token = { id: string; name: string; color: string };
 type GenerationMode = 'handoff' | 'ollama';
-const defaultUrl = 'http://127.0.0.1:8787';
+const defaultUrl = 'http://localhost:8787';
+function safeEndpoint(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(url.hostname) && url.port === '8787') return defaultUrl;
+  } catch { /* Use the safe default for invalid stored settings. */ }
+  return defaultUrl;
+}
 const promptTemplate = `Return one JSON object only. Use this schema: {"schemaVersion":"1.0","name":"Design name","pages":[{"id":"page-1","name":"Page name","children":[{"type":"frame","id":"frame-1","name":"Main frame","width":1440,"height":900,"fill":"#FFFFFF","children":[{"type":"text","id":"title-1","name":"Title","x":48,"y":48,"width":600,"height":60,"text":"A clear heading","fontSize":36,"fontWeight":700,"color":"#171A1E"}]}]}]}. Supported types: frame, group, text, rectangle, ellipse, line. Give every id a unique stable value and make all layers editable. Do not include markdown.`;
 const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'History'];
 function post(message: UiToHost) { parent.postMessage({ pluginMessage: message }, '*'); }
@@ -19,7 +26,7 @@ function load<T>(key: string, fallback: T): T { try { const value = localStorage
 function App() {
   const [tab, setTab] = useState<Tab>('Generate');
   const [theme, setTheme] = useState<'dark'|'light'>(() => load('adnf-theme','dark'));
-  const [baseUrl, setBaseUrl] = useState(() => load('adnf-endpoint',defaultUrl));
+  const [baseUrl, setBaseUrl] = useState(() => safeEndpoint(load<string>('adnf-endpoint',defaultUrl)));
   const [generationMode, setGenerationMode] = useState<GenerationMode>(() => load<GenerationMode>('adnf-generation-mode','handoff')==='ollama'?'ollama':'handoff');
   const [endpointDraft, setEndpointDraft] = useState(baseUrl);
   const [runtime, setRuntime] = useState<'checking'|'connected'|'disconnected'>('checking');
@@ -177,7 +184,7 @@ function App() {
       </>}
       {tab==='Settings'&&<>
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
-        <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use a loopback address on port 8787; the service must not be exposed to a network.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(!['127.0.0.1','localhost','[::1]'].includes(u.hostname)||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://127.0.0.1:8787 or a loopback host on port 8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);localStorage.setItem('adnf-endpoint',JSON.stringify(value));setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
+        <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);localStorage.setItem('adnf-endpoint',JSON.stringify(value));setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);localStorage.setItem('adnf-font-fallback',JSON.stringify(e.target.value));}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
         <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
       </>}

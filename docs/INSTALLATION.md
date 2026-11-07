@@ -25,7 +25,7 @@ No AI app is launched or called by the plugin. This works with AI applications t
 
 1. Install and run Ollama separately, then ensure an open-weight model is installed.
 2. Start this project's service with `npm run runtime`.
-3. Keep its bind at `127.0.0.1:8787`; the service rejects public/LAN binds and non-loopback Ollama endpoints.
+3. Keep its bind at `127.0.0.1:8787`; the plugin connects through `http://localhost:8787`, which Figma supports in the manifest allowlist. The service rejects public/LAN binds and non-loopback Ollama endpoints.
 4. Select **Optional local Ollama model** in the Generate tab, then choose a detected model.
 
 This path is optional. External AI handoff, JSON import, design validation, and Figma rendering do not require Ollama or this service.
