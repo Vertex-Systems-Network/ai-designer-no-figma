@@ -9,12 +9,22 @@ let html = await readFile(indexPath, 'utf8');
 for (const match of [...html.matchAll(/<script[^>]+src="([^"]+)"[^>]*><\/script>/g)]) {
   const jsPath = resolve(dirname(indexPath), match[1]);
   const js = await readFile(jsPath, 'utf8');
-  html = html.replace(match[0], `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
+  const inlineScript = `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`;
+  // Use a callback: replacement strings interpret $&, $`, and $'. Bundled JS
+  // can contain $' and would otherwise inject the rest of the HTML into the script.
+  html = html.replace(match[0], () => inlineScript);
 }
 for (const match of [...html.matchAll(/<link[^>]+href="([^"]+\.css)"[^>]*>/g)]) {
   const cssPath = resolve(dirname(indexPath), match[1]);
   const css = await readFile(cssPath, 'utf8');
-  html = html.replace(match[0], `<style>${css}</style>`);
+  const inlineStyle = `<style>${css}</style>`;
+  html = html.replace(match[0], () => inlineStyle);
+}
+if (/<script\b[^>]*\bsrc=/i.test(html) || /<link\b[^>]*\bhref="[^"]+\.css"/i.test(html)) {
+  throw new Error('Plugin UI build left an external JavaScript or CSS asset reference.');
+}
+if (!html.includes('<div id="root"></div>') || !html.includes('createRoot')) {
+  throw new Error('Plugin UI build is missing its React root or bundled application entry point.');
 }
 await writeFile(resolve('dist/ui.html'), html);
 await mkdir(resolve('dist/schema'), { recursive: true });
