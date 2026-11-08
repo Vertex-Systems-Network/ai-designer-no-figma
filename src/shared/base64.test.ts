@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeBase64 } from './base64';
+import { decodeBase64, encodeBase64 } from './base64';
 
 describe('bounded visual preview byte encoding', () => {
   it('encodes empty, padded and full byte groups as canonical base64', () => {
@@ -11,5 +11,12 @@ describe('bounded visual preview byte encoding', () => {
   it('keeps output exact across chunk boundaries', () => {
     const bytes = new Uint8Array(12_300).map((_, index) => index % 256);
     expect(encodeBase64(bytes)).toBe(Buffer.from(bytes).toString('base64'));
+  });
+
+  it('decodes canonical payloads within byte bounds and rejects malformed encodings',()=>{
+    for(const bytes of [new Uint8Array([0]),new Uint8Array([1,2]),new Uint8Array([1,2,3,254])])expect(decodeBase64(encodeBase64(bytes),bytes.length)).toEqual(bytes);
+    expect(()=>decodeBase64('@@==',10)).toThrow(/base64/i);
+    expect(()=>decodeBase64('AQID',2)).toThrow(/oversized/i);
+    expect(()=>decodeBase64('AR==',10)).toThrow(/canonical/i);
   });
 });
