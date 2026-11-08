@@ -18,11 +18,13 @@
     {
       "id": "CORE-001",
       "name": "Versioned design specification validation",
-      "description": "Validate schema 1.0 documents, supported node fields, IDs and resource limits.",
+      "description": "Validate schema 1.0 documents, supported node fields, component references, bounded vector paths, paint properties, IDs and resource limits.",
       "module": "shared-schema",
       "sourceFiles": [
         "src/shared/spec.ts",
-        "schema/design-spec-1.0.schema.json"
+        "schema/design-spec-1.0.schema.json",
+        "src/shared/prompts.ts",
+        "src/shared/spec.test.ts"
       ],
       "dependencies": [],
       "status": "IMPLEMENTED",
@@ -33,17 +35,18 @@
       "knownIssues": [],
       "priority": "P1",
       "releaseTarget": "0.1.x",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Extend schema and regression cases for additional Figma node features."
+      "lastModified": "2026-11-09",
+      "lastVerified": "2026-11-09",
+      "nextAction": "Add schema-backed raster image nodes, migration policy and full-fidelity selected-tree export tests."
     },
     {
       "id": "FIGMA-001",
       "name": "Native Figma rendering and asset insertion",
-      "description": "Create editable basic design nodes; import sanitized SVG as vector geometry and validated PNG/JPEG/GIF bytes as native image fills.",
+      "description": "Create editable native basic and advanced design nodes, including components/instances, constrained SVG path vectors, gradients and shadows; import sanitized SVG and validated raster fills.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
+        "src/shared/spec.ts",
         "src/shared/assets.ts"
       ],
       "dependencies": [
@@ -52,16 +55,18 @@
       "status": "PARTIAL",
       "testStatus": "NOT TESTED",
       "tests": [
-        "src/shared/assets.test.ts"
+        "src/shared/assets.test.ts",
+        "src/plugin/host-runtime.test.ts",
+        "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "Asset operations are not live-verified; images and SVGs are not part of design-spec schema generation, replacement/crop operations are not implemented."
+        "Advanced native rendering and asset operations have automated coverage but are NOT TESTED in live Figma; raster/image nodes are not supported by the design-spec tree and export is not full fidelity."
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Run a live Figma import for sanitized SVG and PNG/JPEG/GIF; verify node dimensions and image fill."
+      "lastModified": "2026-11-09",
+      "lastVerified": "2026-11-09",
+      "nextAction": "Run a live import of components, instances, vector paths, gradient fills and drop shadows; verify node editability and record results."
     },
     {
       "id": "FIGMA-002",
@@ -108,13 +113,13 @@
       "testStatus": "NOT TESTED",
       "tests": [],
       "knownIssues": [
-        "Only one selection; unsupported nodes/paints fail explicitly; no round-trip test."
+        "Only one selection; advanced node/paint types do not yet round-trip and live export/import has not been tested."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
-      "lastModified": "2026-11-08",
+      "lastModified": "2026-11-09",
       "lastVerified": "2026-11-08",
-      "nextAction": "Verify selected export/import round-trip and add adapter tests."
+      "nextAction": "Extend export to round-trip component references, vectors, gradients and effects; add adapter tests and verify in Figma."
     },
     {
       "id": "AI-001",
@@ -123,6 +128,7 @@
       "module": "plugin-ui",
       "sourceFiles": [
         "src/shared/prompts.ts",
+        "src/shared/spec.ts",
         "src/shared/edit-patch.ts",
         "src/ui/main.tsx"
       ],
@@ -133,14 +139,15 @@
       "testStatus": "VERIFIED",
       "tests": [
         "src/shared/prompts.test.ts",
+        "src/shared/spec.test.ts",
         "src/shared/edit-patch.test.ts"
       ],
       "knownIssues": [],
       "priority": "P1",
       "releaseTarget": "0.1.x",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Retain manual import fallback as other integrations are added."
+      "lastModified": "2026-11-09",
+      "lastVerified": "2026-11-09",
+      "nextAction": "Keep generation prompt capability guidance aligned with the versioned schema and renderer."
     },
     {
       "id": "OLLAMA-001",
@@ -348,4 +355,125 @@
       "id": "CORE-002",
       "name": "UTF-8 bounded size accounting",
       "description": "Measure JSON text by UTF-8 bytes so non-ASCII input cannot bypass size limits.",
-      "modu
+      "module": "shared-schema",
+      "sourceFiles": [
+        "src/shared/utf8.ts"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/spec.test.ts"
+      ],
+      "knownIssues": [],
+      "priority": "P2",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Keep byte-limit edge cases in schema regression tests."
+    },
+    {
+      "id": "ASSET-001",
+      "name": "Validated local raster and SVG import and reuse",
+      "description": "Validate bounded SVG and PNG/JPEG/GIF payloads; support 5 MiB raster import through atomic, SHA-256 verified 64 KiB MCP chunks; insert natively, verify node readback, and persist originals in the paired local bridge library.",
+      "module": "asset-pipeline",
+      "sourceFiles": [
+        "src/shared/assets.ts",
+        "src/plugin/code.ts",
+        "src/ui/main.tsx",
+        "src/ui/asset-library.ts",
+        "src/shared/protocol.ts",
+        "src/shared/bridge-contract.ts",
+        "src/mcp/server.ts",
+        "src/shared/utf8.ts",
+        "src/shared/sha256.ts",
+        "src/shared/asset-library.ts",
+        "src/shared/asset-library.test.ts",
+        "src/shared/asset-readback.ts",
+        "src/shared/asset-readback.test.ts"
+      ],
+      "dependencies": [
+        "BRIDGE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/assets.test.ts",
+        "src/shared/asset-library.test.ts",
+        "src/shared/asset-readback.test.ts",
+        "src/mcp/server.integration.test.ts"
+      ],
+      "knownIssues": [
+        "Live Figma insertion, paired bridge persistence and large MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred; replacement/crop operations are not implemented."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Re-import the current build, pair Claude from plugin Settings, and verify SVG/raster save, preview/reuse, reload persistence, and a raster larger than 192 KiB through the paired MCP bridge."
+    },
+    {
+      "id": "QUALITY-001",
+      "name": "Advisory design specification quality audit",
+      "description": "Give non-blocking, path-specific findings for low text contrast against known solid fills, generic layer names, unspecified font sizes, and repeated containers that omit Auto Layout; improve the provider-neutral prompt with concrete design-quality instructions.",
+      "module": "design-quality-audit",
+      "sourceFiles": [
+        "src/shared/spec.ts",
+        "src/shared/spec.test.ts",
+        "src/shared/prompts.ts",
+        "src/ui/main.tsx"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/spec.test.ts",
+        "src/shared/prompts.test.ts"
+      ],
+      "knownIssues": [
+        "Does not inspect rendered pixels, detect all overlap/responsive issues, or establish subjective design quality; Figma Agent comparison requires a controlled live evaluation."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Add live screenshot-based review and repeatable same-brief comparison when Figma and candidate model environments are available."
+    },
+    {
+      "id": "VISUAL-001",
+      "name": "AI-orchestrated Figma visual feedback loop",
+      "description": "Select the first generated root frame, export one selected frame as a size-bounded JPEG from the Figma host, return it as an MCP image block on job retrieval, and allow an AI client to inspect, patch and capture again.",
+      "module": "visual-feedback-loop",
+      "sourceFiles": [
+        "src/plugin/code.ts",
+        "src/shared/base64.ts",
+        "src/shared/base64.test.ts",
+        "src/shared/bridge-contract.ts",
+        "src/mcp/server.ts",
+        "src/mcp/visual-preview.ts",
+        "src/mcp/visual-preview.test.ts",
+        "src/mcp/server.integration.test.ts",
+        "src/plugin/host-runtime.test.ts"
+      ],
+      "dependencies": [
+        "BRIDGE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/base64.test.ts",
+        "src/mcp/visual-preview.test.ts",
+        "src/mcp/server.integration.test.ts",
+        "src/plugin/host-runtime.test.ts"
+      ],
+      "knownIssues": [
+        "Live Figma export, preview image delivery to a real Claude Desktop session, and multi-round visual repair are not tested. Plugin does not autonomously call the AI client."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-09",
+      "lastVerified": "2026-11-09",
+      "nextAction": "Reimport the build, render a design, request a preview through Claude MCP, confirm Claude receives the actual image, apply one safe patch, and capture again."
+    }
+  ]
+}
