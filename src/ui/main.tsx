@@ -6,6 +6,8 @@ import { parseEditPatch } from '../shared/edit-patch';
 import { buildDesignPrompt, buildPatchPrompt } from '../shared/prompts';
 import './styles.css';
 
+const vsnLogo = document.querySelector<HTMLImageElement>('.boot-logo')?.src ?? '';
+
 type Tab = 'Generate' | 'Edit' | 'Design System' | 'Import' | 'History' | 'Settings';
 type Model = { name: string; details?: { parameter_size?: string } };
 type HistoryItem = { id: string; prompt: string; model: string; createdAt: string; spec: DesignSpec };
@@ -41,6 +43,7 @@ function load<T>(key: string, fallback: T): T { try { const value = localStorage
 function save(key: string, value: unknown): void { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage; keep the current session usable. */ } }
 function App() {
   const [tab, setTab] = useState<Tab>('Generate');
+  const [loaderPhase, setLoaderPhase] = useState<'visible'|'leaving'|'hidden'>('visible');
   const [theme, setTheme] = useState<'dark'|'light'>(() => load('adnf-theme','dark'));
   const [baseUrl, setBaseUrl] = useState(() => safeEndpoint(load<string>('adnf-endpoint',defaultUrl)));
   const [generationMode, setGenerationMode] = useState<GenerationMode>(() => load<GenerationMode>('adnf-generation-mode','handoff')==='ollama'?'ollama':'handoff');
@@ -83,6 +86,11 @@ function App() {
   const historySource = useRef<{prompt:string;model:string}|null>(null);
   const pendingRenderHistory = useRef<HistoryItem|null>(null);
 
+  useEffect(() => {
+    const leave=setTimeout(()=>setLoaderPhase('leaving'),850);
+    const remove=setTimeout(()=>setLoaderPhase('hidden'),1180);
+    return()=>{clearTimeout(leave);clearTimeout(remove);};
+  },[]);
   useEffect(() => { document.documentElement.dataset.theme=theme; save('adnf-theme',theme); },[theme]);
   useEffect(() => {
     const width=Math.max(360,Math.min(760,load<number>('adnf-panel-width',440)));
@@ -195,7 +203,8 @@ function App() {
   }
   const modelSize=useMemo(()=>models.find(m=>m.name===model)?.details?.parameter_size??'', [models,model]);
 
-  return <main className="app-shell">
+  return <main className={`app-shell ${loaderPhase!=='visible'?'ready':''}`}>
+    {loaderPhase!=='hidden'&&<div className={`startup-overlay ${loaderPhase==='leaving'?'leaving':''}`} role="status" aria-live="polite"><div className="startup-brand"><img src={vsnLogo} alt="Vertex Systems Network"/><div><strong>AI Designer</strong><span>Vertex Systems Network</span></div></div><div className="startup-loader"><span className="loader-spinner" aria-hidden="true"/><div><strong>Preparing your design workspace</strong><small>Loading tools and local settings</small></div></div><div className="loader-track" aria-hidden="true"><span/></div></div>}
     <header className="topbar"><div className="brand"><div className="brand-mark">AD</div><div><strong>AI Designer</strong><small>Figma design studio</small></div></div><div className="top-actions"><span className={`status status-${generationMode==='handoff'?'connected':runtime}`}><i/>{generationMode==='handoff'?'AI handoff ready':runtime==='connected'?(models.length?'Ollama ready':'Runtime connected'):runtime==='checking'?'Checking':'Local model offline'}</span><button className="icon-button header-icon-button" aria-label={`Switch to ${theme==='dark'?'light':'dark'} theme`} title={`Switch to ${theme==='dark'?'light':'dark'} theme`} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><HeaderIcon kind={theme==='dark'?'sun':'moon'}/></button><button className="icon-button header-icon-button" aria-label="Settings" title="Settings" onClick={()=>setTab('Settings')}><HeaderIcon kind="settings"/></button></div></header>
     <nav className="nav-tabs" aria-label="Main navigation">{navTabs.map(item=><button key={item} className={tab===item?'nav-tab active':'nav-tab'} onClick={()=>{setTab(item);setError('');}}>{item}</button>)}</nav>
     <section className="workspace" key={tab}>

@@ -6,10 +6,14 @@ import { dirname, resolve } from 'node:path';
 await viteBuild();
 const indexPath = resolve('dist/src/ui/index.html');
 let html = await readFile(indexPath, 'utf8');
+const logoBase64 = await readFile('src/ui/assets/vsn-logo.png', 'base64');
+html = html.replaceAll('__VSN_LOGO_DATA_URI__', `data:image/png;base64,${logoBase64}`);
 for (const match of [...html.matchAll(/<script[^>]+src="([^"]+)"[^>]*><\/script>/g)]) {
   const jsPath = resolve(dirname(indexPath), match[1]);
   const js = await readFile(jsPath, 'utf8');
-  const inlineScript = `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`;
+  // Vite places this entry in <head>. Keep module semantics so execution is
+  // deferred until the document, including #root, has been parsed.
+  const inlineScript = `<script type="module">${js.replace(/<\/script/gi, '<\\/script')}</script>`;
   // Use a callback: replacement strings interpret $&, $`, and $'. Bundled JS
   // can contain $' and would otherwise inject the rest of the HTML into the script.
   html = html.replace(match[0], () => inlineScript);
@@ -23,8 +27,11 @@ for (const match of [...html.matchAll(/<link[^>]+href="([^"]+\.css)"[^>]*>/g)]) 
 if (/<script\b[^>]*\bsrc=/i.test(html) || /<link\b[^>]*\bhref="[^"]+\.css"/i.test(html)) {
   throw new Error('Plugin UI build left an external JavaScript or CSS asset reference.');
 }
-if (!html.includes('<div id="root"></div>') || !html.includes('createRoot')) {
-  throw new Error('Plugin UI build is missing its React root or bundled application entry point.');
+if (!/<script\s+type="module">/.test(html)) {
+  throw new Error('Plugin UI entry must remain a module script so it runs after the root element is parsed.');
+}
+if (!/<div id="root">/.test(html) || !html.includes('Preparing your design workspace') || !html.includes('data:image/png;base64,') || html.includes('__VSN_LOGO_DATA_URI__') || !html.includes('createRoot')) {
+  throw new Error('Plugin UI build is missing its visible boot fallback, React root, or bundled application entry point.');
 }
 await writeFile(resolve('dist/ui.html'), html);
 await mkdir(resolve('dist/schema'), { recursive: true });
