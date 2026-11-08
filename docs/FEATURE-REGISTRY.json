@@ -1,6 +1,6 @@
 {
   "registryVersion": "1.0",
-  "lastReviewed": "2026-11-08",
+  "lastReviewed": "2026-11-09",
   "statusValues": [
     "IMPLEMENTED",
     "PARTIAL",
@@ -348,84 +348,4 @@
       "id": "CORE-002",
       "name": "UTF-8 bounded size accounting",
       "description": "Measure JSON text by UTF-8 bytes so non-ASCII input cannot bypass size limits.",
-      "module": "shared-schema",
-      "sourceFiles": [
-        "src/shared/utf8.ts"
-      ],
-      "dependencies": [],
-      "status": "IMPLEMENTED",
-      "testStatus": "VERIFIED",
-      "tests": [
-        "src/shared/spec.test.ts"
-      ],
-      "knownIssues": [],
-      "priority": "P2",
-      "releaseTarget": "0.1.x",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Keep byte-limit edge cases in schema regression tests."
-    },
-    {
-      "id": "ASSET-001",
-      "name": "Validated local raster and SVG import and reuse",
-      "description": "Validate bounded SVG and PNG/JPEG/GIF payloads; support 5 MiB raster import through atomic, SHA-256 verified 64 KiB MCP chunks; insert natively, verify node readback, and persist originals in the paired local bridge library.",
-      "module": "asset-pipeline",
-      "sourceFiles": [
-        "src/shared/assets.ts",
-        "src/plugin/code.ts",
-        "src/ui/main.tsx",
-        "src/ui/asset-library.ts",
-        "src/shared/protocol.ts",
-        "src/shared/bridge-contract.ts",
-        "src/mcp/server.ts",
-        "src/shared/utf8.ts",
-        "src/shared/sha256.ts",
-        "src/shared/asset-library.ts",
-        "src/shared/asset-library.test.ts",
-        "src/shared/asset-readback.ts",
-        "src/shared/asset-readback.test.ts"
-      ],
-      "dependencies": [
-        "BRIDGE-001"
-      ],
-      "status": "PARTIAL",
-      "testStatus": "VERIFIED",
-      "tests": [
-        "src/shared/assets.test.ts",
-        "src/shared/asset-library.test.ts",
-        "src/shared/asset-readback.test.ts",
-        "src/mcp/server.integration.test.ts"
-      ],
-      "knownIssues": [
-        "Live Figma insertion, paired bridge persistence and large MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred; replacement/crop operations are not implemented."
-      ],
-      "priority": "P1",
-      "releaseTarget": "0.3.0",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Re-import the current build, pair Claude from plugin Settings, and verify SVG/raster save, preview/reuse, reload persistence, and a raster larger than 192 KiB through the paired MCP bridge."
-    },
-    {
-      "id": "QUALITY-001",
-      "name": "Advisory design specification quality audit",
-      "description": "Give non-blocking, path-specific findings for low text contrast against known solid fills, generic layer names, unspecified font sizes, and repeated containers that omit Auto Layout; improve the provider-neutral prompt with concrete design-quality instructions.",
-      "module": "design-quality-audit",
-      "sourceFiles": [
-        "src/shared/spec.ts",
-        "src/shared/spec.test.ts",
-        "src/shared/prompts.ts",
-        "src/ui/main.tsx"
-      ],
-      "dependencies": [],
-      "status": "IMPLEMENTED",
-      "testStatus": "VERIFIED",
-      "tests": ["src/shared/spec.test.ts", "src/shared/prompts.test.ts"],
-      "knownIssues": ["Does not inspect rendered pixels, detect all overlap/responsive issues, or establish subjective design quality; Figma Agent comparison requires a controlled live evaluation."],
-      "priority": "P1",
-      "releaseTarget": "0.2.0",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Add live screenshot-based review and repeatable same-brief comparison when Figma and candidate model environments are available."
-    }
-  ]
-}
+      "modu
