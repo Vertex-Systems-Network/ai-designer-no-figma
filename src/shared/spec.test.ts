@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDesignSpec, validateDesignSpec, type DesignSpec } from './spec';
+import { auditDesignQuality, parseDesignSpec, validateDesignSpec, type DesignSpec } from './spec';
 import { utf8ByteLength } from './utf8';
 
 const valid: DesignSpec = {
@@ -11,6 +11,22 @@ const valid: DesignSpec = {
 };
 
 describe('design specification validation', () => {
+  it('audits readable contrast, semantic names, typography and repeated layout without blocking import', () => {
+    const audited = structuredClone(valid);
+    const frame = audited.pages[0]!.children[0]!;
+    if (frame.type !== 'frame') throw new Error('fixture frame expected');
+    frame.fill = '#FFFFFF';
+    frame.children = [
+      { type: 'text', id: 't1', name: 'Text 1', width: 200, height: 24, text: 'Low contrast', color: '#AAAAAA', fontSize: 14 },
+      { type: 'rectangle', id: 'r1', name: 'Rectangle 1', width: 40, height: 20 },
+      { type: 'rectangle', id: 'r2', name: 'Rectangle 2', width: 40, height: 20 },
+    ];
+    const findings = auditDesignQuality(audited);
+    expect(findings.some((finding) => finding.message.includes('contrast'))).toBe(true);
+    expect(findings.some((finding) => finding.message.includes('Auto Layout'))).toBe(true);
+    expect(findings.some((finding) => finding.message.includes('semantic layer name'))).toBe(true);
+    expect(validateDesignSpec(audited).valid).toBe(true);
+  });
   it('counts UTF-8 bytes without TextEncoder, including multibyte and surrogate-pair characters', () => {
     expect(utf8ByteLength('ASCII')).toBe(5);
     expect(utf8ByteLength('é漢😀')).toBe(9);
