@@ -4,6 +4,7 @@ import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
 import { verifyAssetReadback } from '../shared/asset-readback';
 import { sha256 } from '../shared/sha256';
+import { encodeBase64 } from '../shared/base64';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -151,7 +152,28 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
     cancelActiveRender = undefined;
   }
   await figma.setCurrentPageAsync(createdPages[0]!);
+  const firstFrame = createdPages[0]!.children.find((node) => node.type === 'FRAME');
+  if (firstFrame) {
+    figma.currentPage.selection = [firstFrame];
+    figma.viewport.scrollAndZoomIntoView([firstFrame]);
+  }
   return createdPages.reduce((sum, page) => sum + page.children.length, 0);
+}
+
+async function captureSelectionPreview(): Promise<{kind:'visual-preview';mimeType:'image/jpeg';base64:string;width:number;height:number;nodeName:string}> {
+  const selected = figma.currentPage.selection;
+  if (selected.length !== 1) throw new Error('VISUAL_SELECTION_REQUIRED: Select exactly one Figma frame to capture a visual review preview.');
+  const node = selected[0]!;
+  if (!['FRAME','COMPONENT','INSTANCE'].includes(node.type) || !('exportAsync' in node)) throw new Error('VISUAL_FRAME_REQUIRED: Select a frame, component, or instance for visual review.');
+  if (!(node.width > 0 && node.height > 0) || node.height / node.width > 8 || node.width / node.height > 8) throw new Error('VISUAL_BOUNDS_UNSUPPORTED: Selected frame aspect ratio is too extreme to capture safely.');
+  const maxBytes = 700 * 1024;
+  for (const width of [1024, 768, 512]) {
+    const height = Math.max(1, Math.round(width * node.height / node.width));
+    if (height > 8192) throw new Error('VISUAL_BOUNDS_UNSUPPORTED: Preview height would exceed 8192 pixels.');
+    const bytes = await node.exportAsync({format:'JPG',constraint:{type:'WIDTH',value:width},contentsOnly:true,colorProfile:'SRGB'});
+    if (bytes.length <= maxBytes) return {kind:'visual-preview',mimeType:'image/jpeg',base64:encodeBase64(bytes),width,height,nodeName:node.name};
+  }
+  throw new Error('VISUAL_PREVIEW_TOO_LARGE: Preview is still over 700 KB at 512 pixels wide. Simplify or reduce the selected frame before visual review.');
 }
 
 function countLayers(node: BaseNode & ChildrenMixin): number {
@@ -343,6 +365,7 @@ function bridgeOperationLabel(operation:BridgeOperation):string{
   if(operation.type==='begin-image-transfer')return `Starting image transfer ${operation.name}`;
   if(operation.type==='image-transfer-chunk')return `Receiving image chunk ${operation.index+1}`;
   if(operation.type==='finish-image-transfer')return 'Verifying and inserting transferred image';
+  if(operation.type==='capture-selection')return 'Capturing selected frame for visual review';
   return 'Exporting selected design';
 }
 function cleanupImageTransfers():void{const now=Date.now();for(const[id,transfer]of pendingImageTransfers)if(now-transfer.updatedAt>120_000)pendingImageTransfers.delete(id);}
@@ -377,6 +400,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     let result:unknown;
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
     else if(operation.type==='render-spec')result={created:await renderSpec(operation.spec,'Inter'),message:'Editable Figma layers were inserted.'};
+    else if(operation.type==='capture-selection')result=await captureSelectionPreview();
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
     else if(operation.type==='insert-svg'){const asset=await insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported and read back as editable vector geometry.',...asset});}
     else if(operation.type==='insert-image'){const asset=await insertRaster(operation.name,operation.mimeType,operation.bytes);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied image imported and read back as a native image fill.',...asset});}
@@ -461,13 +485,4 @@ figma.ui.onmessage = async (message: UiToHost) => {
     if(message.type==='select-node'){
       const node=await figma.getNodeByIdAsync(message.nodeId);
       if(!node||node.type==='DOCUMENT'||node.type==='PAGE')throw new Error('This asset node is no longer available in the open document.');
-      if(node.parent?.type==='PAGE'&&node.parent!==figma.currentPage)await figma.setCurrentPageAsync(node.parent);
-      figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
-    }
-  } catch (error) {
-    figma.ui.postMessage({ type: 'error', code: 'PLUGIN_OPERATION_FAILED', message: error instanceof Error ? error.message : 'Plugin operation failed.' });
-  }
-};
-
-figma.on('run',()=>{figma.ui.show();sendCurrentUser();inspectSelection();});
-sendCurrentUser();
+      if(node.parent?.type==='PAGE'&&node.parent!==figma.currentPa
