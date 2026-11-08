@@ -11,7 +11,7 @@
 | KI-007 | OPEN | Design system engine is color-token focused; no native Variable collection or typography/spacing library. | Add semantic tokens and Figma-native capability checks. |
 | KI-008 | OPEN | No actual visual diff/overflow screenshot analysis or full keyboard/contrast review. | Add deterministic layout checks and optional real vision path. |
 | KI-009 | NOT TESTED LIVE | New SVG and PNG/JPEG/GIF import handlers have automated validation coverage but have not been exercised in Figma. | Reimport latest package; insert a vector and small image, inspect editable layers, dimensions and image fills. |
-| KI-010 | PARTIAL | MCP image/vector transfer is unchunked and capped at 192 KiB; UI local-file import allows 5 MiB. Recent-assets view stores metadata only. | Add chunked authenticated transfer and a checksummed local asset reuse registry. |
+| KI-010 | PARTIAL | MCP image/vector transfer is unchunked and capped at 192 KiB; UI local-file import allows 5 MiB. Local UI asset library now persists bounded original bytes in IndexedDB with SHA-256 deduplication, preview, reuse and deletion. | Add chunked authenticated MCP transfer; live-test insertion and local reuse in Figma. |
 | KI-011 | NOT VERIFIED | AI client native image-generation and generated-file access vary by app and are not detected by this plugin. | Keep the capability matrix explicit; manually save/paste client output until a client adapter is exercised. |
 
 The previous blank panel was fixed by deferring the inline module until `#root` exists; the user confirmed the VSN loader and main panel work. This historical issue is closed; new export/undo workflows remain unverified live.
