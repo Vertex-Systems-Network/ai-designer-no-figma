@@ -8,6 +8,7 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 - User confirmed the VSN startup loader and plugin panel work in Figma.
 - Selected export and patch geometry/undo were implemented and passed typecheck/lint/unit/integration/build/audit/package before this handoff update; live Figma verification of these latest controls is still needed.
 - Custom MCP stdio server, authenticated loopback bridge, job broker, pairing settings, and Agent Activity timeline are implemented. Protocol, security, session isolation, and job-result behavior pass automated tests. Live Figma pairing and client-specific setup are still NOT TESTED.
+- Manual SVG and PNG/JPEG/GIF imports are implemented with shared input bounds, a 192 KiB MCP decoded-byte limit, a 5 MiB local-file limit, and metadata-only recent history. Focused asset tests pass. AI-client native file generation/access/automatic transfer and live native Figma asset rendering remain NOT VERIFIED.
 
 ## Exact next tasks
 
@@ -16,11 +17,11 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 3. Confirm that Agent Activity shows actual status and result events, and that an invalid token stays disconnected.
 4. Verify selected export/import round-trip, bounds edits, undo and unaffected siblings in Figma.
 5. Test Ollama only if a local runtime/model is actually available; otherwise record NOT TESTED.
-6. Continue feature scope for images/SVG/gradients/components/variables, native design tokens and accessibility/screenshot QA.
+6. Verify new SVG and raster insertion in Figma; then add chunked transfer, content-addressed local reuse, schema-backed asset support, gradients/components/variables and accessibility/screenshot QA.
 
 ## Constraints
 
-No Git CLI/GitHub CLI, official Figma MCP, paid model API, public bind, hidden telemetry, arbitrary model execution, or fabricated integration status. Use direct source/document changes and update README progress, registry, status, known issues, changelog and this handoff as work lands.
+No Git CLI/GitHub CLI, official Figma MCP, paid model API, public bind, hidden telemetry, arbitrary model execution, or fabricated integration status. Use direct source/document changes and update README/backlog/roadmap progress bars, registry, status, known issues, changelog and this handoff as work lands.
 
 ## Commands
 
