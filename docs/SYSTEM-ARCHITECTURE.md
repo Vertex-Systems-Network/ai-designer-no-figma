@@ -1,6 +1,6 @@
 # System architecture
 
-## Current implemented flow
+## Current implemented flows
 
 1. User describes a design in the plugin or imports JSON.
 2. The UI can prepare a provider-neutral prompt; the user chooses whether to copy it to an AI application.
@@ -8,6 +8,8 @@
 4. Typed messages cross the UI/host boundary through `src/shared/protocol.ts`.
 5. `src/plugin/code.ts` creates or edits native Figma nodes through the Plugin API.
 6. Optional Ollama requests go from UI to the loopback companion service, which calls only a loopback Ollama endpoint.
+7. Manual asset import accepts pasted SVG or a local PNG/JPEG/GIF file; shared validators run before the plugin host creates an SVG node or raster image fill.
+8. Optional custom MCP asset tools validate caller-supplied vector/image data, then send bounded commands over the authenticated loopback bridge to the same plugin host adapter.
 
 ## Target extension boundaries
 
@@ -15,7 +17,7 @@
 
 The custom MCP server must not depend on undocumented Figma endpoints or the official Figma MCP. The bridge transports commands/results only; the plugin remains the sole document mutation authority. The universal design schema, MCP tool contracts, and Figma adapter each receive separate versions.
 
-The target path is not yet implemented end-to-end. Current status is tracked under MCP/bridge feature IDs in the registry. Do not expose nonfunctional Figma mutation tools.
+The custom MCP and bridge path is implemented and automated-tested, but live Figma pairing remains unverified. Client generation/file access is not inferred. The standalone asset path is separate from the JSON design schema and currently has no chunked transfer, content-addressed library, replacement/crop operation, or post-insert readback.
 
 ## Safety boundaries
 
