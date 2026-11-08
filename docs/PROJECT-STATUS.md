@@ -9,11 +9,11 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 - VSN startup loader and plugin UI were confirmed working by the user in Figma.
 - Custom stdio MCP server and authenticated loopback bridge: protocol initialization, tested tool discovery, schema rejection, job correlation, session isolation and result return are covered by automated integration tests.
 - Settings now accepts the loopback pairing endpoint/token, and Agent Activity receives real bridge status and operation events. This is build-verified; live pairing is not yet tested.
-- Final verification passed: typecheck, lint, 21 unit tests, 14 integration tests, docs audit (0 findings), compatibility metadata check, local security audit, build, deterministic package and ZIP/SHA validation.
+- Current verification passed: typecheck, lint, 26 unit tests, 15 integration tests, local security checks, production build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
 
 ## Partial
 
-- Figma renderer and design schema support only documented basic nodes; images, SVG/vector, gradients, effects, components, variables and full-document export remain.
+- Design-spec schema still omits image/vector assets, gradients, effects, components and variables. A separate bounded import path now creates sanitized SVG vector nodes and validated PNG/JPEG/GIF image fills; those new imports are automated-tested but NOT TESTED in live Figma.
 - Selection edits support text/fill/name/bounds plus session undo; geometry/undo live preservation is NOT TESTED.
 - Export serializes one supported selected layer tree; unsupported node/paint types fail explicitly. Export/import round-trip is NOT TESTED.
 - Optional Ollama integration has a fake-server integration suite; installed runtime/model behavior is NOT TESTED.
