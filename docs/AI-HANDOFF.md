@@ -12,8 +12,9 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 - Manual SVG and PNG/JPEG/GIF imports are implemented with shared input bounds, a 5 MiB MCP/local-file raster limit with 64 KiB SHA-256 checked chunks above the 192 KiB direct-transfer threshold, and a bounded authenticated loopback asset library with private file persistence. This avoids Figma `clientStorage`, browser `localStorage`, IndexedDB, and plugin-ID requirements. Save/reload/reuse and live paired MCP transfer still need confirmation; import remains usable when the local service is disconnected.
 - Selection patches now include reviewed frame-only Auto Layout mode/gap/padding/alignment changes and include layout state in rollback snapshots; live Figma preservation remains NOT TESTED.
 - Design-system color, typography and spacing tokens are locally persisted and included in both manual AI handoff and optional Ollama generation. Up to 20 named local presets can be saved, loaded, duplicated and deleted. Native Figma text styles/Variables are still not created.
-- Latest `npm run release:verify`: 40 unit tests and 15 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 all passed. `npm run compatibility:check` reports metadata/typing only; it does not certify a live Figma session.
+- Latest `npm run release:verify`: 45 unit tests and 15 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 all passed. `npm run compatibility:check` reports metadata/typing only; it does not certify a live Figma session.
 - Added a non-blocking `auditDesignQuality()` pass after successful JSON validation. It flags measurable contrast issues (when solid fills are known), generic names, missing explicit font sizes and repeated containers without Auto Layout. The prompt now directs the connected AI app to produce coherent, semantically named and readable design systems. Unit tests cover the audit; it cannot prove rendered visual quality or superiority to Figma Agent.
+- Implemented `figma_capture_selection`: the plugin host exports one selected frame as a JPEG using progressive 1024/768/512 px widths, a 700 KiB byte cap, and strict selection/aspect/height bounds. Generated pages select their first root frame. The local MCP server returns a completed preview job as an image content block so an AI client can visually inspect it and then call targeted patch tools. The plugin does not autonomously invoke the AI or choose repeated repairs; live Figma + Claude test remains open.
 
 ## Exact next tasks
 
@@ -24,6 +25,7 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 5. Verify new SVG/raster insertion and Auto Layout patch/undo in Figma. Remaining engineering items are live paired large-file transfer verification, schema-backed assets, gradients/components/variables, and accessibility/screenshot QA.
 6. Closed-file operation is still a separate product requirement: Figma plugin sessions stop with the host document. A local desktop runner must be designed to launch/select a Draft file and run the plugin before claiming that Claude can work with Figma fully closed.
 7. Compare generated output against Figma Agent only in a controlled live evaluation with the same briefs and visual review; no superiority claim is supported yet.
+8. In Figma, run Claude Desktop MCP: render a design, call `figma_capture_selection`, inspect the image in `figma_get_job_result`, apply a bounded patch, and capture again. Confirm image content reaches Claude, rendered text remains legible, and result-size limits behave as intended.
 
 ## Constraints
 
