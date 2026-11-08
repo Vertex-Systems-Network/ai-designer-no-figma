@@ -1,10 +1,10 @@
-import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec, type GradientSpec, type LayoutSpec, type ShadowSpec } from '../shared/spec';
+import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type GradientSpec, type GridSpec, type LayoutSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
 import { verifyAssetReadback } from '../shared/asset-readback';
 import { sha256 } from '../shared/sha256';
-import { encodeBase64 } from '../shared/base64';
+import { decodeBase64, encodeBase64 } from '../shared/base64';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -23,7 +23,7 @@ function rgb(hex: string): RGB {
 }
 function paint(hex: string): SolidPaint { return { type: 'SOLID', color: rgb(hex) }; }
 
-type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode> };
+type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode>; colors: Map<string,{variable:Variable;color:string}>; textStyles: Map<string,TextStyle> };
 function gradientPaint(spec:GradientSpec):GradientPaint {
   const transform:Transform = spec.direction==='horizontal' ? [[1,0,0],[0,1,0]] : [[0,-1,1],[1,0,0]];
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity:1,blendMode:'NORMAL'};
@@ -40,6 +40,40 @@ function applyLayout(frame:FrameNode,layout:LayoutSpec|undefined):void {
   frame.primaryAxisAlignItems=layout.alignment==='SPACE_BETWEEN'?'SPACE_BETWEEN':layout.alignment??'MIN';
   frame.primaryAxisSizingMode=layout.primaryAxisSizing??'FIXED';
   frame.counterAxisSizingMode=layout.counterAxisSizing??'FIXED';
+}
+function applyConstraints(node:SceneNode,constraints:ConstraintsSpec|undefined):void {
+  if(constraints&&'constraints' in node)node.constraints=constraints;
+}
+function makeLayoutGrids(specs:GridSpec[]|undefined):LayoutGrid[]{
+  return (specs??[]).map((grid)=>grid.pattern==='GRID'?{pattern:'GRID',sectionSize:grid.sectionSize,visible:grid.visible??true}:{pattern:grid.pattern,...(grid.sectionSize!==undefined?{sectionSize:grid.sectionSize}:{}),gutterSize:grid.gutterSize,count:grid.count,offset:grid.offset??0,alignment:grid.alignment??'STRETCH',visible:grid.visible??true});
+}
+async function prepareDesignSystem(spec:DesignSpec,control:RenderControl,fontFallback:string):Promise<void>{
+  const system=spec.designSystem;if(!system)return;
+  const collectionName=`AI Designer · ${(system.name??spec.name).slice(0,100)}`;
+  const collections=await figma.variables.getLocalVariableCollectionsAsync();
+  const collection=collections.find(item=>item.name===collectionName)??figma.variables.createVariableCollection(collectionName);
+  const modeId=collection.defaultModeId;
+  const existingVariables=await figma.variables.getLocalVariablesAsync('COLOR');
+  for(const token of system.colors??[]){
+    let variable=existingVariables.find(item=>item.variableCollectionId===collection.id&&item.name===token.name);
+    if(!variable)variable=figma.variables.createVariable(token.name,collection,'COLOR');
+    variable.setValueForMode(modeId,{...rgb(token.color),a:1});control.colors.set(token.name,{variable,color:token.color});
+  }
+  const existingStyles=await figma.getLocalTextStylesAsync();
+  for(const token of system.typography??[]){
+    const styleName=`${collectionName} / ${token.name}`;
+    const style=existingStyles.find(item=>item.name===styleName)??figma.createTextStyle();
+    const font={family:token.fontFamily||fontFallback,style:fontStyle(token.fontWeight)};
+    try{await figma.loadFontAsync(font);style.fontName=font;}catch{await figma.loadFontAsync({family:fontFallback,style:'Regular'});style.fontName={family:fontFallback,style:'Regular'};}
+    style.name=styleName;style.fontSize=token.fontSize;style.lineHeight=token.lineHeight?{value:token.lineHeight,unit:'PIXELS'}:{unit:'AUTO'};control.textStyles.set(token.name,style);
+  }
+}
+function bindToken(node:SceneNode,tokenName:string|undefined,control:RenderControl):void{
+  if(!tokenName)return;const token=control.colors.get(tokenName);if(!token)throw new Error(`COLOR_TOKEN_NOT_FOUND: Unknown design-system color token "${tokenName}".`);
+  const boundPaint=figma.variables.setBoundVariableForPaint(paint(token.color),'color',token.variable);
+  if(node.type==='TEXT')node.setRangeFills(0,node.characters.length,[boundPaint]);
+  else if('fills' in node)node.fills=[boundPaint];
+  else throw new Error(`COLOR_TOKEN_UNSUPPORTED: Layer "${node.name}" cannot bind a fill variable.`);
 }
 async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin, control: RenderControl, fontFallback: string): Promise<SceneNode> {
   control.nodes += 1;
@@ -60,6 +94,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     text.characters = spec.text;
     text.fontSize = spec.fontSize ?? 16;
     text.textAlignHorizontal = spec.align ?? 'LEFT';
+    if(spec.textStyleToken){const style=control.textStyles.get(spec.textStyleToken);if(!style)throw new Error(`TEXT_STYLE_NOT_FOUND: Unknown text style token "${spec.textStyleToken}".`);await text.setTextStyleIdAsync(style.id);}
     if (spec.color || spec.fill || spec.gradient || spec.shadow) applyNodePaint(text,spec.color??spec.fill,spec.gradient,spec.shadow);
     if (spec.lineHeight) text.lineHeight = { value: spec.lineHeight, unit: 'PIXELS' };
     node = text;
@@ -80,6 +115,8 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     vector.vectorPaths=[{windingRule:'NONZERO',data:spec.path}];
     if(spec.fill||spec.gradient||spec.shadow)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow);
     node=vector;
+  } else if(spec.type==='image') {
+    const bytes=decodeBase64(spec.data,MAX_EMBEDDED_IMAGE_BYTES);const image=figma.createImage(bytes);const rectangle=figma.createRectangle();rectangle.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:spec.scaleMode??'FIT'}];node=rectangle;
   } else if(spec.type==='instance') {
     const component=control.components.get(spec.componentRef);
     if(!component||component.removed)throw new Error(`COMPONENT_NOT_FOUND: Component "${spec.componentRef}" must be created before its instance.`);
@@ -99,6 +136,8 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   node.x = spec.x ?? 0;
   node.y = spec.y ?? 0;
   node.opacity = spec.opacity ?? 1;
+  applyConstraints(node,spec.constraints);
+  if(spec.fillToken)bindToken(node,spec.fillToken,control);
   if (spec.type==='frame'||spec.type==='group'||spec.type==='component') {
     applyNodePaint(node,spec.fill,spec.gradient,spec.shadow);
     if(spec.radius!==undefined)(node as FrameNode).cornerRadius=spec.radius;
@@ -108,6 +147,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   if ((spec.type === 'frame' || spec.type === 'group' || spec.type==='component') && 'children' in spec) {
     const frame = node as FrameNode;
     applyLayout(frame,spec.layout);
+    if(spec.type==='frame'||spec.type==='component')frame.layoutGrids=makeLayoutGrids(spec.layoutGrids);
     for (const child of spec.children) await renderNode(child, frame, control, fontFallback);
   }
   return node;
@@ -157,9 +197,10 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
   const checked = validateDesignSpec(spec);
   if (!checked.valid) throw new Error(`Invalid specification: ${checked.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`);
   const createdPages: PageNode[] = [];
-  const control: RenderControl = { cancelled: false, nodes: 0, components:new Map() };
+  const control: RenderControl = { cancelled: false, nodes: 0, components:new Map(), colors:new Map(), textStyles:new Map() };
   cancelActiveRender = () => { control.cancelled = true; };
   try {
+    await prepareDesignSystem(spec,control,fontFallback);
     for (const pageSpec of spec.pages) {
       if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
       const page = figma.createPage();
@@ -315,36 +356,55 @@ function applyColorToSelection(color: string): void {
   for (const node of matches) if ('fills' in node) node.fills = [paint(color)];
 }
 
-function solidFillHex(node: SceneNode): string | undefined {
-  if (!('fills' in node)) return undefined;
-  const fills = node.fills;
-  if (fills === figma.mixed) throw new Error(`Layer "${node.name}" has mixed fills that cannot be represented in schema 1.0.`);
-  const fill = fills.find((item) => item.visible !== false && (item.opacity ?? 1) > 0);
-  if (!fill) return undefined;
-  if (fill.type !== 'SOLID') throw new Error(`Layer "${node.name}" uses ${fill.type.toLowerCase()} fill, which schema 1.0 export does not support yet.`);
-  if ((fill.opacity ?? 1) !== 1) throw new Error(`Layer "${node.name}" has a translucent fill that schema 1.0 export cannot preserve yet.`);
-  const { r, g, b } = fill.color;
-  return `#${[r,g,b].map((value) => Math.round(value * 255).toString(16).padStart(2,'0')).join('')}`;
-}
-
-function exportSelectedDesign(): DesignSpec {
+function hexColor(color:RGB):string{return `#${[color.r,color.g,color.b].map((value)=>Math.round(value*255).toString(16).padStart(2,'0')).join('')}`;}
+async function exportSelectedDesign(): Promise<DesignSpec> {
   if (figma.currentPage.selection.length !== 1) throw new Error('Select exactly one Figma layer or frame to export as a design specification.');
   const selected = figma.currentPage.selection[0]!;
   if (!('width' in selected) || !('height' in selected)) throw new Error('The selected item does not have exportable design dimensions.');
   let count = 0;
-  const convert = (node: SceneNode, depth: number): DesignNodeSpec => {
+  const definedComponents=new Set<string>();
+  const internalComponents=new Set<string>();
+  const detachedComponents:DesignNodeSpec[]=[];
+  const scanComponents=(node:SceneNode):void=>{if(node.type==='COMPONENT')internalComponents.add(logicalIds.get(node.id)||`figma-${node.id}`);if('children' in node)for(const child of node.children)scanComponents(child);};
+  scanComponents(selected);
+  const exportedColors=new Map<string,{name:string;color:string}>();
+  const exportedTypography=new Map<string,{name:string;fontFamily:string;fontSize:number;fontWeight:number;lineHeight?:number}>();
+  const readColorToken=async(node:SceneNode):Promise<string|undefined>=>{
+    const bound=('boundVariables' in node?node.boundVariables:undefined) as {fills?:VariableAlias[];textRangeFills?:VariableAlias[][]}|undefined;
+    const alias=bound?.fills?.[0]??bound?.textRangeFills?.flat()[0];if(!alias)return undefined;
+    const variable=await figma.variables.getVariableByIdAsync(alias.id);if(!variable||variable.resolvedType!=='COLOR')return undefined;
+    let value:unknown;try{value=variable.resolveForConsumer(node).value;}catch{const collection=await figma.variables.getVariableCollectionByIdAsync(variable.variableCollectionId);value=collection?variable.valuesByMode[collection.defaultModeId]:undefined;}
+    if(!value||typeof value!=='object'||!('r' in value)||!('g' in value)||!('b' in value))return undefined;
+    const color=hexColor(value as RGB);exportedColors.set(variable.name,{name:variable.name,color});return variable.name;
+  };
+  const convert = async (node: SceneNode, depth: number): Promise<DesignNodeSpec> => {
     count += 1;
     if (count > MAX_NODES) throw new Error(`Selected design exceeds the ${MAX_NODES}-layer export limit.`);
     if (depth > MAX_DEPTH) throw new Error(`Selected design exceeds the ${MAX_DEPTH}-level nesting limit.`);
-    if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0. Export a frame containing only supported native layers.`);
+    if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP','COMPONENT','INSTANCE','VECTOR'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0.`);
     const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number };
-    const fill = solidFillHex(node);
-    const base = { id: logicalIds.get(node.id) || `figma-${node.id}`, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(fill?{fill}:{}) };
+    const id=logicalIds.get(node.id)||`figma-${node.id}`;
+    let fill:string|undefined;let gradient:GradientSpec|undefined;let imageData:{mimeType:'image/png'|'image/jpeg';data:string;scaleMode:'FIT'|'FILL'|'CROP'}|undefined;
+    if('fills' in node){const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);if(visible.length>1)throw new Error(`Layer "${node.name}" has multiple fills and cannot be exported losslessly.`);const paintItem=visible[0];if(paintItem?.type==='SOLID')fill=hexColor(paintItem.color);else if(paintItem?.type==='GRADIENT_LINEAR'){const transform=paintItem.gradientTransform;const vertical=Math.abs(transform[0][1])>0.5;gradient={direction:vertical?'vertical':'horizontal',stops:paintItem.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};}else if(paintItem?.type==='IMAGE'&&node.type==='RECTANGLE'){if(paintItem.scaleMode==='TILE')throw new Error(`Image "${node.name}" uses TILE scale mode, which is not supported for portable export.`);if(!paintItem.imageHash)throw new Error(`Image hash for "${node.name}" is unavailable.`);const image=figma.getImageByHash(paintItem.imageHash);if(!image)throw new Error(`Image bytes for "${node.name}" are unavailable.`);const bytes=await image.getBytesAsync();const mimeType=bytes[0]===137?'image/png':'image/jpeg';if(bytes.length>MAX_EMBEDDED_IMAGE_BYTES)throw new Error(`Image "${node.name}" exceeds the embedded export size limit.`);imageData={mimeType,data:encodeBase64(bytes),scaleMode:paintItem.scaleMode};}else if(paintItem)throw new Error(`Layer "${node.name}" uses unsupported ${paintItem.type.toLowerCase()} paint.`);}
+    let shadow:ShadowSpec|undefined;if('effects' in node){const effects=node.effects.filter(effect=>effect.visible!==false);if(effects.some(effect=>effect.type!=='DROP_SHADOW'))throw new Error(`Layer "${node.name}" has effects other than a drop shadow which cannot be exported losslessly.`);const effect=effects[0];if(effect?.type==='DROP_SHADOW')shadow={color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})};}
+    const constraints='constraints' in node?node.constraints:undefined;
+    const fillToken=await readColorToken(node);
+    const base = { id, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(fill?{fill}:{}),...(gradient?{gradient}:{}),...(shadow?{shadow}:{}),...(constraints?{constraints}:{}),...(fillToken?{fillToken}:{}) };
+    if(imageData)return {...base,type:'image',...imageData};
     if (node.type === 'TEXT') {
       const font = node.fontName === figma.mixed ? undefined : node.fontName;
       const lineHeight = typeof node.lineHeight === 'object' && node.lineHeight.unit === 'PIXELS' ? node.lineHeight.value : undefined;
-      const color = solidFillHex(node);
-      return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(color?{color}:{}), align:node.textAlignHorizontal };
+      const rawStyle=node.characters.length?node.getRangeTextStyleId(0,node.characters.length):null;let textStyleToken:string|undefined;
+      if(typeof rawStyle==='string'&&rawStyle!==''){const style=await figma.getStyleByIdAsync(rawStyle);if(style?.type==='TEXT'){textStyleToken=style.name.startsWith('AI Designer · ')?style.name.slice(style.name.lastIndexOf(' / ')+3):style.name;exportedTypography.set(textStyleToken,{name:textStyleToken,fontFamily:style.fontName.family,fontSize:style.fontSize,fontWeight:fontStyleToWeight(style.fontName.style),...(typeof style.lineHeight==='object'&&style.lineHeight.unit==='PIXELS'?{lineHeight:style.lineHeight.value}:{})});}}
+      return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family,fontWeight:fontStyleToWeight(font.style)}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(fill?{color:fill}:{}), ...(textStyleToken?{textStyleToken}:{}), align:node.textAlignHorizontal };
+    }
+    if(node.type==='VECTOR'){
+      const path=node.vectorPaths[0]?.data;if(!path)throw new Error(`Vector "${node.name}" has no editable path.`);return {...base,type:'vector',path};
+    }
+    if(node.type==='INSTANCE'){
+      const component=await node.getMainComponentAsync();if(!component)throw new Error(`Instance "${node.name}" has no accessible main component and cannot be round-tripped.`);const componentRef=logicalIds.get(component.id)||`figma-${component.id}`;
+      if(!definedComponents.has(componentRef)){if(internalComponents.has(componentRef))throw new Error(`Instance "${node.name}" appears before its component in the selected tree; reorder the component before the instance before exporting.`);detachedComponents.push(await convert(component,depth+1));}
+      return {...base,type:'instance',componentRef};
     }
     if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
       const radius = node.type === 'RECTANGLE' && typeof node.cornerRadius === 'number' ? node.cornerRadius : undefined;
@@ -353,28 +413,36 @@ function exportSelectedDesign(): DesignSpec {
     if (node.type === 'LINE') {
       const stroke = node.strokes.find((item) => item.visible !== false && (item.opacity ?? 1) > 0);
       if (stroke && stroke.type !== 'SOLID') throw new Error(`Layer "${node.name}" uses an unsupported line stroke.`);
-      const color = stroke?.type === 'SOLID' ? `#${[stroke.color.r,stroke.color.g,stroke.color.b].map((value)=>Math.round(value*255).toString(16).padStart(2,'0')).join('')}` : undefined;
+      const color = stroke?.type === 'SOLID' ? hexColor(stroke.color) : undefined;
       return { ...base, type:'line', ...(color?{stroke:color}:{}), ...(typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}) };
     }
-    if (node.type === 'FRAME' || node.type === 'GROUP') {
-      const children = node.children.map((child) => convert(child, depth + 1));
-      if (node.type === 'FRAME') {
+    if (node.type === 'FRAME' || node.type === 'GROUP' || node.type==='COMPONENT') {
+      if(node.type==='COMPONENT')definedComponents.add(id);
+      const children = await Promise.all(node.children.map((child) => convert(child, depth + 1)));
+      if (node.type === 'FRAME' || node.type==='COMPONENT') {
         const frame = node;
-        if (frame.layoutMode !== 'NONE' && [frame.paddingRight,frame.paddingBottom,frame.paddingLeft].some((value)=>value!==frame.paddingTop)) throw new Error(`Auto Layout frame "${node.name}" uses asymmetric padding that schema 1.0 cannot preserve yet.`);
+        if(node.type==='FRAME'&&frame.layoutMode !== 'NONE' && [frame.paddingRight,frame.paddingBottom,frame.paddingLeft].some((value)=>value!==frame.paddingTop)) throw new Error(`Auto Layout frame "${node.name}" uses asymmetric padding which cannot be exported losslessly.`);
         if (frame.layoutMode !== 'NONE' && !['MIN','CENTER','MAX','SPACE_BETWEEN'].includes(frame.primaryAxisAlignItems)) throw new Error(`Auto Layout frame "${node.name}" uses an alignment that schema 1.0 cannot preserve yet.`);
         const layout = frame.layoutMode === 'NONE' ? undefined : { mode:frame.layoutMode==='HORIZONTAL'?'horizontal' as const:'vertical' as const, gap:frame.itemSpacing, padding:frame.paddingTop, alignment:frame.primaryAxisAlignItems as 'MIN'|'CENTER'|'MAX'|'SPACE_BETWEEN', primaryAxisSizing:frame.primaryAxisSizingMode, counterAxisSizing:frame.counterAxisSizingMode };
         const radius = typeof frame.cornerRadius === 'number' ? frame.cornerRadius : undefined;
-        return { ...base, type:'frame', children, ...(layout?{layout}:{}), ...(radius!==undefined?{radius}:{}) };
+        const layoutGrids=node.type==='FRAME'?frame.layoutGrids.map(grid=>grid.pattern==='GRID'?{pattern:'GRID' as const,sectionSize:grid.sectionSize,...(grid.visible!==undefined?{visible:grid.visible}:{})}:{pattern:grid.pattern,...(grid.sectionSize!==undefined?{sectionSize:grid.sectionSize}:{}),gutterSize:grid.gutterSize,count:grid.count,...(grid.offset!==undefined?{offset:grid.offset}:{}),...(grid.alignment?{alignment:grid.alignment}:{}),...(grid.visible!==undefined?{visible:grid.visible}:{})}):undefined;
+        const frameBase={...base,...(layoutGrids?.length?{layoutGrids}:{}),...(radius!==undefined?{radius}:{})};
+        if(node.type==='COMPONENT')return {...frameBase,type:'component',children,...(layout?{layout}:{})};
+        return { ...frameBase, type:'frame', children, ...(layout?{layout}:{}) };
       }
       return { ...base, type:'group', children };
     }
     throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0. Export a frame containing only supported native layers.`);
   };
-  const spec: DesignSpec = { schemaVersion:'1.0', name:selected.name.slice(0,160), pages:[{ id:`export-page-${selected.id}`, name:figma.currentPage.name.slice(0,160), children:[convert(selected,1)] }] };
+  const colors=[...exportedColors.values()];const typography=[...exportedTypography.values()];
+  const root=await convert(selected,1);
+  const spec: DesignSpec = { schemaVersion:'1.0', name:selected.name.slice(0,160), ...(colors.length||typography.length?{designSystem:{name:'Exported',...(colors.length?{colors}:{}),...(typography.length?{typography}:{})}}:{}), pages:[{ id:`export-page-${selected.id}`, name:figma.currentPage.name.slice(0,160), children:[...detachedComponents,root] }] };
   const result = validateDesignSpec(spec);
   if (!result.valid) throw new Error(`Selection export failed validation: ${result.issues.map((issue)=>`${issue.path}: ${issue.message}`).join('; ')}`);
   return spec;
 }
+
+function fontStyleToWeight(style:string):number{return /bold/i.test(style)?700:/semi.?bold/i.test(style)?600:/medium/i.test(style)?500:400;}
 
 function bridgeStatus(status:Extract<HostToUi,{type:'agent-status'}>['status'],details:Partial<Extract<HostToUi,{type:'agent-status'}>>={}):void{
   figma.ui.postMessage({type:'agent-status',status,...(bridgeSessionId?{sessionId:bridgeSessionId}:{}),...details});
@@ -430,7 +498,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     else if(operation.type==='begin-image-transfer'){beginImageTransfer(operation);result={transferId:operation.transferId,started:true};}
     else if(operation.type==='image-transfer-chunk'){appendImageTransferChunk(operation);result={transferId:operation.transferId,index:operation.index,received:true};}
     else if(operation.type==='finish-image-transfer')result=await finishImageTransfer(operation);
-    else result={spec:exportSelectedDesign()};
+    else result={spec:await exportSelectedDesign()};
     figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:true,result});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-completed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'completed',timestamp:Date.now(),message:`Operation completed in ${Date.now()-startedAt} ms.`});
     figma.notify(`${operator} · Done: ${label}`);
@@ -485,7 +553,7 @@ figma.ui.onmessage = async (message: UiToHost) => {
       }
     }
     if (message.type === 'export-selection') {
-      const spec = exportSelectedDesign();
+      const spec = await exportSelectedDesign();
       figma.ui.postMessage({ type:'export-result', ok:true, message:'Selected design exported as a validated specification.', spec });
     }
     if (message.type === 'apply-patch') {
