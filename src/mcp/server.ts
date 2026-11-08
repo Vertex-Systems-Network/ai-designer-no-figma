@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { BridgeFault, JobBroker } from '../bridge/broker';
-import type { BridgeJob } from '../shared/bridge-contract';
+import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { parseEditPatch } from '../shared/edit-patch';
 import { parseDesignSpec } from '../shared/spec';
 import type { EditPatch } from '../shared/protocol';
@@ -10,8 +10,8 @@ import { startBridgeServer } from '../bridge/server';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createHash } from 'node:crypto';
-import { MAX_MCP_ASSET_BYTES, MAX_RASTER_BYTES, MAX_SVG_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
+import { createHash, randomUUID } from 'node:crypto';
+import { MAX_MCP_ASSET_BYTES, MAX_RASTER_BYTES, MAX_SVG_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
 
 function textResult(value: Record<string,unknown>, isError=false) {
   return { content:[{type:'text' as const,text:JSON.stringify(value)}], structuredContent:value, ...(isError?{isError:true as const}:{}) };
@@ -24,10 +24,10 @@ function summary(job:BridgeJob):Record<string,unknown>{return {jobId:job.jobId,o
 function queueOptions(args:{sessionId?:string|undefined;agentLabel?:string|undefined;operationId?:string|undefined}){
   return { ...(args.sessionId?{sessionId:args.sessionId}:{}), ...(args.agentLabel?{agentLabel:args.agentLabel}:{}), ...(args.operationId?{operationId:args.operationId}:{}) };
 }
-function decodeAssetBase64(value:string):Uint8Array{
+function decodeAssetBase64(value:string,maxBytes=MAX_MCP_ASSET_BYTES):Uint8Array{
   if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))throw new BridgeFault('INVALID_BASE64','Asset bytes must use canonical base64 encoding.');
   const bytes=Buffer.from(value,'base64');if(bytes.toString('base64')!==value)throw new BridgeFault('INVALID_BASE64','Asset bytes must use canonical base64 encoding.');
-  if(bytes.byteLength>MAX_MCP_ASSET_BYTES)throw new BridgeFault('ASSET_TOO_LARGE',`MCP asset transfer is limited to ${MAX_MCP_ASSET_BYTES/1024} KB; use the plugin local-file import for larger assets.`);
+  if(bytes.byteLength>maxBytes)throw new BridgeFault('ASSET_TOO_LARGE',`Asset transfer is limited to ${Math.floor(maxBytes/1024)} KB.`);
   return new Uint8Array(bytes);
 }
 
@@ -36,19 +36,27 @@ export function createMcpServer(broker:JobBroker):McpServer{
   server.registerTool('figma_get_connection_status',{description:'Return paired Figma plugin sessions currently heartbeat-active on the local bridge.',inputSchema:z.object({})},async()=>textResult({connected:broker.getSessions().length>0,sessions:broker.getSessions(),transport:'loopback-http'}));
   server.registerTool('figma_get_agent_sessions',{description:'List currently connected plugin sessions. Session IDs are required when more than one session is active.',inputSchema:z.object({})},async()=>textResult({sessions:broker.getSessions()}));
   server.registerTool('figma_get_capabilities',{description:'Report the plugin operations actually wired to the local bridge and current schema limitations.',inputSchema:z.object({})},async()=>textResult({protocolVersion:'1.0',designSchemaVersion:'1.0',bridge:{transport:'HTTP polling',bind:'127.0.0.1',tokenRequired:true},operations:['inspect-selection','render-spec','apply-patch','export-selection'],supportedDesignNodeTypes:['frame','group','text','rectangle','ellipse','line'],patchOperations:['set-text','set-fill','rename','set-bounds','set-auto-layout'],supportedAssetImports:['sanitized-svg','png','jpeg','gif'],unsupported:['gradients','effects','components','variables','full-document export']}));
-  server.registerTool('figma_get_asset_capabilities',{description:'Report actual local asset import support separately from AI generation or client file-access claims.',inputSchema:z.object({})},async()=>textResult({vector:{svgMarkup:true,editableImport:true,maxBytes:MAX_SVG_BYTES,allowedElements:['svg','g','path','rect','circle','ellipse','line','polyline','polygon']},raster:{formats:['image/png','image/jpeg','image/gif'],maxBytes:MAX_RASTER_BYTES,maxDimension:4096,mcpTransferLimitBytes:MAX_MCP_ASSET_BYTES},clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',automaticClientAssetTransfer:'NOT_VERIFIED',officialFigmaMcp:false}));
+  server.registerTool('figma_get_asset_capabilities',{description:'Report actual local asset import support separately from AI generation or client file-access claims.',inputSchema:z.object({})},async()=>textResult({vector:{svgMarkup:true,editableImport:true,maxBytes:MAX_SVG_BYTES,allowedElements:['svg','g','path','rect','circle','ellipse','line','polyline','polygon']},raster:{formats:['image/png','image/jpeg','image/gif'],maxBytes:MAX_RASTER_BYTES,maxDimension:4096,mcpTransferLimitBytes:MAX_RASTER_BYTES,mcpDirectLimitBytes:MAX_MCP_ASSET_BYTES,mcpChunkBytes:MCP_ASSET_CHUNK_BYTES},clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',automaticClientAssetTransfer:'NOT_VERIFIED',officialFigmaMcp:false}));
   server.registerTool('figma_validate_vector',{description:'Sanitize and validate geometric SVG markup without inserting it or executing its contents.',inputSchema:z.object({svg:z.string().min(1).max(MAX_SVG_BYTES)})},async({svg})=>{
     try{const asset=sanitizeSvg(svg);return textResult({valid:true,width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size,sanitizedSvg:asset.svg});}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_insert_generated_vector',{description:'Queue actual SVG markup supplied by the caller for safe editable Figma vector import. This tool does not generate the asset.',inputSchema:z.object({name:z.string().min(1).max(160),svg:z.string().min(1).max(MAX_SVG_BYTES),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     try{const asset=sanitizeSvg(args.svg);return textResult({...summary(broker.enqueue({type:'insert-svg',name:args.name,svg:asset.svg},queueOptions(args)),),asset:{kind:'svg',width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size}});}catch(error){return faultResult(error);}
   });
-  const imageInputSchema=z.object({name:z.string().min(1).max(160),mimeType:z.enum(['image/png','image/jpeg','image/gif']),base64:z.string().min(16).max(350_000),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()});
+  const imageInputSchema=z.object({name:z.string().min(1).max(160),mimeType:z.enum(['image/png','image/jpeg','image/gif']),base64:z.string().min(16).max(Math.ceil(MAX_RASTER_BYTES/3)*4),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()});
   server.registerTool('figma_validate_image',{description:'Validate transferred PNG/JPEG/GIF bytes and report dimensions/checksum without inserting.',inputSchema:imageInputSchema.pick({mimeType:true,base64:true})},async({mimeType,base64})=>{
-    try{const bytes=decodeAssetBase64(base64);const info=validateRasterAsset(bytes,mimeType);return textResult({valid:true,...info,sha256:createHash('sha256').update(bytes).digest('hex')});}catch(error){return faultResult(error);}
+    try{const bytes=decodeAssetBase64(base64,MAX_RASTER_BYTES);const info=validateRasterAsset(bytes,mimeType);return textResult({valid:true,...info,sha256:createHash('sha256').update(bytes).digest('hex')});}catch(error){return faultResult(error);}
   });
-  server.registerTool('figma_insert_generated_image',{description:'Queue actual PNG/JPEG/GIF bytes supplied by the caller for native Figma image-fill import. Requires file bytes to be accessible to this MCP client; does not generate images.',inputSchema:imageInputSchema},async(args)=>{
-    try{const bytes=decodeAssetBase64(args.base64);const info=validateRasterAsset(bytes,args.mimeType);const job=broker.enqueue({type:'insert-image',name:args.name,mimeType:info.mimeType,bytes:Array.from(bytes)},queueOptions(args));return textResult({...summary(job),asset:{kind:'image',...info,sha256:createHash('sha256').update(bytes).digest('hex')}});}catch(error){return faultResult(error);}
+  server.registerTool('figma_insert_generated_image',{description:'Queue actual PNG/JPEG/GIF bytes supplied by the caller for native Figma image-fill import. Images above the direct-transfer threshold are sent as checksum-verified 64 KiB jobs. Requires file bytes to be accessible to this MCP client; does not generate images.',inputSchema:imageInputSchema},async(args)=>{
+    try{
+      const bytes=decodeAssetBase64(args.base64,MAX_RASTER_BYTES);const info=validateRasterAsset(bytes,args.mimeType);const checksum=createHash('sha256').update(bytes).digest('hex');
+      if(bytes.byteLength<=MAX_MCP_ASSET_BYTES){const job=broker.enqueue({type:'insert-image',name:args.name,mimeType:info.mimeType,bytes:Array.from(bytes)},queueOptions(args));return textResult({...summary(job),asset:{kind:'image',...info,sha256:checksum}});}
+      const transferId=randomUUID();const chunkCount=Math.ceil(bytes.byteLength/MCP_ASSET_CHUNK_BYTES);
+      const operations:BridgeOperation[]=[{type:'begin-image-transfer',transferId,name:args.name,mimeType:info.mimeType,totalBytes:bytes.byteLength,sha256:checksum,chunkCount}];
+      for(let index=0;index<chunkCount;index++){const start=index*MCP_ASSET_CHUNK_BYTES;operations.push({type:'image-transfer-chunk',transferId,index,bytes:Array.from(bytes.subarray(start,Math.min(start+MCP_ASSET_CHUNK_BYTES,bytes.byteLength)))});}
+      operations.push({type:'finish-image-transfer',transferId});const jobs=broker.enqueueBatch(operations,queueOptions(args));
+      return textResult({transferId,status:'queued',chunkCount,jobIds:jobs.map(job=>job.jobId),sessionId:jobs[0]?.sessionId,agentLabel:jobs[0]?.agentLabel,asset:{kind:'image',...info,sha256:checksum}});
+    }catch(error){return faultResult(error);}
   });
   server.registerTool('figma_get_selection',{description:'Queue a selection inspection on a paired Figma plugin. Poll figma_get_job_status/result for the real response.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     try{return textResult(summary(broker.enqueue({type:'inspect-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
