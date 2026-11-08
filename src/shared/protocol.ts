@@ -30,5 +30,6 @@ export type EditPatch = {
     | { op: 'set-fill'; targetId: string; value: string }
     | { op: 'rename'; targetId: string; value: string }
     | { op: 'set-bounds'; targetId: string; value: { x:number; y:number; width:number; height:number } }
+    | { op: 'set-auto-layout'; targetId: string; value: { mode:'NONE'|'HORIZONTAL'|'VERTICAL'; gap:number; padding:number; alignment:'MIN'|'CENTER'|'MAX'|'SPACE_BETWEEN' } }
   >;
 };
