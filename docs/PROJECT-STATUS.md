@@ -9,7 +9,7 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 - VSN startup loader and plugin UI were confirmed working by the user in Figma.
 - Custom stdio MCP server and authenticated loopback bridge: protocol initialization, tested tool discovery, schema rejection, job correlation, session isolation and result return are covered by automated integration tests.
 - Settings now accepts the loopback pairing endpoint/token, and Agent Activity receives real bridge status and operation events. This is build-verified; live pairing is not yet tested.
-- `npm run release:verify` passed after the current changes: typecheck, lint, 33 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
+- `npm run release:verify` passed after the current changes: typecheck, lint, 35 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
 
 ## Partial
 
