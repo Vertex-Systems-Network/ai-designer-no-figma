@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-09 — AI-orchestrated visual feedback loop
+
+- Added Figma frame capture through `exportAsync` as a JPEG preview. The host tries 1024/768/512 px widths and enforces a 700 KiB byte cap, one selected frame, supported aspect ratio and 8192 px maximum preview height.
+- Newly rendered pages select and zoom to their first root frame so an AI client can capture immediately.
+- Added MCP `figma_capture_selection`; completed capture results are returned by `figma_get_job_result` as an actual image content block. Tool descriptions guide the agent to inspect, make targeted edits and capture again.
+- Added byte encoding and preview validation tests. This supports an AI client driven review cycle; it does not make the plugin call Claude or prove live Figma image delivery.
+
 ## 2026-11-08 — design quality review slice
 
 - Strengthened provider-neutral generation prompts with concrete hierarchy, grid, semantic naming, readable contrast, realistic content and layer-quality requirements.
