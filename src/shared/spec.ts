@@ -52,6 +52,15 @@ const validateSchema = ajv.compile(designSpecSchema);
 
 export type ValidationIssue = { path: string; message: string };
 export type ValidationResult = { valid: boolean; issues: ValidationIssue[]; value?: DesignSpec };
+const supportedNodeTypes = ['frame', 'group', 'text', 'rectangle', 'ellipse', 'line'] as const;
+
+function valueAtInstancePath(input: unknown, instancePath: string): unknown {
+  return instancePath.split('/').slice(1).reduce<unknown>((value, segment) => {
+    if (!value || typeof value !== 'object') return undefined;
+    const key = segment.replace(/~1/g, '/').replace(/~0/g, '~');
+    return (value as Record<string, unknown>)[key];
+  }, input);
+}
 
 export function validateDesignSpec(input: unknown, rawBytes?: number): ValidationResult {
   let serialized: string | undefined;
@@ -63,7 +72,23 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
   const size = rawBytes ?? utf8ByteLength(serialized!);
   if (size > MAX_SPEC_BYTES) return { valid: false, issues: [{ path: '$', message: `Specification exceeds ${MAX_SPEC_BYTES} bytes.` }] };
   if (!validateSchema(input)) {
-    return { valid: false, issues: (validateSchema.errors ?? []).map((e) => ({ path: e.instancePath || '$', message: e.message ?? 'Invalid value' })) };
+    const errors = validateSchema.errors ?? [];
+    const unsupportedTypes = new Map<string, string>();
+    for (const error of errors) {
+      if (error.keyword !== 'oneOf') continue;
+      const candidate = valueAtInstancePath(input, error.instancePath);
+      if (!candidate || typeof candidate !== 'object' || !('type' in candidate)) continue;
+      const type = (candidate as {type?:unknown}).type;
+      if (typeof type === 'string' && !supportedNodeTypes.includes(type as typeof supportedNodeTypes[number])) {
+        unsupportedTypes.set(error.instancePath, `Unsupported layer type "${type}". Use one of: ${supportedNodeTypes.join(', ')}.`);
+      }
+    }
+    const issues: ValidationIssue[] = [...unsupportedTypes].map(([path,message]) => ({path:path||'$',message}));
+    for (const error of errors) {
+      if ([...unsupportedTypes.keys()].some((path) => error.instancePath === path || error.instancePath.startsWith(`${path}/`))) continue;
+      issues.push({ path: error.instancePath || '$', message: error.message ?? 'Invalid value' });
+    }
+    return { valid: false, issues };
   }
   const spec = input as DesignSpec;
   const seen = new Set<string>();
