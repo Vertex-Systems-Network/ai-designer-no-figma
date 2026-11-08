@@ -22,6 +22,10 @@ function safeEndpoint(value: string): string {
 const promptTemplate = `Return one JSON object only. Use this schema: {"schemaVersion":"1.0","name":"Design name","pages":[{"id":"page-1","name":"Page name","children":[{"type":"frame","id":"frame-1","name":"Main frame","width":1440,"height":900,"fill":"#FFFFFF","children":[{"type":"text","id":"title-1","name":"Title","x":48,"y":48,"width":600,"height":60,"text":"A clear heading","fontSize":36,"fontWeight":700,"color":"#171A1E"}]}]}]}. Supported types: frame, group, text, rectangle, ellipse, line. Give every id a unique stable value and make all layers editable. Do not include markdown.`;
 const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'History'];
 function post(message: UiToHost) { parent.postMessage({ pluginMessage: message }, '*'); }
+function createLocalId(prefix='item'): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+}
 function load<T>(key: string, fallback: T): T { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
 function save(key: string, value: unknown): void { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage; keep the current session usable. */ } }
 function App() {
@@ -138,7 +142,7 @@ function App() {
     setCopyFallback(value);setNotice('Automatic clipboard access is blocked here. Copy the selected text below with Ctrl+C.');setError('');
   }
   function validateImport(){const result=parseDesignSpec(jsonInput);setIssues(result.issues);setError('');if(!result.valid||!result.value){setSpec(null);setError('Review the validation findings and correct the JSON.');return;}setSpec(result.value);if(preparedPrompt){historySource.current={prompt:prompt.trim(),model:'External AI handoff'};setPreparedPrompt('');}else{historySource.current={prompt:`Imported JSON: ${result.value.name}`,model:'Manual JSON import'};}setNotice('Specification is valid. Insert is ready.');}
-  function insert(){if(!spec)return;const source=historySource.current??{prompt:`Imported JSON: ${spec.name}`,model:'Manual JSON import'};pendingRenderHistory.current={id:crypto.randomUUID(),prompt:source.prompt,model:source.model,createdAt:new Date().toISOString(),spec};setBusy(true);setError('');setNotice('Creating editable native Figma layers…');post({type:'render',spec,fontFallback});}
+  function insert(){if(!spec)return;const source=historySource.current??{prompt:`Imported JSON: ${spec.name}`,model:'Manual JSON import'};pendingRenderHistory.current={id:createLocalId('history'),prompt:source.prompt,model:source.model,createdAt:new Date().toISOString(),spec};setBusy(true);setError('');setNotice('Creating editable native Figma layers…');post({type:'render',spec,fontFallback});}
   async function fileText(file?:File){if(!file)return;if(file.size>512000){setError('File exceeds the 512 KB import limit.');return;}setJsonInput(await file.text());setError('');setIssues([]);}
   async function proposePatch(){
     if(!selection){setError('Select a frame in Figma before proposing an edit.');return;}if(!editPrompt.trim()){setError('Describe the change you want.');return;}
@@ -158,7 +162,7 @@ function App() {
     setPatch(result.value);setError('');setNotice(`${result.value.operations.length} proposed change(s). Review before applying.`);
   }
   function applyPatch(){if(!patch)return;setBusy(true);setError('');setNotice('Applying reviewed changes…');post({type:'apply-patch',patch});}
-  function addToken(){if(!tokenName.trim()||!/^#[0-9a-f]{6}$/i.test(tokenColor)){setError('Enter a token name and valid six-digit hex color.');return;}setTokens(items=>[{id:crypto.randomUUID(),name:tokenName.trim(),color:tokenColor.toUpperCase()},...items]);setTokenName('');setError('');setNotice('Token saved locally.');}
+  function addToken(){if(!tokenName.trim()||!/^#[0-9a-f]{6}$/i.test(tokenColor)){setError('Enter a token name and valid six-digit hex color.');return;}setTokens(items=>[{id:createLocalId('token'),name:tokenName.trim(),color:tokenColor.toUpperCase()},...items]);setTokenName('');setError('');setNotice('Token saved locally.');}
   function download(value:unknown,filename:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();URL.revokeObjectURL(url);}
   const modelSize=useMemo(()=>models.find(m=>m.name===model)?.details?.parameter_size??'', [models,model]);
 
