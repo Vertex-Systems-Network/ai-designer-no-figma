@@ -1,5 +1,11 @@
 # AI session log
 
+## 2026-11-08 — design-quality prompt and advisory audit
+
+- Added concrete design instructions to provider-neutral generation prompts and a deterministic non-blocking audit for measurable text contrast, generic names, unspecified sizes, and repeated containers without Auto Layout.
+- Import UI now displays path-specific suggestions without blocking valid insertion. Added regression coverage for all findings and validity preservation.
+- Validation complete: `npm run release:verify` passes with 40 unit and 15 integration tests, strict typecheck/lint, local security audit, production build/package, strict documentation audit (0 findings), ZIP integrity and SHA-256. Current package checksum is recorded in `artifacts/SHA256SUMS.txt`. No live Figma screenshot review or Figma Agent benchmark was performed.
+
 ## 2026-11-08 — hidden Claude/Figma job session and signed-in operator
 
 - Moved authenticated bridge HTTP polling from the restricted Figma JSVM host to the browser UI iframe. The UI now sends typed jobs to the plugin host and posts the actual correlated Figma result back to the bridge; active-job heartbeats continue while rendering.
