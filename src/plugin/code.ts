@@ -1,9 +1,10 @@
 import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
-import { sanitizeSvg, validateRasterAsset } from '../shared/assets';
+import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
 import { createAssetLibrary } from '../shared/asset-library';
 import { verifyAssetReadback } from '../shared/asset-readback';
+import { sha256 } from '../shared/sha256';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -20,6 +21,8 @@ let bridgeRegistered = false;
 let bridgeHeartbeatAt = 0;
 let bridgeHeartbeatInFlight = false;
 const assetLibrary=createAssetLibrary({getAsync:(key)=>figma.clientStorage.getAsync(key),setAsync:(key,value)=>figma.clientStorage.setAsync(key,value),deleteAsync:(key)=>figma.clientStorage.deleteAsync(key)});
+type PendingImageTransfer={name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number;bytes:Uint8Array;receivedBytes:number;updatedAt:number};
+const pendingImageTransfers=new Map<string,PendingImageTransfer>();
 
 function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
@@ -127,7 +130,7 @@ async function insertSvg(name:string,source:string){
 }
 
 async function insertRaster(name:string,mimeType:string,input:number[]){
-  if(!Array.isArray(input)||input.length>5*1024*1024)throw new Error('Image payload exceeds the 5 MB import limit.');
+  if(!Array.isArray(input)||input.length>MAX_RASTER_BYTES)throw new Error('Image payload exceeds the 5 MB import limit.');
   const bytes=new Uint8Array(input);const info=validateRasterAsset(bytes,mimeType);const image=figma.createImage(bytes);
   const node=figma.createRectangle();
   try{node.resize(info.width,info.height);node.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:'FIT'}];placeAssetNode(node,info.width,info.height,name);await verifyInsertedAsset(node,'image',info.width,info.height);return {kind:'image' as const,name:node.name,width:info.width,height:info.height,mimeType:info.mimeType,bytes:info.size,nodeId:node.id};}
@@ -361,7 +364,32 @@ function bridgeOperationLabel(operation:BridgeOperation):string{
   if(operation.type==='apply-patch')return `Applying ${operation.patch.operations.length} reviewed edit(s)`;
   if(operation.type==='insert-svg')return `Importing SVG ${operation.name}`;
   if(operation.type==='insert-image')return `Importing image ${operation.name}`;
+  if(operation.type==='begin-image-transfer')return `Starting image transfer ${operation.name}`;
+  if(operation.type==='image-transfer-chunk')return `Receiving image chunk ${operation.index+1}`;
+  if(operation.type==='finish-image-transfer')return 'Verifying and inserting transferred image';
   return 'Exporting selected design';
+}
+function cleanupImageTransfers():void{const now=Date.now();for(const[id,transfer]of pendingImageTransfers)if(now-transfer.updatedAt>120_000)pendingImageTransfers.delete(id);}
+function beginImageTransfer(operation:Extract<BridgeOperation,{type:'begin-image-transfer'}>):void{
+  cleanupImageTransfers();
+  if(pendingImageTransfers.size>=2)throw new Error('IMAGE_TRANSFER_BUSY: At most two image transfers can be active.');
+  if(!/^[a-f0-9-]{36}$/i.test(operation.transferId)||!Number.isSafeInteger(operation.totalBytes)||operation.totalBytes<10||operation.totalBytes>MAX_RASTER_BYTES||!Number.isSafeInteger(operation.chunkCount)||operation.chunkCount!==Math.ceil(operation.totalBytes/MCP_ASSET_CHUNK_BYTES)||!/^[a-f0-9]{64}$/i.test(operation.sha256))throw new Error('IMAGE_TRANSFER_INVALID: Image transfer metadata is invalid or exceeds the 5 MB limit.');
+  if(pendingImageTransfers.has(operation.transferId))throw new Error('IMAGE_TRANSFER_DUPLICATE: This transfer has already started.');
+  pendingImageTransfers.set(operation.transferId,{name:operation.name,mimeType:operation.mimeType,totalBytes:operation.totalBytes,sha256:operation.sha256,chunkCount:operation.chunkCount,bytes:new Uint8Array(operation.totalBytes),receivedBytes:0,updatedAt:Date.now()});
+}
+function appendImageTransferChunk(operation:Extract<BridgeOperation,{type:'image-transfer-chunk'}>):void{
+  cleanupImageTransfers();const transfer=pendingImageTransfers.get(operation.transferId);if(!transfer)throw new Error('IMAGE_TRANSFER_NOT_FOUND: Start the image transfer again.');
+  if(!Number.isSafeInteger(operation.index)||operation.index<0||operation.index>=transfer.chunkCount||!Array.isArray(operation.bytes))throw new Error('IMAGE_TRANSFER_INVALID: Image chunk index or bytes are invalid.');
+  const offset=operation.index*MCP_ASSET_CHUNK_BYTES;const expected=Math.min(MCP_ASSET_CHUNK_BYTES,transfer.totalBytes-offset);
+  if(operation.bytes.length!==expected||operation.bytes.some(value=>!Number.isInteger(value)||value<0||value>255)||transfer.receivedBytes+operation.bytes.length>transfer.totalBytes)throw new Error('IMAGE_TRANSFER_INVALID: Image chunk size or byte values are invalid.');
+  transfer.bytes.set(operation.bytes,offset);transfer.receivedBytes+=operation.bytes.length;transfer.updatedAt=Date.now();
+}
+async function finishImageTransfer(operation:Extract<BridgeOperation,{type:'finish-image-transfer'}>):Promise<unknown>{
+  cleanupImageTransfers();const transfer=pendingImageTransfers.get(operation.transferId);if(!transfer)throw new Error('IMAGE_TRANSFER_NOT_FOUND: Start the image transfer again.');pendingImageTransfers.delete(operation.transferId);
+  if(transfer.receivedBytes!==transfer.totalBytes)throw new Error('IMAGE_TRANSFER_INCOMPLETE: Some image chunks are missing.');
+  if(sha256(transfer.bytes)!==transfer.sha256)throw new Error('IMAGE_TRANSFER_CHECKSUM_FAILED: Reassemble the file and retry its transfer.');
+  validateRasterAsset(transfer.bytes,transfer.mimeType);const asset=await insertRaster(transfer.name,transfer.mimeType,Array.from(transfer.bytes));
+  figma.ui.postMessage({type:'asset-result',ok:true,message:'Chunked MCP image was checksum-verified, inserted and read back as a native Figma image fill.',...asset});return{...asset,sha256:transfer.sha256};
 }
 async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
   const operation=job.operation;const label=bridgeOperationLabel(operation);const startedAt=Date.now();
@@ -374,6 +402,9 @@ async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
     else if(operation.type==='insert-svg'){const asset=await insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported and read back as editable vector geometry.',...asset});}
     else if(operation.type==='insert-image'){const asset=await insertRaster(operation.name,operation.mimeType,operation.bytes);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied image imported and read back as a native image fill.',...asset});}
+    else if(operation.type==='begin-image-transfer'){beginImageTransfer(operation);result={transferId:operation.transferId,started:true};}
+    else if(operation.type==='image-transfer-chunk'){appendImageTransferChunk(operation);result={transferId:operation.transferId,index:operation.index,received:true};}
+    else if(operation.type==='finish-image-transfer')result=await finishImageTransfer(operation);
     else result={spec:exportSelectedDesign()};
     if(epoch!==bridgeEpoch)return;
     await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:true,result});
