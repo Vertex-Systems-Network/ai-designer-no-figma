@@ -11,7 +11,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 79%** — rounded mean of the 11 phase estimates below. Background bridge polling, Figma operator identity and panel hiding are implemented and automated-verified; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
+**Overall completion: 80%** — rounded mean of the 11 phase estimates below. Background bridge polling, Figma operator identity, panel hiding, and a measurable design-quality audit are automated-verified; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
