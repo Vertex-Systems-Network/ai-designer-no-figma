@@ -9,6 +9,7 @@
 - Added a bounded local IndexedDB asset library with SHA-256 deduplication, persistent original bytes, preview, reuse and explicit removal/clear actions.
 - Added reviewed frame-only Auto Layout patch operations with validation, application, rollback snapshots and undo support.
 - Added locally persisted typography and spacing scales with bounded import/export validation; both scales are attached to local-model and external-AI design prompts.
+- Added up to 20 named design-system presets with save/load/duplicate/delete controls.
 
 ## 0.1.0
 
