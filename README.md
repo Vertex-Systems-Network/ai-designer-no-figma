@@ -10,7 +10,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 75%** — rounded mean of the 11 phase estimates below. The local asset library and reviewed Auto Layout patch are implemented; final verification is pending after the remaining work. It is not a release-readiness claim.
+**Overall completion: 75%** — rounded mean of the 11 phase estimates below. The local asset library and reviewed Auto Layout patch pass automated release verification; live editor, client and remaining product scope gates remain. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -34,10 +34,10 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 |---|---:|---|---|
 | Manual SVG and raster asset import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Strict SVG sanitization and PNG/JPEG/GIF validation feed native Figma nodes; re-import and inspect in live Figma. |
 | MCP asset validation and transfer | `█████░░░░░` 50% | IMPLEMENTED · AUTOMATED VERIFIED | Vector/image validation and bounded insertion tools exist; live paired transfer and larger-file chunking remain. |
-| Asset registry and client capability discovery | `████████░░` 80% | IMPLEMENTED · FINAL TEST PENDING | Bounded local IndexedDB library stores original bytes by SHA-256, deduplicates, previews, reuses, selects and deletes assets; client-native generation/file-transfer detection remains unverified. |
+| Asset registry and client capability discovery | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Bounded local IndexedDB library stores original bytes by SHA-256, deduplicates, previews, reuses, selects and deletes assets; client-native generation/file-transfer detection remains unverified. |
 | VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
 | Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
-| Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · FINAL TEST PENDING | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
+| Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
 | Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
 | Custom MCP stdio server | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | MCP SDK tool discovery, input rejection, session status and capabilities pass protocol integration tests. Client-specific install/live invocation is pending. |
 | Local Figma bridge | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | Loopback HTTP, 256-bit pairing token, origin allowlist, payload limits, per-session correlation, and results pass integration tests. |
@@ -57,7 +57,7 @@ This tracker records implementation evidence separately from live Figma verifica
 | 5 · Raster image import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | PNG/JPEG/GIF signatures/dimensions/checksums and native image fills are validated; live rendering untested. |
 | 6 · Capability routing | `██░░░░░░░░` 20% | PARTIAL | Honest manual/local options and unsupported client claims are reported; no generic AI client router is verified. |
 | 7 · Agent activity | `███░░░░░░░` 30% | PARTIAL | Actual import completion result appears in plugin UI; intermediate lifecycle events are not implemented. |
-| 8 · Local asset library | `████████░░` 80% | IMPLEMENTED · FINAL TEST PENDING | SHA-256 dedupe, bounded persistent bytes, preview, reuse and explicit delete/clear controls are implemented. |
+| 8 · Local asset library | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | SHA-256 dedupe, bounded persistent bytes, preview, reuse and explicit delete/clear controls are implemented. |
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · FINAL TEST PENDING | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
