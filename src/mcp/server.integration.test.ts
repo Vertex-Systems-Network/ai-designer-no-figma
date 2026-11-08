@@ -23,7 +23,7 @@ afterAll(async()=>{await client?.close();await transport?.close();});
 describe('official MCP stdio server',()=>{
   it('negotiates the MCP protocol and lists only implemented, versioned tools',async()=>{
     const {tools}=await client.listTools();
-    expect(tools.map((tool)=>tool.name)).toEqual(expect.arrayContaining(['figma_get_connection_status','figma_get_capabilities','figma_import_design_schema','figma_apply_patch','figma_export_selection','figma_get_job_status','figma_cancel_job','figma_get_asset_capabilities','figma_validate_vector','figma_insert_generated_vector','figma_validate_image','figma_insert_generated_image']));
+    expect(tools.map((tool)=>tool.name)).toEqual(expect.arrayContaining(['figma_get_connection_status','figma_get_capabilities','figma_import_design_schema','figma_apply_patch','figma_export_selection','figma_capture_selection','figma_get_job_status','figma_cancel_job','figma_get_asset_capabilities','figma_validate_vector','figma_insert_generated_vector','figma_validate_image','figma_insert_generated_image']));
     expect(tools.some((tool)=>tool.name==='figma_delete_nodes')).toBe(false);
   });
   it('returns honest disconnected state and schema validation errors',async()=>{
@@ -35,7 +35,7 @@ describe('official MCP stdio server',()=>{
   });
   it('exposes accurate capabilities without claiming unsupported Figma APIs',async()=>{
     const result=await client.callTool({name:'figma_get_capabilities',arguments:{}});
-    expect(result.structuredContent).toMatchObject({designSchemaVersion:'1.0',operations:['inspect-selection','render-spec','apply-patch','export-selection']});
+    expect(result.structuredContent).toMatchObject({designSchemaVersion:'1.0',operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'}});
     expect((result.structuredContent as {unsupported:string[]}).unsupported).toContain('variables');
   });
   it('reports file-transfer limits and validates actual vector/image payloads',async()=>{
