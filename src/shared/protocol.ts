@@ -3,12 +3,14 @@ import type { DesignSpec } from './spec';
 export type HostToUi =
   | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> } | null }
   | { type: 'render-result'; ok: boolean; message: string; created?: number }
+  | { type: 'export-result'; ok: boolean; message: string; spec?: DesignSpec }
   | { type: 'patch-result'; ok: boolean; message: string; undoCount?: number }
   | { type: 'error'; code: string; message: string };
 
 export type UiToHost =
   | { type: 'resize-ui'; width: number; height: number }
   | { type: 'inspect-selection' }
+  | { type: 'export-selection' }
   | { type: 'render'; spec: DesignSpec; fontFallback?: string }
   | { type: 'cancel-render' }
   | { type: 'apply-patch'; patch: EditPatch }

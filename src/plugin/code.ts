@@ -1,4 +1,4 @@
-import { validateDesignSpec, type DesignNodeSpec, type DesignSpec } from '../shared/spec';
+import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec } from '../shared/spec';
 import type { EditPatch, UiToHost } from '../shared/protocol';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
@@ -225,6 +225,67 @@ function applyColorToSelection(color: string): void {
   for (const node of matches) if ('fills' in node) node.fills = [paint(color)];
 }
 
+function solidFillHex(node: SceneNode): string | undefined {
+  if (!('fills' in node)) return undefined;
+  const fills = node.fills;
+  if (fills === figma.mixed) throw new Error(`Layer "${node.name}" has mixed fills that cannot be represented in schema 1.0.`);
+  const fill = fills.find((item) => item.visible !== false && (item.opacity ?? 1) > 0);
+  if (!fill) return undefined;
+  if (fill.type !== 'SOLID') throw new Error(`Layer "${node.name}" uses ${fill.type.toLowerCase()} fill, which schema 1.0 export does not support yet.`);
+  if ((fill.opacity ?? 1) !== 1) throw new Error(`Layer "${node.name}" has a translucent fill that schema 1.0 export cannot preserve yet.`);
+  const { r, g, b } = fill.color;
+  return `#${[r,g,b].map((value) => Math.round(value * 255).toString(16).padStart(2,'0')).join('')}`;
+}
+
+function exportSelectedDesign(): DesignSpec {
+  if (figma.currentPage.selection.length !== 1) throw new Error('Select exactly one Figma layer or frame to export as a design specification.');
+  const selected = figma.currentPage.selection[0]!;
+  if (!('width' in selected) || !('height' in selected)) throw new Error('The selected item does not have exportable design dimensions.');
+  let count = 0;
+  const convert = (node: SceneNode, depth: number): DesignNodeSpec => {
+    count += 1;
+    if (count > MAX_NODES) throw new Error(`Selected design exceeds the ${MAX_NODES}-layer export limit.`);
+    if (depth > MAX_DEPTH) throw new Error(`Selected design exceeds the ${MAX_DEPTH}-level nesting limit.`);
+    if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0. Export a frame containing only supported native layers.`);
+    const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number };
+    const fill = solidFillHex(node);
+    const base = { id: logicalIds.get(node.id) || `figma-${node.id}`, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(fill?{fill}:{}) };
+    if (node.type === 'TEXT') {
+      const font = node.fontName === figma.mixed ? undefined : node.fontName;
+      const lineHeight = typeof node.lineHeight === 'object' && node.lineHeight.unit === 'PIXELS' ? node.lineHeight.value : undefined;
+      const color = solidFillHex(node);
+      return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(color?{color}:{}), align:node.textAlignHorizontal };
+    }
+    if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
+      const radius = node.type === 'RECTANGLE' && typeof node.cornerRadius === 'number' ? node.cornerRadius : undefined;
+      return { ...base, type:node.type === 'RECTANGLE'?'rectangle':'ellipse', ...(radius!==undefined?{radius}:{}) };
+    }
+    if (node.type === 'LINE') {
+      const stroke = node.strokes.find((item) => item.visible !== false && (item.opacity ?? 1) > 0);
+      if (stroke && stroke.type !== 'SOLID') throw new Error(`Layer "${node.name}" uses an unsupported line stroke.`);
+      const color = stroke?.type === 'SOLID' ? `#${[stroke.color.r,stroke.color.g,stroke.color.b].map((value)=>Math.round(value*255).toString(16).padStart(2,'0')).join('')}` : undefined;
+      return { ...base, type:'line', ...(color?{stroke:color}:{}), ...(typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}) };
+    }
+    if (node.type === 'FRAME' || node.type === 'GROUP') {
+      const children = node.children.map((child) => convert(child, depth + 1));
+      if (node.type === 'FRAME') {
+        const frame = node;
+        if (frame.layoutMode !== 'NONE' && [frame.paddingRight,frame.paddingBottom,frame.paddingLeft].some((value)=>value!==frame.paddingTop)) throw new Error(`Auto Layout frame "${node.name}" uses asymmetric padding that schema 1.0 cannot preserve yet.`);
+        if (frame.layoutMode !== 'NONE' && !['MIN','CENTER','MAX','SPACE_BETWEEN'].includes(frame.primaryAxisAlignItems)) throw new Error(`Auto Layout frame "${node.name}" uses an alignment that schema 1.0 cannot preserve yet.`);
+        const layout = frame.layoutMode === 'NONE' ? undefined : { mode:frame.layoutMode==='HORIZONTAL'?'horizontal' as const:'vertical' as const, gap:frame.itemSpacing, padding:frame.paddingTop, alignment:frame.primaryAxisAlignItems as 'MIN'|'CENTER'|'MAX'|'SPACE_BETWEEN', primaryAxisSizing:frame.primaryAxisSizingMode, counterAxisSizing:frame.counterAxisSizingMode };
+        const radius = typeof frame.cornerRadius === 'number' ? frame.cornerRadius : undefined;
+        return { ...base, type:'frame', children, ...(layout?{layout}:{}), ...(radius!==undefined?{radius}:{}) };
+      }
+      return { ...base, type:'group', children };
+    }
+    throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0. Export a frame containing only supported native layers.`);
+  };
+  const spec: DesignSpec = { schemaVersion:'1.0', name:selected.name.slice(0,160), pages:[{ id:`export-page-${selected.id}`, name:figma.currentPage.name.slice(0,160), children:[convert(selected,1)] }] };
+  const result = validateDesignSpec(spec);
+  if (!result.valid) throw new Error(`Selection export failed validation: ${result.issues.map((issue)=>`${issue.path}: ${issue.message}`).join('; ')}`);
+  return spec;
+}
+
 figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
   try {
@@ -245,6 +306,10 @@ figma.ui.onmessage = async (message: UiToHost) => {
         if (messageText.startsWith('RENDER_CANCELLED:')) figma.ui.postMessage({ type: 'render-result', ok: false, message: 'Render cancelled; newly created page was removed.' });
         else throw error;
       }
+    }
+    if (message.type === 'export-selection') {
+      const spec = exportSelectedDesign();
+      figma.ui.postMessage({ type:'export-result', ok:true, message:'Selected design exported as a validated specification.', spec });
     }
     if (message.type === 'apply-patch') {
       await applyPatch(message.patch);

@@ -20,7 +20,8 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 - [x] Native editable text, frame/group-wrapper, rectangle, ellipse, line nodes; basic Auto Layout.
 - [ ] Images, SVG/vector paths, gradients, effects, constraints, responsive rules, grid modes, sections.
 - [ ] Native reusable components/instances, component properties, Figma styles, Variables/collections.
-- [ ] Export the current Figma document as a design specification; import/deduplicate local image assets.
+- [x] Export one selected supported Figma layer tree as a validated design specification; unsupported layers/paints fail explicitly.
+- [ ] Export every page/document node and import/deduplicate local image assets.
 - [ ] Renderer tests against official Figma API mocks and a separate live-editor smoke test.
 
 ## Generate and AI workflows

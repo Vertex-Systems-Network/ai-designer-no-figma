@@ -10,18 +10,18 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 58%** — simple mean of the 11 phase estimates below; it is not a release-readiness claim.
+**Overall completion: 59%** — simple mean of the 11 phase estimates below; it is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
 | 0 · Environment audit | `████████████████████` 100% | PASS | — |
 | 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
 | 2 · Figma plugin and renderer | `████████████░░░░░░░░` 60% | IN PROGRESS | Broader native node support and renderer coverage |
-| 3 · Specification and validation | `███████░░░░░░░░░░░░░` 35% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
+| 3 · Specification and validation | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
 | 4 · AI integration | `█████████████░░░░░░░` 65% | IN PROGRESS | Direct desktop bridges and live local-model checks |
 | 5 · Selection editing | `██████████████░░░░░░` 70% | IN PROGRESS | Component replacement, Auto Layout operations, live preservation test |
 | 6 · Design system | `██████░░░░░░░░░░░░░░` 30% | IN PROGRESS | Typography/spacing scales and native reusable components |
-| 7 · Application UI | `██████████████░░░░░░` 70% | IN PROGRESS | Broader visual/accessibility QA and remaining feature controls |
+| 7 · Application UI | `███████████████░░░░░` 75% | IN PROGRESS | Broader visual/accessibility QA and remaining feature controls |
 | 8 · Testing and hardening | `██████████████░░░░░░` 70% | IN PROGRESS | Broader renderer coverage and real local-model check |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
 | 10 · Final audit | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Close open gates and publish final evidence report |
@@ -37,6 +37,7 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | Live Figma verification of this update | PASS | User confirmed the current build is working. Broader UI and renderer gates remain open. |
 | Selection-aware layer bounds editing | IMPLEMENTED · AUTOMATED VERIFIED | `set-bounds` validates selected IDs and bounded dimensions; rollback snapshots preserve position and size. Live patch preservation still needs confirmation. |
 | Plugin-session patch checkpoints and undo | IMPLEMENTED · AUTOMATED VERIFIED | Successful edits store up to 20 pre-edit snapshots; Undo restores the latest patch. Live Figma undo behavior needs confirmation. |
+| Selected Figma design export | IMPLEMENTED · BUILD VERIFIED | Exports one selection to a validated editable schema; unsupported layers and paints produce explicit errors instead of silent loss. Live export/import round-trip remains to test. |
 | Automated verification | PASS | Typecheck, lint, 16 unit tests, 8 integration tests, build, local audit, and ZIP packaging pass. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.

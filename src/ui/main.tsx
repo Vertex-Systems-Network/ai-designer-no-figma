@@ -105,6 +105,11 @@ function App() {
     post({type:'inspect-selection'});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
       if(msg.type==='selection')setSelection(msg.summary);
+      if(msg.type==='export-result'){
+        setBusy(false);
+        if(msg.ok&&msg.spec){setSpec(msg.spec);setJsonInput(JSON.stringify(msg.spec,null,2));setIssues([]);setError('');setNotice(msg.message);}
+        else setError(msg.message);
+      }
       if(msg.type==='render-result'){
         setBusy(false);setError('');setNotice(msg.message);
         const item=pendingRenderHistory.current;pendingRenderHistory.current=null;
@@ -236,7 +241,7 @@ function App() {
       {tab==='Import'&&<>
         <div className="section-heading"><div><p className="eyebrow">STRUCTURED SPECIFICATION</p><h1>Import or export</h1><p className="muted">Paste a spec from any assistant or choose a local JSON file.</p></div></div>
         <label className="field-label" htmlFor="spec-json">Design JSON</label><textarea id="spec-json" className="json-input" spellCheck={false} value={jsonInput} onChange={e=>{setJsonInput(e.target.value);setSpec(null);setIssues([]);}} placeholder='{"schemaVersion":"1.0","name":"My design","pages":[…]}'/>
-        <div className="button-row"><button className="primary-button" onClick={validateImport}>Validate specification</button><label className="secondary-button file-button">Choose JSON file<input type="file" accept="application/json,.json" onChange={e=>void fileText(e.target.files?.[0])}/></label><button className="secondary-button" onClick={()=>spec&&download(spec,'design-spec.json')} disabled={!spec}>Export valid spec</button></div>
+        <div className="button-row"><button className="primary-button" onClick={validateImport}>Validate specification</button><label className="secondary-button file-button">Choose JSON file<input type="file" accept="application/json,.json" onChange={e=>void fileText(e.target.files?.[0])}/></label><button className="secondary-button" onClick={()=>spec&&download(spec,'design-spec.json')} disabled={!spec}>Export valid spec</button><button className="secondary-button" onClick={()=>{setBusy(true);setError('');setNotice('Exporting selected Figma layers…');post({type:'export-selection'});}} disabled={busy||!selection}>Export selection</button></div>
         <div className="template-panel"><div className="preview-head"><strong>Prompt template</strong><button className="icon-button icon-only-button" aria-label="Copy prompt template" title="Copy prompt template" onClick={()=>void copyText(promptTemplate,'Compatible JSON prompt copied.') }><HeaderIcon kind="copy"/></button></div><p className="hint">Paste this into Claude, ChatGPT, or another assistant. External chat tools are not automatically connected.</p><pre>{promptTemplate}</pre></div>
         {spec&&<div className="result-panel"><div><strong>{spec.name}</strong><span>{spec.pages.length} page(s) · ready to insert</span></div><button className="primary-button small" onClick={insert} disabled={busy}>Insert into Figma</button></div>}
       </>}
