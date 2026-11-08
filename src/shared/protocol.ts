@@ -5,6 +5,7 @@ export type HostToUi =
   | { type: 'render-result'; ok: boolean; message: string; created?: number }
   | { type: 'export-result'; ok: boolean; message: string; spec?: DesignSpec }
   | { type: 'patch-result'; ok: boolean; message: string; undoCount?: number }
+  | { type:'asset-result'; ok:boolean; message:string; name?:string; kind?:'svg'|'image'; width?:number; height?:number; elements?:number; mimeType?:string; bytes?:number; nodeId?:string }
   | { type: 'agent-status'; status:'disconnected'|'connecting'|'connected'|'working'|'error'; sessionId?:string; jobId?:string; agentLabel?:string; operation?:string; message?:string }
   | { type: 'agent-event'; id:string; jobId:string; agentLabel:string; operation:string; status:'started'|'completed'|'failed'; timestamp:number; message:string }
   | { type: 'error'; code: string; message: string };
@@ -18,7 +19,10 @@ export type UiToHost =
   | { type: 'cancel-render' }
   | { type: 'apply-patch'; patch: EditPatch }
   | { type: 'undo-patch' }
-  | { type: 'apply-color-selection'; color: string };
+  | { type: 'apply-color-selection'; color: string }
+  | { type:'import-svg'; name:string; svg:string }
+  | { type:'import-image'; name:string; mimeType:string; bytes:number[] }
+  | { type:'select-node'; nodeId:string };
 
 export type EditPatch = {
   operations: Array<
