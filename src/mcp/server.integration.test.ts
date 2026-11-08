@@ -2,12 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { deflateSync } from 'node:zlib';
-import { MAX_MCP_ASSET_BYTES } from '../shared/assets';
+import { MAX_MCP_ASSET_BYTES, MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES } from '../shared/assets';
 
-function imageBase64():string{
+function imageBase64(extraBytes=0):string{
   const chunk=(type:string,data:Buffer)=>{const name=Buffer.from(type);const crcData=Buffer.concat([name,data]);let crc=0xffffffff;for(const byte of crcData){crc^=byte;for(let i=0;i<8;i++)crc=(crc&1)?0xedb88320^(crc>>>1):crc>>>1;}crc=(crc^0xffffffff)>>>0;const size=Buffer.alloc(4);size.writeUInt32BE(data.length);const check=Buffer.alloc(4);check.writeUInt32BE(crc);return Buffer.concat([size,name,data,check]);};
   const header=Buffer.alloc(13);header.writeUInt32BE(1,0);header.writeUInt32BE(1,4);header.set([8,6,0,0,0],8);
-  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(Buffer.from([0,255,0,0,255]))),chunk('IEND',Buffer.alloc(0))]).toString('base64');
+  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),...(extraBytes?[chunk('tEXt',Buffer.alloc(extraBytes,65))]:[]),chunk('IDAT',deflateSync(Buffer.from([0,255,0,0,255]))),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
 
 let transport:StdioClientTransport;
@@ -40,12 +40,16 @@ describe('official MCP stdio server',()=>{
   });
   it('reports file-transfer limits and validates actual vector/image payloads',async()=>{
     const caps=await client.callTool({name:'figma_get_asset_capabilities',arguments:{}});
-    expect(caps.structuredContent).toMatchObject({clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',raster:{formats:['image/png','image/jpeg','image/gif'],mcpTransferLimitBytes:MAX_MCP_ASSET_BYTES}});
+    expect(caps.structuredContent).toMatchObject({clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',raster:{formats:['image/png','image/jpeg','image/gif'],mcpTransferLimitBytes:MAX_RASTER_BYTES,mcpDirectLimitBytes:MAX_MCP_ASSET_BYTES,mcpChunkBytes:MCP_ASSET_CHUNK_BYTES}});
     const vector=await client.callTool({name:'figma_validate_vector',arguments:{svg:'<svg width="20" height="20"><circle cx="10" cy="10" r="8" fill="#0D8A60"/></svg>'}});
     expect(vector.structuredContent).toMatchObject({valid:true,width:20,height:20,elements:2});
     const rejected=await client.callTool({name:'figma_validate_vector',arguments:{svg:'<svg width="20" height="20"><script>alert(1)</script></svg>'}});
     expect(rejected.isError).toBe(true);
     const image=await client.callTool({name:'figma_validate_image',arguments:{mimeType:'image/png',base64:imageBase64()}});
     expect(image.structuredContent).toMatchObject({valid:true,mimeType:'image/png',width:1,height:1});
+    const largerImage=await client.callTool({name:'figma_validate_image',arguments:{mimeType:'image/png',base64:imageBase64(MAX_MCP_ASSET_BYTES+1)}});
+    expect(largerImage.structuredContent).toMatchObject({valid:true,mimeType:'image/png',width:1,height:1});expect((largerImage.structuredContent as {size:number}).size).toBeGreaterThan(MAX_MCP_ASSET_BYTES);
+    const largerInsert=await client.callTool({name:'figma_insert_generated_image',arguments:{name:'large.png',mimeType:'image/png',base64:imageBase64(MAX_MCP_ASSET_BYTES+1)}});
+    expect(largerInsert.structuredContent).toMatchObject({error:{code:'FIGMA_DISCONNECTED'}});
   });
 });
