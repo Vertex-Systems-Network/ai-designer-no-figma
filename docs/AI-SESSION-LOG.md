@@ -1,5 +1,11 @@
 # AI session log
 
+## 2026-11-09 — advanced native design nodes
+
+- Added schema 1.0 support and bounded validation for reusable components/instances, SVG path vectors, linear gradients, and drop shadows. Components must be declared before instances; unsafe path syntax and out-of-order gradient stops are rejected.
+- Renderer now maps these values to native Figma component/vector nodes and gradient/shadow paints. Prompts and MCP capability output were updated to reflect the actual feature surface.
+- Focused schema/host tests and strict TypeScript checking passed. Live rendering in the user's Figma is NOT TESTED because the user is unavailable; image nodes in the schema, native Variables/styles and complete export round-trip remain.
+
 ## 2026-11-09 — bounded visual capture and MCP image return
 
 - Implemented one-frame visual capture in the Figma host. It exports JPG at progressive widths (1024, 768, 512), caps bytes at 700 KiB, validates selection/type/aspect/height, and encodes bytes without TextEncoder/btoa dependencies.
