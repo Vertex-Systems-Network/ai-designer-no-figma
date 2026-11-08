@@ -1,5 +1,13 @@
 # AI session log
 
+## 2026-11-08 — local SVG and raster asset vertical slice
+
+- Added bounded conservative SVG sanitization and PNG/JPEG/GIF signature, structure, dimension and checksum validation.
+- Added UI manual asset import, Figma native SVG/image-fill host operations, bounded custom MCP validate/insert tools, capability reporting, and recent local metadata.
+- Added asset capability/transport/architecture/test docs and refreshed README, backlog and roadmap progress bars.
+- Full release verification passed: 26 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma asset insertion and AI-client generated-file handoff remain NOT TESTED.
+- Known next gates: verify live vector/image nodes, then implement chunked MCP transfer and content-addressed reuse if warranted.
+
 ## 2026-11-08 — repository-memory and connectivity extension
 
 - **Request:** Continue the project with custom universal MCP connectivity, secure plugin bridge, agent activity, compatibility engineering, documentation registry and handoff automation.
