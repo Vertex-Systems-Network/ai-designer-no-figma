@@ -65,6 +65,8 @@ function App() {
   const [tokenColor, setTokenColor] = useState('#0D8A60');
   const [fontFallback, setFontFallback] = useState(() => load('adnf-font-fallback','Inter'));
   const activeController = useRef<AbortController|null>(null);
+  const historySource = useRef<{prompt:string;model:string}|null>(null);
+  const pendingRenderHistory = useRef<HistoryItem|null>(null);
 
   useEffect(() => { document.documentElement.dataset.theme=theme; save('adnf-theme',theme); },[theme]);
   useEffect(() => { save('adnf-history',history.slice(0,40)); },[history]);
@@ -73,8 +75,13 @@ function App() {
     post({type:'inspect-selection'});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
       if(msg.type==='selection')setSelection(msg.summary);
-      if(msg.type==='render-result'||msg.type==='patch-result'){setBusy(false);setError('');setNotice(msg.message);}
-      if(msg.type==='error'){setBusy(false);setError(`${msg.code}: ${msg.message}`);}
+      if(msg.type==='render-result'){
+        setBusy(false);setError('');setNotice(msg.message);
+        const item=pendingRenderHistory.current;pendingRenderHistory.current=null;
+        if(msg.ok&&item)setHistory(items=>[item,...items].slice(0,40));
+      }
+      if(msg.type==='patch-result'){setBusy(false);setError('');setNotice(msg.message);}
+      if(msg.type==='error'){pendingRenderHistory.current=null;setBusy(false);setError(`${msg.code}: ${msg.message}`);}
     };
     window.addEventListener('message',receive); return ()=>window.removeEventListener('message',receive);
   },[]);
@@ -106,6 +113,7 @@ function App() {
     if(generationMode==='handoff'){
       if(!prompt.trim()){setError('Describe the interface you want to create.');return;}
       if(!/^#[0-9a-f]{6}$/i.test(brandColor)){setError('Brand color must be a six-digit hex value.');return;}
+      historySource.current={prompt:prompt.trim(),model:'External AI handoff'};
       setPreparedPrompt(buildDesignPrompt(prompt,{category,platform,canvasSize:canvasSize==='custom'?`${customWidth}x${customHeight}`:canvasSize,style,brandColor,density,typography,complexity}));
       setError('');setNotice('Prompt is ready. Copy it to the AI desktop app or chat you already use, then paste its JSON response in Import.');return;
     }
@@ -114,7 +122,7 @@ function App() {
     setBusy(true);setError('');setNotice('Asking the selected local model for structured design JSON…');setIssues([]);setSpec(null);
     try {const output=await callModel({prompt});const result=parseDesignSpec(output);setIssues(result.issues);
       if(!result.valid||!result.value)throw new Error(result.issues.map(i=>`${i.path}: ${i.message}`).join('\n')||'Model returned an invalid specification.');
-      setSpec(result.value);setJsonInput(JSON.stringify(result.value,null,2));setHistory(items=>[{id:crypto.randomUUID(),prompt,model,createdAt:new Date().toISOString(),spec:result.value!},...items]);setNotice('Specification validated. Review it, then insert editable layers into Figma.');
+      historySource.current={prompt:prompt.trim(),model};setSpec(result.value);setJsonInput(JSON.stringify(result.value,null,2));setNotice('Specification validated. Review it, then insert editable layers into Figma.');
     }catch(err){if(err instanceof DOMException&&err.name==='AbortError')setNotice('Generation cancelled.');else setError(err instanceof Error?err.message:'Generation failed.');}finally{setBusy(false);}
   }
   async function copyText(value:string,success:string){
@@ -129,8 +137,8 @@ function App() {
     }catch{ /* Keep a visible, selectable copy field below. */ }
     setCopyFallback(value);setNotice('Automatic clipboard access is blocked here. Copy the selected text below with Ctrl+C.');setError('');
   }
-  function validateImport(){const result=parseDesignSpec(jsonInput);setIssues(result.issues);setError('');if(!result.valid||!result.value){setSpec(null);setError('Review the validation findings and correct the JSON.');return;}setSpec(result.value);if(preparedPrompt){setHistory(items=>[{id:crypto.randomUUID(),prompt,model:'External AI handoff',createdAt:new Date().toISOString(),spec:result.value!},...items]);setPreparedPrompt('');}setNotice('Specification is valid. Insert is ready.');}
-  function insert(){if(!spec)return;setBusy(true);setError('');setNotice('Creating editable native Figma layers…');post({type:'render',spec,fontFallback});}
+  function validateImport(){const result=parseDesignSpec(jsonInput);setIssues(result.issues);setError('');if(!result.valid||!result.value){setSpec(null);setError('Review the validation findings and correct the JSON.');return;}setSpec(result.value);if(preparedPrompt){historySource.current={prompt:prompt.trim(),model:'External AI handoff'};setPreparedPrompt('');}else{historySource.current={prompt:`Imported JSON: ${result.value.name}`,model:'Manual JSON import'};}setNotice('Specification is valid. Insert is ready.');}
+  function insert(){if(!spec)return;const source=historySource.current??{prompt:`Imported JSON: ${spec.name}`,model:'Manual JSON import'};pendingRenderHistory.current={id:crypto.randomUUID(),prompt:source.prompt,model:source.model,createdAt:new Date().toISOString(),spec};setBusy(true);setError('');setNotice('Creating editable native Figma layers…');post({type:'render',spec,fontFallback});}
   async function fileText(file?:File){if(!file)return;if(file.size>512000){setError('File exceeds the 512 KB import limit.');return;}setJsonInput(await file.text());setError('');setIssues([]);}
   async function proposePatch(){
     if(!selection){setError('Select a frame in Figma before proposing an edit.');return;}if(!editPrompt.trim()){setError('Describe the change you want.');return;}
@@ -190,7 +198,7 @@ function App() {
       </>}
       {tab==='History'&&<>
         <div className="section-heading"><div><p className="eyebrow">THIS DEVICE</p><h1>History</h1><p className="muted">Recent prompts and results stay in this browser profile.</p></div><button className="icon-button danger-text" onClick={()=>setHistory([])}>Clear history</button></div>
-        {!history.length?<div className="empty-state"><strong>No saved generations</strong><p>Validated local generations will appear here.</p></div>:<div className="history-list">{history.map(item=><article className="history-item" key={item.id}><div className="history-head"><strong>{item.spec.name}</strong><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{item.prompt}</p><span className="history-meta">{item.model||'Manual import'} · {item.spec.pages.length} page(s)</span><div className="button-row compact-row"><button className="secondary-button small" onClick={()=>{setPrompt(item.prompt);setSpec(item.spec);setJsonInput(JSON.stringify(item.spec,null,2));setTab('Generate');}}>Reuse</button><button className="secondary-button small" onClick={()=>download(item.spec,`${item.spec.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`)}>Export</button><button className="secondary-button small" onClick={()=>{setSpec(item.spec);setJsonInput(JSON.stringify(item.spec,null,2));setTab('Import');}}>View JSON</button><button className="icon-button danger-text" aria-label="Delete history item" onClick={()=>setHistory(items=>items.filter(x=>x.id!==item.id))}>Delete</button></div></article>)}</div>}
+        {!history.length?<div className="empty-state"><strong>No completed designs yet</strong><p>Successfully inserted designs appear here, including manual JSON imports.</p></div>:<div className="history-list">{history.map(item=><article className="history-item" key={item.id}><div className="history-head"><strong>{item.spec.name}</strong><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{item.prompt}</p><span className="history-meta">{item.model||'Manual import'} · {item.spec.pages.length} page(s)</span><div className="button-row compact-row"><button className="secondary-button small" onClick={()=>{setPrompt(item.prompt);setSpec(item.spec);setJsonInput(JSON.stringify(item.spec,null,2));setTab('Generate');}}>Reuse</button><button className="secondary-button small" onClick={()=>download(item.spec,`${item.spec.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`)}>Export</button><button className="secondary-button small" onClick={()=>{setSpec(item.spec);setJsonInput(JSON.stringify(item.spec,null,2));setTab('Import');}}>View JSON</button><button className="icon-button danger-text" aria-label="Delete history item" onClick={()=>setHistory(items=>items.filter(x=>x.id!==item.id))}>Delete</button></div></article>)}</div>}
       </>}
       {tab==='Settings'&&<>
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
