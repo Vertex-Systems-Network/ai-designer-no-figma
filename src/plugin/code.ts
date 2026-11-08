@@ -12,13 +12,7 @@ let cancelActiveRender: (() => void) | undefined;
 const logicalIds = new Map<string, string>();
 type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined; layout?:{mode:FrameNode['layoutMode'];gap:number;paddingTop:number;paddingRight:number;paddingBottom:number;paddingLeft:number;alignment:FrameNode['primaryAxisAlignItems']} };
 const patchCheckpoints: PatchSnapshot[][] = [];
-let bridgeEndpoint = 'http://localhost:8788';
-let bridgeToken = '';
 let bridgeSessionId = '';
-let bridgeEpoch = 0;
-let bridgeRegistered = false;
-let bridgeHeartbeatAt = 0;
-let bridgeHeartbeatInFlight = false;
 type PendingImageTransfer={name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number;bytes:Uint8Array;receivedBytes:number;updatedAt:number};
 const pendingImageTransfers=new Map<string,PendingImageTransfer>();
 
@@ -31,7 +25,7 @@ function paint(hex: string): SolidPaint { return { type: 'SOLID', color: rgb(hex
 type RenderControl = { cancelled: boolean; nodes: number };
 async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin, control: RenderControl, fontFallback: string): Promise<SceneNode> {
   control.nodes += 1;
-  if (control.nodes % 32 === 0) { await maintainBridgeHeartbeat(); await new Promise((resolve) => setTimeout(resolve, 0)); }
+  if (control.nodes % 32 === 0) await Promise.resolve();
   if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
   let node: SceneNode;
   if (spec.type === 'text') {
@@ -337,24 +331,6 @@ function exportSelectedDesign(): DesignSpec {
   return spec;
 }
 
-async function bridgeRequest<T>(path:string,method:'GET'|'POST',body?:unknown):Promise<T>{
-  let timeout:ReturnType<typeof setTimeout>|undefined;
-  try{
-    const request=fetch(`${bridgeEndpoint}${path}`,{method,headers:{Authorization:`Bearer ${bridgeToken}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
-    const deadline=new Promise<Response>((_resolve,reject)=>{timeout=setTimeout(()=>reject(new Error('Local bridge request timed out. Check that Claude Desktop is running, then reconnect.')),5000);});
-    const response=await Promise.race([request,deadline]);
-    const data=await response.json() as T & {error?:{code?:string;message?:string}};
-    if(!response.ok)throw new Error(`${data.error?.code??'BRIDGE_HTTP_ERROR'}: ${data.error?.message??`Bridge returned ${response.status}.`}`);
-    return data;
-  }finally{if(timeout!==undefined)clearTimeout(timeout);}
-}
-async function maintainBridgeHeartbeat():Promise<void>{
-  if(!bridgeRegistered||!bridgeToken||bridgeHeartbeatInFlight||Date.now()-bridgeHeartbeatAt<5000)return;
-  bridgeHeartbeatInFlight=true;
-  try{await bridgeRequest('/bridge/sessions/heartbeat','POST',{sessionId:bridgeSessionId});bridgeHeartbeatAt=Date.now();}
-  catch{bridgeRegistered=false;}
-  finally{bridgeHeartbeatInFlight=false;}
-}
 function bridgeStatus(status:Extract<HostToUi,{type:'agent-status'}>['status'],details:Partial<Extract<HostToUi,{type:'agent-status'}>>={}):void{
   figma.ui.postMessage({type:'agent-status',status,...(bridgeSessionId?{sessionId:bridgeSessionId}:{}),...details});
 }
@@ -391,10 +367,12 @@ async function finishImageTransfer(operation:Extract<BridgeOperation,{type:'fini
   validateRasterAsset(transfer.bytes,transfer.mimeType);const asset=await insertRaster(transfer.name,transfer.mimeType,Array.from(transfer.bytes));
   figma.ui.postMessage({type:'asset-result',ok:true,message:'Chunked MCP image was checksum-verified, inserted and read back as a native Figma image fill.',...asset});return{...asset,sha256:transfer.sha256};
 }
-async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
+async function executeBridgeJob(job:BridgeJob):Promise<void>{
   const operation=job.operation;const label=bridgeOperationLabel(operation);const startedAt=Date.now();
+  const operator=figma.currentUser?.name??'Figma user';
   bridgeStatus('working',{jobId:job.jobId,agentLabel:job.agentLabel,operation:label});
   figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-started`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'started',timestamp:startedAt,message:'Plugin accepted the queued operation.'});
+  figma.notify(`${operator} · Working in this file: ${label}`);
   try{
     let result:unknown;
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
@@ -406,47 +384,32 @@ async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
     else if(operation.type==='image-transfer-chunk'){appendImageTransferChunk(operation);result={transferId:operation.transferId,index:operation.index,received:true};}
     else if(operation.type==='finish-image-transfer')result=await finishImageTransfer(operation);
     else result={spec:exportSelectedDesign()};
-    if(epoch!==bridgeEpoch)return;
-    await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:true,result});
+    figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:true,result});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-completed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'completed',timestamp:Date.now(),message:`Operation completed in ${Date.now()-startedAt} ms.`});
+    figma.notify(`${operator} · Done: ${label}`);
     bridgeStatus('connected');
   }catch(error){
-    if(epoch!==bridgeEpoch)return;
     const message=error instanceof Error?error.message:'Plugin operation failed.';
-    try{await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:false,error:{code:message.startsWith('RENDER_CANCELLED:')?'RENDER_CANCELLED':'PLUGIN_OPERATION_FAILED',message}});}catch{/* A dropped bridge session will show disconnected on the next poll. */}
+    figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:false,error:{code:message.startsWith('RENDER_CANCELLED:')?'RENDER_CANCELLED':'PLUGIN_OPERATION_FAILED',message}});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-failed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'failed',timestamp:Date.now(),message});
+    figma.notify(`${operator} · Failed: ${message.slice(0,140)}`);
     bridgeStatus('connected');
   }
 }
-async function bridgeLoop(epoch:number):Promise<void>{
-  while(epoch===bridgeEpoch&&bridgeToken){
-    try{
-      if(!bridgeRegistered){await bridgeRequest('/bridge/sessions/connect','POST',{sessionId:bridgeSessionId,pluginVersion:'0.2.0'});bridgeRegistered=true;}
-      else {await bridgeRequest('/bridge/sessions/heartbeat','POST',{sessionId:bridgeSessionId});bridgeHeartbeatAt=Date.now();}
-      bridgeStatus('connected');
-      const {job}=await bridgeRequest<{job:BridgeJob|null}>(`/bridge/sessions/${bridgeSessionId}/jobs/next`,'GET');
-      if(job)await executeBridgeJob(job,epoch);
-      else await new Promise((resolve)=>setTimeout(resolve,900));
-    }catch(error){
-      if(epoch!==bridgeEpoch)return;
-      bridgeRegistered=false;
-      bridgeStatus('error',{message:error instanceof Error?error.message:'Local bridge connection failed.'});
-      await new Promise((resolve)=>setTimeout(resolve,1800));
-    }
-  }
-}
-function configureBridge(endpoint:string,token:string):void{
-  bridgeEpoch+=1;bridgeToken='';bridgeRegistered=false;bridgeHeartbeatAt=0;
-  if(!token){bridgeStatus('disconnected',{message:'Claude disconnected.'});return;}
+function configureBridge(endpoint:string,token:string,sessionId:string):void{
+  if(!token){bridgeSessionId='';bridgeStatus('disconnected',{message:'Claude disconnected.'});return;}
   try{
-    // Figma's plugin JSVM does not expose the browser URL constructor.
     if(!/^http:\/\/(?:localhost|127\.0\.0\.1):8788\/?$/.test(endpoint))throw new Error('Use the local bridge endpoint http://localhost:8788.');
-    if(!/^[a-f0-9]{64}$/i.test(token))throw new Error('Paste the 64-character pairing token from the local bridge token file.');
-    bridgeEndpoint='http://localhost:8788';bridgeToken=token;
-    if(!bridgeSessionId)bridgeSessionId=`figma-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+    if(!/^[a-f0-9]{64}$/i.test(token))throw new Error('The local pairing details are invalid. Select Connect Claude again.');
+    if(!/^[a-zA-Z0-9:_-]{8,128}$/.test(sessionId))throw new Error('The local bridge session is invalid. Select Connect Claude again.');
+    bridgeSessionId=sessionId;
     bridgeStatus('connecting',{message:'Connecting to the local agent bridge…'});
-    void bridgeLoop(bridgeEpoch);
   }catch(error){bridgeStatus('disconnected',{message:error instanceof Error?error.message:'Bridge is not configured.'});}
+}
+
+function sendCurrentUser():void{
+  const user=figma.currentUser;
+  figma.ui.postMessage({type:'current-user',name:user?.name??'Figma user',photoUrl:user?.photoUrl??null,signedIn:Boolean(user&&user.name!=='Anonymous')});
 }
 
 figma.on('selectionchange', inspectSelection);
@@ -458,7 +421,10 @@ figma.ui.onmessage = async (message: UiToHost) => {
       figma.ui.resize(width, height);
       return;
     }
-    if(message.type==='configure-bridge'){configureBridge(message.endpoint,message.token);return;}
+    if(message.type==='ui-ready'){sendCurrentUser();inspectSelection();return;}
+    if(message.type==='configure-bridge'){configureBridge(message.endpoint,message.token,message.sessionId);return;}
+    if(message.type==='hide-ui'){figma.ui.hide();figma.notify('Claude is connected. Figma work will continue in the background. Run AI Designer No Figma again to reopen its panel.');return;}
+    if(message.type==='bridge-job'){await executeBridgeJob(message.job);return;}
     if (message.type === 'cancel-render') { cancelActiveRender?.(); return; }
     if (message.type === 'inspect-selection') inspectSelection();
     if (message.type === 'render') {
@@ -503,4 +469,5 @@ figma.ui.onmessage = async (message: UiToHost) => {
   }
 };
 
-figma.on('run', inspectSelection);
+figma.on('run',()=>{figma.ui.show();sendCurrentUser();inspectSelection();});
+sendCurrentUser();

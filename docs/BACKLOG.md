@@ -6,13 +6,13 @@ Status means evidence in this repository, not an estimate.
 |---|---|---:|---|---|
 | 0 | Environment and existing-work audit | 100% | PASS | Node/npm available; blank target workspace; organization `open-designer` inspected as a separate desktop/web editor, not a drop-in plugin. |
 | 1 | TypeScript foundation, schema, tooling, docs | 100% | PASS | Dependency install, strict typecheck, lint, unit tests, runtime integration tests, and build completed. |
-| 2 | Plugin lifecycle and native renderer | 75% | IN PROGRESS | Host/UI bridge and editable renderer work for supported nodes. User confirmed the latest re-imported VSN loader and plugin UI work in Figma. SVG/image node paths are automated-tested; live render and broader node support remain. |
+| 2 | Plugin lifecycle and native renderer | 76% | IN PROGRESS | Browser networking moved from the Figma JSVM host to the UI iframe; renderer commands still run through the Figma host. User confirmed the base UI; live background operation and asset render remain. |
 | 3 | Versioned specification and validation | 40% | IN PROGRESS | JSON Schema 1.0, bounded validation, and validated export of one supported Figma selection; images/vectors/gradients/components remain. |
-| 4 | Provider-neutral AI integration and custom MCP | 70% | IN PROGRESS | User-operated no-API handoff and optional Ollama remain; custom MCP stdio server is implemented and protocol-tested. Client-specific setup and live Figma actions remain unverified. |
+| 4 | Provider-neutral AI integration and custom MCP | 74% | IN PROGRESS | Provider-neutral handoff, optional Ollama and custom MCP are implemented; bridge polling now continues in the hidden UI iframe. Client-specific setup and live Figma actions remain unverified. |
 | 5 | Selection-aware editing and rollback | 80% | IN PROGRESS | Geometry-aware selection summary, safe bounds/text/fill/name/Auto Layout patches, preview, rollback snapshots, and up to 20 plugin-session undo checkpoints implemented; component replacement and live preservation test remain. |
 | 6 | Design system engine | 65% | IN PROGRESS | Color token CRUD/import/export/apply, prompt-linked typography/spacing scales and up to 20 local save/load/duplicate/delete presets work; reusable components, native Variables/styles and direct text-style application remain. |
-| 7 | Complete premium UI | 90% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, and device-local asset-library controls exist; broader visual/accessibility QA remains. |
-| 8 | Testing and hardening | 85% | IN PROGRESS | 36 unit and 15 integration tests passed after the Figma storage and chunked transfer changes; typecheck/lint/build/package and local privacy audit pass. Full renderer/edit preservation, live bridge pairing and local-model checks remain. |
+| 7 | Complete premium UI | 90% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, signed-in Figma operator display and hide-after-connect exist; broader visual/accessibility QA remains. |
+| 8 | Testing and hardening | 87% | IN PROGRESS | 39 unit and 15 integration tests passed after moving bridge polling into the UI iframe; typecheck/lint/build/package and local privacy audit pass. Full renderer/edit preservation, live hidden bridge pairing and local-model checks remain. |
 | 9 | Build and release packaging | 100% | PASS | Plugin/runtime bundles, source ZIP, SHA-256 manifest, ZIP integrity, and reproducible archive hash verified. |
 | 10 | Final audit and evidence report | 60% | IN PROGRESS | Traceability and asset release verification pass; startup UI is user-confirmed live. Close remaining feature gates and report renderer/edit preservation, local-model, screenshot, client pairing and registration evidence. A separate Figma Web cloud session failed GPU initialization; no offline edits were synced. |
 
@@ -22,7 +22,7 @@ Status means evidence in this repository, not an estimate.
 |---|---:|---|
 | MCP stdio server and actual tool catalog | 100% | Protocol integration test covers initialization, discovery, validation errors and capabilities. |
 | Token-authenticated loopback bridge | 100% | Broker and HTTP integration tests cover token/origin rejection, session isolation, correlated delivery and result return. |
-| Plugin pairing and Agent Activity UI | 90% | Pair token now persists across bridge restarts; plugin runtime no longer depends on the unavailable `URL` global; live pairing still requires user-side confirmation. |
+| Pairing, hidden background jobs and Figma operator status | 95% | UI iframe performs authenticated loopback polling, host handles document operations, Figma current-user identity is displayed, and Connect hides the panel; live desktop confirmation remains. Closing Figma or its document ends the session. |
 | Cross-client installation and Figma live actions | 0% | Not tested in this environment; use installation guide and confirm on desktop. |
 
 ## Master Prompt 04 · AI assets

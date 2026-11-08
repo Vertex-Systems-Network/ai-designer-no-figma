@@ -114,8 +114,12 @@ function App() {
   const [bridgeToken, setBridgeToken] = useState(() => load('adnf-bridge-token',''));
   const [agentStatus, setAgentStatus] = useState<Extract<HostToUi,{type:'agent-status'}>>({type:'agent-status',status:'disconnected',message:'Pair a local MCP client from Settings.'});
   const [agentEvents, setAgentEvents] = useState<Array<Extract<HostToUi,{type:'agent-event'}>>>([]);
+  const [figmaUser,setFigmaUser]=useState<Extract<HostToUi,{type:'current-user'}>>({type:'current-user',name:'Figma user',photoUrl:null,signedIn:false});
   const activeController = useRef<AbortController|null>(null);
   const reconnectingAgent = useRef(false);
+  const bridgeEpoch=useRef(0);
+  const bridgeSession=useRef('');
+  const bridgeWaiters=useRef(new Map<string,(message:Extract<HostToUi,{type:'bridge-job-result'}>)=>void>());
   const historySource = useRef<{prompt:string;model:string}|null>(null);
   const pendingRenderHistory = useRef<HistoryItem|null>(null);
   const pendingAsset = useRef<{payload:AssetPayload}|null>(null);
@@ -141,8 +145,10 @@ function App() {
     initializeAssetLibraryBridge();
     if(bridgeToken){configureStoredAssetBridge(bridgeUrl,bridgeToken);void listStoredAssets().then(setAssetRecords).catch(()=>{});}
     post({type:'inspect-selection'});
-    if (bridgeToken) post({type:'configure-bridge',endpoint:bridgeUrl,token:bridgeToken});
+    if (bridgeToken) void startBridgePolling(bridgeUrl,bridgeToken).catch(()=>{});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
+      if(msg.type==='current-user')setFigmaUser(msg);
+      if(msg.type==='bridge-job-result')bridgeWaiters.current.get(msg.jobId)?.(msg);
       if(msg.type==='agent-status'){
         setAgentStatus(msg);
         if(msg.status==='connected') { setNotice('Claude is connected to Figma. Ready for your request.'); setError(''); }
@@ -179,7 +185,7 @@ function App() {
       if(msg.type==='patch-result'){setBusy(false);setError('');setNotice(msg.message);if(typeof msg.undoCount==='number')setUndoCount(msg.undoCount);}
       if(msg.type==='error'){pendingRenderHistory.current=null;pendingAsset.current=null;setAssetBusy(false);setBusy(false);setError(`${msg.code}: ${msg.message}`);}
     };
-    window.addEventListener('message',receive); return ()=>window.removeEventListener('message',receive);
+    window.addEventListener('message',receive);post({type:'ui-ready'}); return ()=>window.removeEventListener('message',receive);
   },[]);
   async function connectLocalAgent(){
     setAgentStatus({type:'agent-status',status:'connecting',message:'Connecting Claude to this Figma file…'});
@@ -191,13 +197,67 @@ function App() {
       setBridgeUrl(result.endpoint);setBridgeToken(result.token);
       configureStoredAssetBridge(result.endpoint,result.token);
       save('adnf-bridge-url',result.endpoint);save('adnf-bridge-token',result.token);
-      post({type:'configure-bridge',endpoint:result.endpoint,token:result.token});
       void listStoredAssets().then(setAssetRecords).catch(()=>{});
       setNotice('Claude found. Connecting to this Figma file…');
+      await startBridgePolling(result.endpoint,result.token);
+      setNotice('Claude connected. Figma work will continue in the background.');
+      post({type:'hide-ui'});
     }catch(error){
       const reason=error instanceof Error&&error.message!=='Failed to fetch'?error.message:'Open Claude Desktop and install the AI Designer extension, then try Connect again.';
       setAgentStatus({type:'agent-status',status:'disconnected',message:reason});setError(reason);setNotice('');
     }
+  }
+
+  async function startBridgePolling(endpoint:string,token:string):Promise<void>{
+    const epoch=++bridgeEpoch.current;
+    if(!bridgeSession.current)bridgeSession.current=load('adnf-bridge-session',`figma-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`);
+    save('adnf-bridge-session',bridgeSession.current);
+    const sessionId=bridgeSession.current;
+    let readyResolved=false;
+    let resolveReady!:()=>void;
+    let rejectReady!:(error:Error)=>void;
+    const ready=new Promise<void>((resolve,reject)=>{resolveReady=resolve;rejectReady=reject;});
+    const request=async<T,>(path:string,method:'GET'|'POST',body?:unknown):Promise<T>=>{
+      const controller=new AbortController();const timer=window.setTimeout(()=>controller.abort(),8000);
+      try{
+        const response=await fetch(`${endpoint.replace(/\/$/,'')}${path}`,{method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:controller.signal});
+        const data=await response.json() as T&{error?:{code?:string;message?:string}};
+        if(!response.ok)throw new Error(`${data.error?.code??'BRIDGE_HTTP_ERROR'}: ${data.error?.message??`Bridge returned ${response.status}.`}`);
+        return data;
+      }finally{window.clearTimeout(timer);}
+    };
+    const pause=(ms:number)=>new Promise<void>(resolve=>window.setTimeout(resolve,ms));
+    let registered=false;let connected=false;let heartbeatTimer=0;
+    void (async()=>{
+      try{
+       while(epoch===bridgeEpoch.current){
+        try{
+          if(!registered){await request('/bridge/sessions/connect','POST',{sessionId,pluginVersion:'0.2.0'});registered=true;post({type:'configure-bridge',endpoint,token,sessionId});}
+          const next=await request<{job:import('../shared/bridge-contract').BridgeJob|null}>(`/bridge/sessions/${sessionId}/jobs/next`,'GET');
+          if(!connected){connected=true;readyResolved=true;resolveReady();setAgentStatus({type:'agent-status',status:'connected',sessionId,message:'Claude is connected to this Figma file.'});}
+          if(next.job){
+            const job=next.job;setAgentStatus({type:'agent-status',status:'working',sessionId,jobId:job.jobId,agentLabel:job.agentLabel,operation:job.operation.type});
+            heartbeatTimer=window.setInterval(()=>{void request('/bridge/sessions/heartbeat','POST',{sessionId}).catch(()=>{});},15000);
+            const result=await new Promise<Extract<HostToUi,{type:'bridge-job-result'}>>((resolve,reject)=>{
+              const timeout=window.setTimeout(()=>{bridgeWaiters.current.delete(job.jobId);reject(new Error('Figma did not return a result within five minutes. Reopen the plugin and reconnect.'));},300000);
+              bridgeWaiters.current.set(job.jobId,message=>{window.clearTimeout(timeout);bridgeWaiters.current.delete(job.jobId);resolve(message);});
+              post({type:'bridge-job',job});
+            });
+            await request(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId,ok:result.ok,...(result.ok?{result:result.result}:{error:result.error})});
+            setAgentStatus({type:'agent-status',status:'connected',sessionId,message:result.ok?'Figma finished the requested operation.':'Figma could not complete the requested operation.'});
+          }else await pause(900);
+        }catch(error){
+          if(epoch!==bridgeEpoch.current)return;
+          registered=false;connected=false;
+          const message=error instanceof Error?error.message:'Local bridge connection failed.';
+          setAgentStatus({type:'agent-status',status:'error',sessionId,message});
+          if(!readyResolved){readyResolved=true;rejectReady(error instanceof Error?error:new Error(message));}
+          await pause(1800);
+        }finally{if(heartbeatTimer){window.clearInterval(heartbeatTimer);heartbeatTimer=0;}}
+       }
+      }finally{if(heartbeatTimer)window.clearInterval(heartbeatTimer);}
+    })();
+    return ready;
   }
 
   async function refreshModels() {
@@ -362,6 +422,7 @@ function App() {
       </>}
       {tab==='Agent Activity'&&<>
         <div className="section-heading"><div><p className="eyebrow">LOCAL MCP BRIDGE</p><h1>Agent activity</h1><p className="muted">See real work accepted from a paired local MCP client.</p></div><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status}</span></div>
+        <div className="settings-card"><div className="preview-head"><strong>Figma operator</strong><span className={`status ${figmaUser.signedIn?'status-connected':'status-disconnected'}`}><i/>{figmaUser.signedIn?'Signed in':'Not signed in'}</span></div><p className="muted"><strong>{figmaUser.name}</strong>{agentStatus.status==='working'?` is working in this file · ${agentStatus.operation??'Processing request'}`:agentStatus.status==='connected'?' is online and waiting for Claude.':' will appear here when the plugin connects.'}</p></div>
         <div className="settings-card"><strong>{agentStatus.agentLabel??'No active agent job'}</strong><p className="muted">{agentStatus.operation??agentStatus.message??(agentStatus.status==='connected'?'Bridge connected; waiting for a request.':'Pair a local MCP client in Settings.')}</p>{agentStatus.jobId&&<code>Job {agentStatus.jobId}</code>}</div>
         {!agentEvents.length?<div className="empty-state"><strong>No agent activity yet</strong><p>Once paired, MCP requests and their actual Figma results will appear here.</p></div>:<div className="history-list">{agentEvents.map(item=><article className="history-item" key={item.id}><div className="history-head"><strong>{item.operation}</strong><time>{new Date(item.timestamp).toLocaleString()}</time></div><p>{item.message}</p><span className="history-meta">{item.agentLabel} · {item.status} · {item.jobId}</span></article>)}</div>}
       </>}
@@ -369,7 +430,7 @@ function App() {
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
         <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
-        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the Figma file that is open now. Prompts and saved assets stay on this device.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={agentStatus.status==='connecting'}>{agentStatus.status==='connecting'?'Connecting…':'Connect Claude'}</button>{bridgeToken&&<button className="secondary-button small" onClick={()=>{setBridgeToken('');save('adnf-bridge-token','');configureStoredAssetBridge(bridgeUrl,'');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:''});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If Claude is installed but cannot connect, check that the AI Designer extension is enabled in Claude Desktop, then select Connect again.</p></details></div>
+        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the open Figma file once. After the connection is confirmed, the panel hides and the plugin keeps processing jobs in this file. Keep Figma Desktop and this document open.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={agentStatus.status==='connecting'}>{agentStatus.status==='connecting'?'Connecting…':'Connect & hide panel'}</button>{bridgeToken&&<button className="secondary-button small" onClick={()=>{bridgeEpoch.current++;setBridgeToken('');save('adnf-bridge-token','');configureStoredAssetBridge(bridgeUrl,'');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:'',sessionId:bridgeSession.current||'disconnect-session'});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If Claude is installed but cannot connect, check that the AI Designer extension is enabled in Claude Desktop, then select Connect again.</p></details></div>
         <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
       </>}
     </section>

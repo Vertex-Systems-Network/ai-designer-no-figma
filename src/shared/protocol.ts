@@ -1,5 +1,6 @@
 import type { DesignSpec } from './spec';
 import type { AssetSummary, StoredAsset } from './asset-library';
+import type { BridgeJob } from './bridge-contract';
 
 export type HostToUi =
   | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> } | null }
@@ -10,13 +11,18 @@ export type HostToUi =
   | { type:'asset-library-response';requestId:string;operation:'list'|'read'|'save'|'delete'|'clear';ok:boolean;assets?:AssetSummary[];asset?:StoredAsset|AssetSummary;duplicate?:boolean;message?:string }
   | { type: 'agent-status'; status:'disconnected'|'connecting'|'connected'|'working'|'error'; sessionId?:string; jobId?:string; agentLabel?:string; operation?:string; message?:string }
   | { type: 'agent-event'; id:string; jobId:string; agentLabel:string; operation:string; status:'started'|'completed'|'failed'; timestamp:number; message:string }
+  | { type: 'current-user'; name:string; photoUrl:string|null; signedIn:boolean }
+  | { type: 'bridge-job-result'; jobId:string; ok:boolean; result?:unknown; error?:{code:string;message:string} }
   | { type: 'error'; code: string; message: string };
 
 export type UiToHost =
   | { type: 'resize-ui'; width: number; height: number }
+  | { type: 'ui-ready' }
   | { type: 'inspect-selection' }
   | { type: 'export-selection' }
-  | { type: 'configure-bridge'; endpoint:string; token:string }
+  | { type: 'configure-bridge'; endpoint:string; token:string; sessionId:string }
+  | { type: 'bridge-job'; job:BridgeJob }
+  | { type: 'hide-ui' }
   | { type: 'render'; spec: DesignSpec; fontFallback?: string }
   | { type: 'cancel-render' }
   | { type: 'apply-patch'; patch: EditPatch }

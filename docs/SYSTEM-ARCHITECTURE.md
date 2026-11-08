@@ -9,15 +9,15 @@
 5. `src/plugin/code.ts` creates or edits native Figma nodes through the Plugin API.
 6. Optional Ollama requests go from UI to the loopback companion service, which calls only a loopback Ollama endpoint.
 7. Manual asset import accepts pasted SVG or a local PNG/JPEG/GIF file; shared validators run before the plugin host creates an SVG node or raster image fill.
-8. Optional custom MCP asset tools validate caller-supplied vector/image data, then send bounded commands over the authenticated loopback bridge to the same plugin host adapter.
+8. Optional custom MCP tools send bounded commands over the authenticated loopback bridge. The browser UI iframe owns bridge HTTP polling and returns typed jobs through `postMessage`; the Figma host performs the document operation and returns the correlated result to the iframe.
 
 ## Target extension boundaries
 
-`MCP client → custom stdio MCP server → authenticated local job bridge → bounded command queue → Figma plugin session → Figma Plugin API`
+`MCP client → custom stdio MCP server → authenticated loopback queue → UI iframe poller → typed UI/host message → Figma Plugin API`
 
 The custom MCP server must not depend on undocumented Figma endpoints or the official Figma MCP. The bridge transports commands/results only; the plugin remains the sole document mutation authority. The universal design schema, MCP tool contracts, and Figma adapter each receive separate versions.
 
-The custom MCP and bridge path is implemented and automated-tested, but live Figma pairing remains unverified. Client generation/file access is not inferred. The standalone asset path is separate from the JSON design schema. MCP raster transfer supports up to 5 MiB in checksum-verified chunks; the paired bridge stores local source bytes in a private content-addressed file because Figma blocks browser and plugin storage in this development context. Replacement/crop operations and live post-insert verification remain open.
+The custom MCP and bridge path is automated-tested, but live Figma pairing remains unverified. Bridge network requests belong in the UI iframe because browser networking globals are not available in the Figma JSVM host. The panel can be hidden with `figma.ui.hide()` while that iframe and the current document session continue running; closing Figma or the document ends the session. The manifest requests `currentuser` only to display the signed-in Figma operator. Client generation/file access is not inferred. The standalone asset path is separate from the JSON design schema. MCP raster transfer supports up to 5 MiB in checksum-verified chunks; the paired bridge stores local source bytes in a private content-addressed file because Figma blocks browser and plugin storage in this development context. Replacement/crop operations and live post-insert verification remain open.
 
 ## Safety boundaries
 

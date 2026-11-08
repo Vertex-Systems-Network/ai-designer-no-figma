@@ -2,6 +2,7 @@
 
 ## Unreleased — repository intelligence and MCP foundation
 
+- Moved authenticated MCP bridge polling and network requests out of the Figma JSVM host into the browser-based plugin UI iframe. The host now handles only Figma document work and returns correlated job results to the UI. Added a Connect & hide flow using `figma.ui.hide()`, background heartbeat while jobs run, a Figma toast for each job's working/completed/failed state, and display of the signed-in Figma operator via the declared `currentuser` permission. Added a regression suite preventing browser network/timer globals from returning to the Figma host. Closing Figma or the current document still ends the session; new-file automation needs a separate desktop runner.
 - Replaced Figma/browser storage for imported assets with validated, size-bounded persistence in the private local bridge file, because the user's Figma context denies IndexedDB and plugin storage. Pair credentials now persist across bridge restarts, and plugin bridge endpoint validation no longer uses the unavailable Figma JSVM `URL` global. Typecheck, lint, build, MCPB packaging and ZIP packaging pass; live Windows Claude/Figma confirmation is pending.
 - Removed the plugin host's `AbortController` dependency from bridge requests; the Figma JSVM now uses a bounded timeout race and reports a useful reconnection message on slow requests.
 - Added canonical cross-agent repository instructions and source-aware project status documents.

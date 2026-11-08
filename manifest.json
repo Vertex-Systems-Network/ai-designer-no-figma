@@ -5,6 +5,7 @@
   "ui": "dist/ui.html",
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
+  "permissions": ["currentuser"],
   "networkAccess": {
     "allowedDomains": ["http://localhost:8787", "http://localhost:8788"],
     "reasoning": "Connect to optional local model inference and the token-protected MCP plugin bridge. Both services bind only to loopback."

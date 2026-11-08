@@ -9,7 +9,8 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 - VSN startup loader and plugin UI were confirmed working by the user in Figma.
 - Custom stdio MCP server and authenticated loopback bridge: protocol initialization, tested tool discovery, schema rejection, job correlation, session isolation and result return are covered by automated integration tests.
 - Settings now accepts the loopback pairing endpoint/token, and Agent Activity receives real bridge status and operation events. This is build-verified; live pairing is not yet tested.
-- `npm run release:verify` passed after the current changes: typecheck, lint, 36 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
+- Bridge polling and HTTP requests now run in the plugin UI iframe; the restricted Figma JSVM host only executes validated Figma document operations and sends correlated results back. Connect now hides the panel after the loopback session is confirmed while the iframe keeps polling. The plugin also reads the signed-in Figma user's display name through the explicit `currentuser` permission. Automated host-runtime regressions pass; live hidden-panel operation is not yet tested.
+- Latest `npm run release:verify` passed: typecheck, lint, 39 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification. The compatibility metadata check also completed; it explicitly does not claim a live Figma compatibility test.
 
 ## Partial
 
@@ -26,6 +27,7 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 
 - Live Figma pairing and MCP-driven mutation, screenshot/visual validation, universal Figma compatibility layer and client-specific setup verification remain open.
 - A Figma Desktop session cannot be driven by the current executor; user-confirmed UI is not evidence for newly added export/undo features.
+- Hidden-panel background work is scoped to the currently open Figma document and live plugin session. Closing Figma or the document terminates it; creating/opening a new Draft file automatically requires a separate local desktop runner and is not implemented.
 - Component/variable/style APIs, API compatibility monitoring and complete accessibility screenshot QA need implementation and environment verification.
 
 ## Release gate

@@ -1,5 +1,13 @@
 # AI session log
 
+## 2026-11-08 — hidden Claude/Figma job session and signed-in operator
+
+- Moved authenticated bridge HTTP polling from the restricted Figma JSVM host to the browser UI iframe. The UI now sends typed jobs to the plugin host and posts the actual correlated Figma result back to the bridge; active-job heartbeats continue while rendering.
+- Added **Connect & hide panel**. It hides the plugin UI only after pairing/session registration succeeds; Figma's UI iframe continues running. Added the `currentuser` manifest permission and an Agent Activity row showing the signed-in Figma account and active operation. Figma notifications surface working, done and failed states while the panel is hidden.
+- Added a regression test that prevents `fetch`, `URL`, `AbortController`, `AbortSignal`, and timer globals from returning to the Figma host. Added a UI-ready handshake so the current-user status is not lost before React installs its message listener.
+- Validation: `npm run release:verify` passed with 39 unit and 15 integration tests, typecheck/lint, local security audit, build/package, docs audit (0 findings), ZIP contents and SHA-256. `npm run compatibility:check` completed and correctly reports that it is not a live test. The current artifact checksum is recorded in `artifacts/SHA256SUMS.txt`.
+- The environment supplied an npm `http-proxy` config key that npm warned is unknown. Running release verification with the two lowercase/uppercase `NPM_CONFIG_HTTP_PROXY` aliases unset removed the warning without changing project configuration. Figma Desktop is unavailable to this executor, so hidden-mode live completion remains NOT TESTED. Closing Figma/current document ends the plugin session; unattended new Draft-file creation still requires a separately implemented local desktop runner.
+
 ## 2026-11-08 — Figma pairing and local asset persistence repair
 
 - Fixed the pairing failure caused by Figma's plugin JSVM lacking the global `URL` constructor; endpoint validation now checks the exact loopback endpoint directly.

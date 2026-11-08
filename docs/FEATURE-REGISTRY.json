@@ -273,28 +273,31 @@
     {
       "id": "AGENT-001",
       "name": "Live agent activity and jobs",
-      "description": "Show bridge connection, operation events and actual outcomes inside the plugin.",
+      "description": "Show the signed-in Figma operator and live agent job state; keep a paired job poller alive while the plugin panel is hidden.",
       "module": "plugin-ui",
       "sourceFiles": [
         "src/ui/main.tsx",
         "src/shared/protocol.ts",
-        "src/plugin/code.ts"
+        "src/plugin/code.ts",
+        "manifest.json"
       ],
       "dependencies": [
         "MCP-001",
         "BRIDGE-001"
       ],
       "status": "PARTIAL",
-      "testStatus": "NOT TESTED",
-      "tests": [],
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/plugin/host-runtime.test.ts"
+      ],
       "knownIssues": [
-        "UI event display and secure pairing have not yet been exercised in a live Figma session."
+        "Automated checks cover plugin-host JSVM compatibility; hidden-panel operation and Figma account display have not yet been exercised in a live Figma session. Closing Figma or the document terminates this plugin session; automatic new-file creation is not implemented."
       ],
       "priority": "P2",
       "releaseTarget": "0.3.0",
       "lastModified": "2026-11-08",
       "lastVerified": "2026-11-08",
-      "nextAction": "Re-import the build, pair with local token, then verify activity and returned results in Figma."
+      "nextAction": "Re-import the build, pair once, verify the signed-in operator, hide the panel and confirm one real Claude job completes; then scope a separate local desktop runner for new/closed files."
     },
     {
       "id": "COMPAT-001",

@@ -8,19 +8,20 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 - User confirmed the VSN startup loader and plugin panel work in Figma.
 - Selected export and patch geometry/undo were implemented and passed typecheck/lint/unit/integration/build/audit/package before this handoff update; live Figma verification of these latest controls is still needed.
 - Custom MCP stdio server, authenticated loopback bridge, job broker, pairing settings, and Agent Activity timeline are implemented. Protocol, security, session isolation, and job-result behavior pass automated tests. Live Figma pairing and client-specific setup are still NOT TESTED.
+- Bridge HTTP polling now runs only in the plugin UI iframe (the browser runtime); Figma host code receives validated jobs and performs document operations. After initial connection confirmation, **Connect & hide panel** calls `figma.ui.hide()`; the hidden iframe continues running and keeps the same document session connected. Figma's `currentuser` permission supplies the operator name and signed-in state for Agent Activity. Automated checks cover the host runtime, but live hidden-mode behavior is NOT TESTED.
 - Manual SVG and PNG/JPEG/GIF imports are implemented with shared input bounds, a 5 MiB MCP/local-file raster limit with 64 KiB SHA-256 checked chunks above the 192 KiB direct-transfer threshold, and a bounded authenticated loopback asset library with private file persistence. This avoids Figma `clientStorage`, browser `localStorage`, IndexedDB, and plugin-ID requirements. Save/reload/reuse and live paired MCP transfer still need confirmation; import remains usable when the local service is disconnected.
 - Selection patches now include reviewed frame-only Auto Layout mode/gap/padding/alignment changes and include layout state in rollback snapshots; live Figma preservation remains NOT TESTED.
 - Design-system color, typography and spacing tokens are locally persisted and included in both manual AI handoff and optional Ollama generation. Up to 20 named local presets can be saved, loaded, duplicated and deleted. Native Figma text styles/Variables are still not created.
-- Previous `npm run release:verify` result: 31 unit tests, 15 integration tests, typecheck/lint, production build, local audit, strict docs audit (0 findings), ZIP integrity and SHA-256 all passed before the storage fallback change. Latest verification after the storage fix: 35 unit tests and 15 integration tests, typecheck/lint, production build, local audit, strict docs audit (0 findings), ZIP integrity and SHA-256 all pass.
+- Latest `npm run release:verify`: 39 unit tests and 15 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 all passed. `npm run compatibility:check` reports metadata/typing only; it does not certify a live Figma session.
 
 ## Exact next tasks
 
-1. Reimport `dist/manifest.json` in Figma Desktop and use **Connect Claude** in plugin Settings; no token entry is needed.
-2. Verify a custom MCP client's `figma_get_connection_status`, selection inspect, import, targeted patch, selected export and job result in the live editor.
-3. Confirm that Agent Activity shows actual status and result events, and that an invalid token stays disconnected.
-4. Verify selected export/import round-trip, bounds edits, undo and unaffected siblings in Figma.
+1. Reimport `dist/manifest.json` in Figma Desktop and use **Connect & hide panel** in plugin Settings; no token entry is needed.
+2. Confirm Figma operator display, then issue one Claude MCP operation with the panel hidden; verify actual result and that reopening the plugin shows Agent Activity.
+3. Verify selection inspect, import, targeted patch, selected export, export/import round-trip, bounds edits, undo and unaffected siblings in Figma.
 5. Test Ollama only if a local runtime/model is actually available; otherwise record NOT TESTED.
 6. Verify new SVG/raster insertion and Auto Layout patch/undo in Figma. Remaining engineering items are live paired large-file transfer verification, schema-backed assets, gradients/components/variables, and accessibility/screenshot QA.
+7. Closed-file operation is still a separate product requirement: Figma plugin sessions stop with the host document. A local desktop runner must be designed to launch/select a Draft file and run the plugin before claiming that Claude can work with Figma fully closed.
 
 ## Constraints
 
