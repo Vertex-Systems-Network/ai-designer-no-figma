@@ -5,26 +5,26 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 ## Current release
 
 - Public repository: [Vertex-Systems-Network/ai-designer-no-figma](https://github.com/Vertex-Systems-Network/ai-designer-no-figma)
-- Download: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip)
+- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (source changes may be newer; use `npm run package` to rebuild.)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
 ## Project progress
 
-**Overall completion: 70%** — rounded simple mean of the 11 phase estimates below, including custom MCP, pairing, and agent activity work. It is not a release-readiness claim.
+**Overall completion: 74%** — rounded mean of the 11 phase estimates below, including custom MCP, pairing, agent activity, and the newly verified asset slice. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
 | 0 · Environment audit | `████████████████████` 100% | PASS | — |
 | 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
-| 2 · Figma plugin and renderer | `████████████░░░░░░░░` 60% | IN PROGRESS | Broader native node support and renderer coverage |
+| 2 · Figma plugin and renderer | `██████████████░░░░░░` 70% | IN PROGRESS | Broader native node support and live asset-render verification |
 | 3 · Specification and validation | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
 | 4 · AI integration | `██████████████░░░░░░` 70% | IN PROGRESS | Additional client interoperability and live local-model checks |
 | 5 · Selection editing | `██████████████░░░░░░` 70% | IN PROGRESS | Component replacement, Auto Layout operations, live preservation test |
 | 6 · Design system | `██████░░░░░░░░░░░░░░` 30% | IN PROGRESS | Typography/spacing scales and native reusable components |
-| 7 · Application UI | `████████████████░░░░` 80% | IN PROGRESS | Pairing/activity UI needs Figma live confirmation and accessibility review |
-| 8 · Testing and hardening | `███████████████░░░░░` 75% | IN PROGRESS | Broader renderer coverage and real local-model check |
+| 7 · Application UI | `█████████████████░░░` 85% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
+| 8 · Testing and hardening | `█████████████████░░░` 85% | IN PROGRESS | Broader renderer coverage and real local-model check |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
-| 10 · Final audit | `██████████░░░░░░░░░░` 50% | IN PROGRESS | Complete live Figma and client interoperability evidence |
+| 10 · Final audit | `████████████░░░░░░░░` 60% | IN PROGRESS | Complete live Figma and client interoperability evidence |
 
 Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
 
@@ -32,6 +32,9 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 
 | Task | Progress | Status | Evidence / next step |
 |---|---:|---|---|
+| Manual SVG and raster asset import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Strict SVG sanitization and PNG/JPEG/GIF validation feed native Figma nodes; re-import and inspect in live Figma. |
+| MCP asset validation and transfer | `█████░░░░░` 50% | IMPLEMENTED · AUTOMATED VERIFIED | Vector/image validation and bounded insertion tools exist; live paired transfer and larger-file chunking remain. |
+| Asset registry and client capability discovery | `██░░░░░░░░` 20% | PARTIAL | Recent local metadata is available; client-native generation/file-transfer detection and deduped reusable assets remain unverified. |
 | VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
 | Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
 | Selected bounds patch and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Current selection/patch validation and snapshots are covered in code; targeted preservation and undo need a fresh live Figma check. |
@@ -39,9 +42,27 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | Custom MCP stdio server | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | MCP SDK tool discovery, input rejection, session status and capabilities pass protocol integration tests. Client-specific install/live invocation is pending. |
 | Local Figma bridge | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | Loopback HTTP, 256-bit pairing token, origin allowlist, payload limits, per-session correlation, and results pass integration tests. |
 | Agent pairing and activity | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Pairing form/activity timeline are connected to real bridge events; live re-import and pairing test remains. |
-| Automated verification | `██████████` 100% | PASS | Typecheck, lint, 21 unit tests, 14 integration tests, documentation audit, compatibility report, local security audit, build and deterministic ZIP verification pass. |
+| Automated verification | `██████████` 100% | PASS | Typecheck, lint, 26 unit tests, 15 integration tests, 0-finding docs audit, local security checks, build, ZIP integrity and SHA-256 verification pass. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
+
+## Master Prompt 04 · AI assets progress
+
+| Phase | Progress | Status | Evidence / next gate |
+|---|---:|---|---|
+| 1 · Repository audit | `██████████` 100% | PASS | Existing MCP, bridge, renderer, UI, registry, and tests inspected. |
+| 2 · Client capability discovery | `████░░░░░░` 40% | PARTIAL | Server explicitly reports native generation and automatic file access as NOT VERIFIED; per-client probes/matrix remain. |
+| 3 · Asset transport | `████░░░░░░` 40% | PARTIAL | Paired MCP payloads are bounded to 192 KiB; plugin local file import is bounded to 5 MiB. Chunked transport remains. |
+| 4 · Safe SVG import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Conservative sanitizer, geometry allowlist, size/dimension bounds, and native SVG-node insertion; live Figma editability untested. |
+| 5 · Raster image import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | PNG/JPEG/GIF signatures/dimensions/checksums and native image fills are validated; live rendering untested. |
+| 6 · Capability routing | `██░░░░░░░░` 20% | PARTIAL | Honest manual/local options and unsupported client claims are reported; no generic AI client router is verified. |
+| 7 · Agent activity | `███░░░░░░░` 30% | PARTIAL | Actual import completion result appears in plugin UI; intermediate lifecycle events are not implemented. |
+| 8 · Local asset library | `██░░░░░░░░` 20% | PARTIAL | Recent import metadata persists locally; content-addressed dedupe, reuse and cleanup remain. |
+| 9 · AI Assets UI | `█████░░░░░` 50% | IMPLEMENTED · BUILD VERIFIED | Manual vector and raster workflows are wired; UI screenshot/layout review in live Figma is pending. |
+| 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
+| 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | 26 unit and 15 integration tests, typecheck, lint, local audit, build, package, docs validation, ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
+| 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog, handoff, capability docs and test evidence synchronized; audit findings: 0. |
 
 ## Requirements
 
