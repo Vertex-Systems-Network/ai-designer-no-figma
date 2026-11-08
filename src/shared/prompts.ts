@@ -22,7 +22,7 @@ export type DesignPromptSettings = {
 };
 
 export function buildDesignPrompt(brief: string, settings: DesignPromptSettings): string {
-  return `Create an editable interface design specification for the user's brief below.
+  return `Act as a senior product designer and design-systems engineer. Create a polished, production-ready interface design specification for the user's brief below.
 
 Return one valid JSON object only. Do not add markdown fences, commentary, or code.
 Use schemaVersion "1.0" and this shape: {"schemaVersion":"1.0","name":"Design name","pages":[{"id":"page-1","name":"Page name","children":[{"type":"frame","id":"frame-1","name":"Main frame","width":1440,"height":900,"fill":"#FFFFFF","children":[{"type":"text","id":"title-1","name":"Title","width":600,"height":60,"text":"A clear heading","fontSize":36,"fontWeight":700,"color":"#171A1E"}]}]}]}.
@@ -30,6 +30,16 @@ Supported node types are frame, group, text, rectangle, ellipse, and line. Frame
 
 Design preferences:
 ${JSON.stringify(settings, null, 2)}
+
+Design quality requirements:
+- Translate the brief into a clear information hierarchy and a complete, coherent screen; do not return a wireframe or a few isolated cards.
+- Use a deliberate grid, aligned edges, consistent spacing, restrained color palette, and a clear type scale. Prefer reusable vertical or horizontal Auto Layout for repeated content.
+- Give every layer a descriptive semantic name. Use realistic, specific interface copy and data; avoid lorem ipsum, repeated filler, and unexplained placeholder labels.
+- Make contrast readable (aim for WCAG AA normal text, 4.5:1), keep text within its intended frame, and use consistent radii and component dimensions.
+- Match conventions to the requested product category and platform. Keep the requested content and brand direction; do not add unrelated sections.
+- Before returning JSON, mentally check hierarchy, alignment, spacing rhythm, text legibility, unique IDs, valid colors, and that every nested container has children.
+- Optimize the hierarchy for scanning and usability. Prefer a few purposeful visual accents over decoration.
+- Return the complete design in one response. Never describe hidden analysis or claim rendered/screenshot verification.
 
 User brief:
 ${brief.trim()}`;
