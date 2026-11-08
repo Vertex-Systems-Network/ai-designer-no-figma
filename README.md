@@ -10,7 +10,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 75%** — rounded mean of the 11 phase estimates below. The local asset library and reviewed Auto Layout patch pass automated release verification; live editor, client and remaining product scope gates remain. It is not a release-readiness claim.
+**Overall completion: 77%** — rounded mean of the 11 phase estimates below. Asset reuse, reviewed Auto Layout edits, and prompt-linked typography/spacing scales pass automated release verification; live editor/client and remaining product gates remain. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -20,7 +20,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 | 3 · Specification and validation | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
 | 4 · AI integration | `██████████████░░░░░░` 70% | IN PROGRESS | Additional client interoperability and live local-model checks |
 | 5 · Selection editing | `████████████████░░░░` 80% | IN PROGRESS | Component replacement and live preservation test |
-| 6 · Design system | `██████░░░░░░░░░░░░░░` 30% | IN PROGRESS | Typography/spacing scales and native reusable components |
+| 6 · Design system | `███████████░░░░░░░░░` 55% | IN PROGRESS | Native reusable components, variables/styles, and applying typography tokens directly to Figma |
 | 7 · Application UI | `██████████████████░░` 88% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
 | 8 · Testing and hardening | `█████████████████░░░` 85% | IN PROGRESS | Broader renderer preservation and real local-model checks remain environment-dependent |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
@@ -38,11 +38,12 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
 | Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
 | Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
+| Design-system typography and spacing | `███████░░░` 70% | IMPLEMENTED · AUTOMATED VERIFIED | Local scales persist, validate on import, export as versioned JSON and are included in AI generation prompts; native Figma text styles remain open. |
 | Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
 | Custom MCP stdio server | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | MCP SDK tool discovery, input rejection, session status and capabilities pass protocol integration tests. Client-specific install/live invocation is pending. |
 | Local Figma bridge | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | Loopback HTTP, 256-bit pairing token, origin allowlist, payload limits, per-session correlation, and results pass integration tests. |
 | Agent pairing and activity | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Pairing form/activity timeline are connected to real bridge events; live re-import and pairing test remains. |
-| Automated verification | `██████████` 100% | PASS | 30 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. |
+| Automated verification | `██████████` 100% | PASS | 31 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
 
@@ -58,10 +59,10 @@ This tracker records implementation evidence separately from live Figma verifica
 | 6 · Capability routing | `██░░░░░░░░` 20% | PARTIAL | Honest manual/local options and unsupported client claims are reported; no generic AI client router is verified. |
 | 7 · Agent activity | `███░░░░░░░` 30% | PARTIAL | Actual import completion result appears in plugin UI; intermediate lifecycle events are not implemented. |
 | 8 · Local asset library | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | SHA-256 dedupe, bounded persistent bytes, preview, reuse and explicit delete/clear controls are implemented. |
-| 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · FINAL TEST PENDING | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
+| 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 30 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 31 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
