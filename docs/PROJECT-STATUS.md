@@ -9,12 +9,14 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 - VSN startup loader and plugin UI were confirmed working by the user in Figma.
 - Custom stdio MCP server and authenticated loopback bridge: protocol initialization, tested tool discovery, schema rejection, job correlation, session isolation and result return are covered by automated integration tests.
 - Settings now accepts the loopback pairing endpoint/token, and Agent Activity receives real bridge status and operation events. This is build-verified; live pairing is not yet tested.
-- Current verification passed: typecheck, lint, 26 unit tests, 15 integration tests, local security checks, production build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
+- `npm run release:verify` passed after the current changes: typecheck, lint, 30 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
 
 ## Partial
 
 - Design-spec schema still omits image/vector assets, gradients, effects, components and variables. A separate bounded import path now creates sanitized SVG vector nodes and validated PNG/JPEG/GIF image fills; those new imports are automated-tested but NOT TESTED in live Figma.
 - Selection edits support text/fill/name/bounds plus session undo; geometry/undo live preservation is NOT TESTED.
+- Auto Layout direction, spacing, padding and primary-axis alignment can be proposed as a safe frame patch; final automated verification and live preservation checks remain.
+- The AI Assets view now persists sanitized SVG/raster source bytes locally with SHA-256 deduplication, size/item caps, preview, reuse, select and delete/clear actions. Live Figma insertion/editability remains NOT TESTED.
 - Export serializes one supported selected layer tree; unsupported node/paint types fail explicitly. Export/import round-trip is NOT TESTED.
 - Optional Ollama integration has a fake-server integration suite; installed runtime/model behavior is NOT TESTED.
 - MCP client identity is a supplied label, not authenticated identity. The loopback pairing token authenticates local bridge access; it does not establish who authored a queued request.
