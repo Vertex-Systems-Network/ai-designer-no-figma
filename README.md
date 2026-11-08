@@ -10,7 +10,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 77%** — rounded mean of the 11 phase estimates below. Asset reuse, reviewed Auto Layout edits, and prompt-linked typography/spacing scales pass automated release verification; live editor/client and remaining product gates remain. It is not a release-readiness claim.
+**Overall completion: 78%** — rounded mean of the 11 phase estimates below. Asset reuse, reviewed Auto Layout edits, and prompt-linked typography/spacing scales with local presets are implemented; live editor/client and remaining product gates remain. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -20,7 +20,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 | 3 · Specification and validation | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
 | 4 · AI integration | `██████████████░░░░░░` 70% | IN PROGRESS | Additional client interoperability and live local-model checks |
 | 5 · Selection editing | `████████████████░░░░` 80% | IN PROGRESS | Component replacement and live preservation test |
-| 6 · Design system | `███████████░░░░░░░░░` 55% | IN PROGRESS | Native reusable components, variables/styles, and applying typography tokens directly to Figma |
+| 6 · Design system | `█████████████░░░░░░░` 65% | IN PROGRESS | Native reusable components, variables/styles, and applying typography tokens directly to Figma |
 | 7 · Application UI | `██████████████████░░` 88% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
 | 8 · Testing and hardening | `█████████████████░░░` 85% | IN PROGRESS | Broader renderer preservation and real local-model checks remain environment-dependent |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
@@ -38,7 +38,7 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
 | Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
 | Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
-| Design-system typography and spacing | `███████░░░` 70% | IMPLEMENTED · AUTOMATED VERIFIED | Local scales persist, validate on import, export as versioned JSON and are included in AI generation prompts; native Figma text styles remain open. |
+| Design-system typography, spacing and presets | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Local scales and up to 20 named presets save/load/duplicate/delete; scales validate, import/export and enter AI prompts. Native Figma text styles remain open. |
 | Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
 | Custom MCP stdio server | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | MCP SDK tool discovery, input rejection, session status and capabilities pass protocol integration tests. Client-specific install/live invocation is pending. |
 | Local Figma bridge | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | Loopback HTTP, 256-bit pairing token, origin allowlist, payload limits, per-session correlation, and results pass integration tests. |
