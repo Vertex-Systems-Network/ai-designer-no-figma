@@ -11,49 +11,40 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 83%** — rounded mean of the 11 phase estimates below. Background bridge polling, Figma operator identity, panel hiding, visual preview handoff, and expanded native renderer support are automated-verified; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
+**Overall completion: 90%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
 | 0 · Environment audit | `████████████████████` 100% | PASS | — |
 | 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
-| 2 · Figma plugin and renderer | `████████████████░░░░` 82% | IN PROGRESS | Live native renderer verification and broader export support |
-| 3 · Specification and validation | `████████████░░░░░░░░` 60% | IN PROGRESS | Images in the design tree, native styles, variables, and round-trip export |
+| 2 · Figma plugin and renderer | `███████████████████░` 93% | IN PROGRESS | Live native renderer verification and remaining paint edge cases |
+| 3 · Specification and validation | `██████████████████░░` 90% | IN PROGRESS | Live image/render check and full metadata round-trip across all Figma paint variants |
 | 4 · AI integration | `███████████████░░░░░` 76% | IN PROGRESS | Additional client interoperability and live local-model checks |
 | 5 · Selection editing | `████████████████░░░░` 80% | IN PROGRESS | Component replacement and live preservation test |
-| 6 · Design system | `██████████████░░░░░░` 70% | IN PROGRESS | Native Variables/styles and applying typography tokens directly to Figma |
+| 6 · Design system | `███████████████████░` 93% | IN PROGRESS | Live verification of native Variables/styles and broader token round-trip |
 | 7 · Application UI | `██████████████████░░` 90% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
-| 8 · Testing and hardening | `██████████████████░░` 91% | IN PROGRESS | Live Figma renderer/preservation and real local-model checks remain environment-dependent |
+| 8 · Testing and hardening | `███████████████████░` 96% | IN PROGRESS | Live Figma renderer/preservation and real local-model checks remain environment-dependent |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
-| 10 · Final audit | `█████████████░░░░░░░` 64% | IN PROGRESS | Complete live Figma and client interoperability evidence |
+| 10 · Final audit | `██████████████░░░░░░` 72% | IN PROGRESS | Complete live Figma and client interoperability evidence |
 
 Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
 
 ## Remaining task tracker
 
-Completed rows have been removed. The first table lists engineering tasks that can move forward without your live Figma session; automated tests/build checks will still be run. The second table contains tasks that cannot be marked complete without live Figma/Claude verification.
-
-### Can progress without your live test
-
-| Remaining task | Current progress | Planned completion work |
-|---|---:|---|
-| Design-spec image nodes | `░░░░░░░░░░` 0% | Add bounded, validated image data/reference support to schema and native renderer, with negative and positive fixtures. |
-| Advanced selected-design export round-trip | `████░░░░░░` 40% | Serialize components, instances, vectors, gradients and shadows; test export → validate → render against deterministic fixtures. |
-| Native Variables and text styles | `██░░░░░░░░` 20% | Add bounded token-to-Figma Variable/style creation and application, with API-mock tests and safe fallbacks. |
-| Responsive/layout specification | `██░░░░░░░░` 20% | Add validated grids/constraints and deterministic mappings to supported Figma layout properties. |
-| Category-specific design templates | `████░░░░░░` 40% | Improve website/dashboard/mobile/admin structure and component recipes; add fixture-based hierarchy and quality checks. |
+Completed engineering rows have been removed. The implementation work for this slice is complete and has automated coverage; the remaining rows require a live Figma/Claude session.
 
 ### Requires live Figma or Claude verification
 
 | Verification task | Status | What must be observed |
 |---|---|---|
-| Render components, instances, vectors, gradients and shadows | NOT TESTED | Confirm native editable nodes/paints appear correctly in Figma. |
+| Render images, components, instances, vectors, gradients, shadows, grids, constraints and Variables/styles | NOT TESTED | Confirm schema features appear as editable Figma nodes, variable bindings, text styles and responsive layout. |
 | Pair Claude and run a hidden-panel job | NOT TESTED | Confirm background bridge response and Agent Activity in the signed-in desktop session. |
+| Export selected design and re-import it | NOT TESTED | Confirm supported node, paint, token and layout data round-trips in live Figma. |
 | Save, reload and reuse SVG/raster assets | NOT TESTED | Confirm local library persistence and native asset insertion in Figma. |
 | Patch, Auto Layout, undo and sibling preservation | NOT TESTED | Confirm only intended layers change and rollback restores the selection. |
 | Preview → AI review → patch → recapture | NOT TESTED | Confirm actual preview image reaches Claude and a repair cycle works. |
 
-Progress estimates apply to implementation scope. Automated test results and live Figma observations are reported separately; passing a local build does not close a live-verification task.
+These are verification gates rather than unfinished code tasks. Progress estimates apply to implementation scope. Automated test results and live Figma observations are reported separately; passing a local build does not close a live-verification task.
 
 ## Master Prompt 04 · AI assets progress
 
@@ -70,7 +61,7 @@ Progress estimates apply to implementation scope. Automated test results and liv
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 49 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 53 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
