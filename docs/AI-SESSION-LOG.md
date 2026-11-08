@@ -3,6 +3,7 @@
 ## 2026-11-08 — Figma pairing and local asset persistence repair
 
 - Fixed the pairing failure caused by Figma's plugin JSVM lacking the global `URL` constructor; endpoint validation now checks the exact loopback endpoint directly.
+- Fixed the next runtime incompatibility: plugin-host bridge requests no longer require `AbortController`, which Figma's JSVM does not provide. A five-second race timeout now reports a reconnect hint without calling the missing global.
 - Pairing tokens now persist across Claude Desktop bridge restarts. Asset source bytes use validated, bounded persistence in the private local bridge file because the user's Figma context denies browser and plugin storage.
 - TypeScript typecheck, ESLint, production plugin build, Claude `.mcpb` package and source ZIP package pass. Live Windows Claude Desktop/Figma pairing, asset save/reload/reuse, and final import remain pending.
 

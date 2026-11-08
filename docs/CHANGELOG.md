@@ -3,6 +3,7 @@
 ## Unreleased — repository intelligence and MCP foundation
 
 - Replaced Figma/browser storage for imported assets with validated, size-bounded persistence in the private local bridge file, because the user's Figma context denies IndexedDB and plugin storage. Pair credentials now persist across bridge restarts, and plugin bridge endpoint validation no longer uses the unavailable Figma JSVM `URL` global. Typecheck, lint, build, MCPB packaging and ZIP packaging pass; live Windows Claude/Figma confirmation is pending.
+- Removed the plugin host's `AbortController` dependency from bridge requests; the Figma JSVM now uses a bounded timeout race and reports a useful reconnection message on slow requests.
 - Added canonical cross-agent repository instructions and source-aware project status documents.
 - Added the official `@modelcontextprotocol/server` SDK dependency (2.4.0); no MCP server is claimed until its stdio implementation and tests exist.
 - Added selected Figma layer export, bounded selection geometry edits and plugin-session undo in the current code line; see README and backlog for verification state.

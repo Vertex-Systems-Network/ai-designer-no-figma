@@ -338,13 +338,15 @@ function exportSelectedDesign(): DesignSpec {
 }
 
 async function bridgeRequest<T>(path:string,method:'GET'|'POST',body?:unknown):Promise<T>{
-  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),5000);
+  let timeout:ReturnType<typeof setTimeout>|undefined;
   try{
-    const response=await fetch(`${bridgeEndpoint}${path}`,{method,headers:{Authorization:`Bearer ${bridgeToken}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:controller.signal});
+    const request=fetch(`${bridgeEndpoint}${path}`,{method,headers:{Authorization:`Bearer ${bridgeToken}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    const deadline=new Promise<Response>((_resolve,reject)=>{timeout=setTimeout(()=>reject(new Error('Local bridge request timed out. Check that Claude Desktop is running, then reconnect.')),5000);});
+    const response=await Promise.race([request,deadline]);
     const data=await response.json() as T & {error?:{code?:string;message?:string}};
     if(!response.ok)throw new Error(`${data.error?.code??'BRIDGE_HTTP_ERROR'}: ${data.error?.message??`Bridge returned ${response.status}.`}`);
     return data;
-  }finally{clearTimeout(timeout);}
+  }finally{if(timeout!==undefined)clearTimeout(timeout);}
 }
 async function maintainBridgeHeartbeat():Promise<void>{
   if(!bridgeRegistered||!bridgeToken||bridgeHeartbeatInFlight||Date.now()-bridgeHeartbeatAt<5000)return;
