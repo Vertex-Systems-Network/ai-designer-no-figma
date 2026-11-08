@@ -8,11 +8,12 @@ import './styles.css';
 
 const vsnLogo = document.querySelector<HTMLImageElement>('.boot-logo')?.src ?? '';
 
-type Tab = 'Generate' | 'Edit' | 'Design System' | 'Import' | 'History' | 'Agent Activity' | 'Settings';
+type Tab = 'Generate' | 'Edit' | 'Design System' | 'Import' | 'AI Assets' | 'History' | 'Agent Activity' | 'Settings';
 type Model = { name: string; details?: { parameter_size?: string } };
 type HistoryItem = { id: string; prompt: string; model: string; createdAt: string; spec: DesignSpec };
 type Token = { id: string; name: string; color: string };
 type GenerationMode = 'handoff' | 'ollama';
+type AssetRecord={id:string;name:string;kind:'svg'|'image';createdAt:string;width:number;height:number;mimeType?:string;bytes?:number;nodeId:string};
 const defaultUrl = 'http://localhost:8787';
 const defaultBridgeUrl = 'http://localhost:8788';
 function safeEndpoint(value: string): string {
@@ -23,7 +24,7 @@ function safeEndpoint(value: string): string {
   return defaultUrl;
 }
 const promptTemplate = `Return one JSON object only. Use this schema: {"schemaVersion":"1.0","name":"Design name","pages":[{"id":"page-1","name":"Page name","children":[{"type":"frame","id":"frame-1","name":"Main frame","width":1440,"height":900,"fill":"#FFFFFF","children":[{"type":"text","id":"title-1","name":"Title","x":48,"y":48,"width":600,"height":60,"text":"A clear heading","fontSize":36,"fontWeight":700,"color":"#171A1E"}]}]}]}. Supported types: frame, group, text, rectangle, ellipse, line. Give every id a unique stable value and make all layers editable. Do not include markdown.`;
-const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'History', 'Agent Activity'];
+const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'AI Assets', 'History', 'Agent Activity'];
 function post(message: UiToHost) { parent.postMessage({ pluginMessage: message }, '*'); }
 function createLocalId(prefix='item'): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -85,6 +86,10 @@ function App() {
   const [tokenName, setTokenName] = useState('');
   const [tokenColor, setTokenColor] = useState('#0D8A60');
   const [fontFallback, setFontFallback] = useState(() => load('adnf-font-fallback','Inter'));
+  const [assetSvg,setAssetSvg]=useState('');
+  const [assetName,setAssetName]=useState('Imported asset');
+  const [assetBusy,setAssetBusy]=useState(false);
+  const [assetRecords,setAssetRecords]=useState<AssetRecord[]>(()=>load('adnf-assets',[]));
   const [bridgeUrl, setBridgeUrl] = useState(() => load('adnf-bridge-url',defaultBridgeUrl));
   const [bridgeUrlDraft, setBridgeUrlDraft] = useState(bridgeUrl);
   const [bridgeToken, setBridgeToken] = useState(() => load('adnf-bridge-token',''));
@@ -108,12 +113,20 @@ function App() {
   },[]);
   useEffect(() => { save('adnf-history',history.slice(0,40)); },[history]);
   useEffect(() => { save('adnf-tokens',tokens); },[tokens]);
+  useEffect(()=>{save('adnf-assets',assetRecords.slice(0,40));},[assetRecords]);
   useEffect(() => {
     post({type:'inspect-selection'});
     if (bridgeToken) post({type:'configure-bridge',endpoint:bridgeUrl,token:bridgeToken});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
       if(msg.type==='agent-status')setAgentStatus(msg);
       if(msg.type==='agent-event')setAgentEvents(items=>[msg,...items.filter(item=>item.id!==msg.id)].slice(0,50));
+      if(msg.type==='asset-result'){
+        setAssetBusy(false);
+        if(msg.ok&&msg.kind&&msg.name&&msg.nodeId&&typeof msg.width==='number'&&typeof msg.height==='number'){
+          const record:AssetRecord={id:createLocalId('asset'),name:msg.name,kind:msg.kind,createdAt:new Date().toISOString(),width:msg.width,height:msg.height,nodeId:msg.nodeId,...(msg.mimeType?{mimeType:msg.mimeType}:{}),...(msg.bytes?{bytes:msg.bytes}:{})};
+          setAssetRecords(items=>[record,...items.filter(item=>item.nodeId!==record.nodeId)].slice(0,40));setNotice(msg.message);setError('');
+        }else if(!msg.ok)setError(msg.message);
+      }
       if(msg.type==='selection')setSelection(msg.summary);
       if(msg.type==='export-result'){
         setBusy(false);
@@ -190,6 +203,8 @@ function App() {
     setPrompt(item.prompt);setSpec(item.spec);setJsonInput(JSON.stringify(item.spec,null,2));setBusy(true);setError('');setNotice(`Re-inserting ${item.spec.name} into Figma…`);post({type:'render',spec:item.spec,fontFallback});
   }
   async function fileText(file?:File){if(!file)return;if(file.size>512000){setError('File exceeds the 512 KB import limit.');return;}setJsonInput(await file.text());setError('');setIssues([]);}
+  function importSvg(){if(!assetSvg.trim()){setError('Paste or choose SVG markup first.');return;}setAssetBusy(true);setError('');setNotice('Validating and importing editable SVG geometry…');post({type:'import-svg',name:assetName,svg:assetSvg});}
+  async function importImage(file?:File){if(!file)return;if(file.size>5*1024*1024){setError('Image exceeds the 5 MB limit.');return;}const extension=file.name.toLowerCase().split('.').pop();const extensions:Record<string,string>={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif'};const mime=file.type||extensions[extension??'']||'';if(!['image/png','image/jpeg','image/gif'].includes(mime)){setError('Choose a PNG, JPEG, or GIF file.');return;}setAssetBusy(true);setError('');setNotice('Checking image bytes and inserting a native Figma image fill…');try{const bytes=Array.from(new Uint8Array(await file.arrayBuffer()));post({type:'import-image',name:file.name,mimeType:mime,bytes});}catch(err){setAssetBusy(false);setError(err instanceof Error?err.message:'Could not read image file.');}}
   async function proposePatch(){
     if(!selection){setError('Select a frame in Figma before proposing an edit.');return;}if(!editPrompt.trim()){setError('Describe the change you want.');return;}
     if(generationMode==='handoff'){
@@ -254,6 +269,13 @@ function App() {
         <div className="button-row"><button className="primary-button" onClick={validateImport}>Validate specification</button><label className="secondary-button file-button">Choose JSON file<input type="file" accept="application/json,.json" onChange={e=>void fileText(e.target.files?.[0])}/></label><button className="secondary-button" onClick={()=>spec&&download(spec,'design-spec.json')} disabled={!spec}>Export valid spec</button><button className="secondary-button" onClick={()=>{setBusy(true);setError('');setNotice('Exporting selected Figma layers…');post({type:'export-selection'});}} disabled={busy||!selection}>Export selection</button></div>
         <div className="template-panel"><div className="preview-head"><strong>Prompt template</strong><button className="icon-button icon-only-button" aria-label="Copy prompt template" title="Copy prompt template" onClick={()=>void copyText(promptTemplate,'Compatible JSON prompt copied.') }><HeaderIcon kind="copy"/></button></div><p className="hint">Paste this into Claude, ChatGPT, or another assistant. External chat tools are not automatically connected.</p><pre>{promptTemplate}</pre></div>
         {spec&&<div className="result-panel"><div><strong>{spec.name}</strong><span>{spec.pages.length} page(s) · ready to insert</span></div><button className="primary-button small" onClick={insert} disabled={busy}>Insert into Figma</button></div>}
+      </>}
+      {tab==='AI Assets'&&<>
+        <div className="section-heading"><div><p className="eyebrow">LOCAL ASSET WORKSPACE</p><h1>AI assets</h1><p className="muted">Import local images or sanitized SVG vectors. No image-generation service is required.</p></div></div>
+        <div className="settings-card"><div className="preview-head"><strong>AI client capabilities</strong><span className="status status-disconnected"><i/>not detected</span></div><p className="hint">MCP connectivity does not prove an agent can create or transfer image files. Use its actual file output with the import below; no client file access is assumed.</p><div className="capability-list"><span>SVG from pasted markup <b>Available</b></span><span>PNG / JPEG / GIF local file <b>Available</b></span><span>Automatic AI asset transfer <b>Not verified</b></span><span>Paid image API <b>Not used</b></span></div></div>
+        <div className="settings-card"><strong>Import editable vector</strong><label className="field-label">Asset name<input value={assetName} maxLength={160} onChange={e=>setAssetName(e.target.value)}/></label><label className="field-label">Paste SVG markup<textarea className="json-input compact-json" spellCheck={false} value={assetSvg} onChange={e=>setAssetSvg(e.target.value)} placeholder={'<svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="48" fill="#0D8A60"/></svg>'}/></label><div className="button-row"><button className="primary-button" onClick={importSvg} disabled={assetBusy||!assetSvg.trim()}>Validate and insert SVG</button><label className="secondary-button file-button">Choose SVG<input type="file" accept="image/svg+xml,.svg" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>512*1024){setError('SVG exceeds the 512 KB limit.');return;}setAssetName(file.name);setAssetSvg(await file.text());setError('');}}/></label><button className="icon-button icon-only-button" aria-label="Clear SVG" title="Clear SVG" onClick={()=>setAssetSvg('')}><HeaderIcon kind="clear"/></button></div></div>
+        <div className="settings-card"><strong>Import raster image</strong><p className="hint">PNG, JPEG, or GIF up to 5 MB and 4096 × 4096 pixels. The image is inserted as an editable native image fill.</p><label className="secondary-button file-button">Choose image<input type="file" accept="image/png,image/jpeg,image/gif" disabled={assetBusy} onChange={e=>void importImage(e.target.files?.[0])}/></label></div>
+        <div className="settings-card"><div className="preview-head"><strong>Recent imported assets</strong><button className="icon-button icon-only-button" aria-label="Clear asset history" title="Clear asset history" onClick={()=>setAssetRecords([])}><HeaderIcon kind="remove"/></button></div>{!assetRecords.length?<p className="hint">Successful imports appear here. Records are local metadata; image bytes are not retained for re-use.</p>:<div className="history-list">{assetRecords.map(item=><article className="history-item" key={item.id}><div className="history-head"><strong>{item.name}</strong><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{item.kind.toUpperCase()} · {item.width} × {item.height}{item.mimeType?` · ${item.mimeType}`:''}</p><div className="button-row compact-row"><button className="secondary-button small" onClick={()=>post({type:'select-node',nodeId:item.nodeId})}>Select in Figma</button><button className="icon-button icon-only-button danger-text" aria-label={`Remove ${item.name} from recent assets`} title="Remove from recent assets" onClick={()=>setAssetRecords(items=>items.filter(x=>x.id!==item.id))}><HeaderIcon kind="remove"/></button></div></article>)}</div>}</div>
       </>}
       {tab==='History'&&<>
         <div className="section-heading"><div><p className="eyebrow">THIS DEVICE</p><h1>History</h1><p className="muted">Recent prompts and results stay in this browser profile.</p></div><button className="icon-button icon-only-button danger-text" aria-label="Clear history" title="Clear history" onClick={()=>setHistory([])}><HeaderIcon kind="remove"/></button></div>
