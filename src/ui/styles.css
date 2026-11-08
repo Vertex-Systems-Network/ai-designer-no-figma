@@ -36,6 +36,7 @@ button { color: inherit; }
 .icon-button, .secondary-button, .primary-button, .nav-tab, .chip { min-height: 32px; border: 1px solid var(--border); border-radius: 6px; background: transparent; cursor: pointer; }
 .icon-button { padding: 0 9px; color: var(--secondary); font-size: 11px; }
 .header-icon-button { display: grid; place-items: center; width: 32px; padding: 0; }
+.icon-only-button { display: inline-grid; place-items: center; width: 34px; padding: 0; }
 .resize-handle { position: fixed; z-index: 5; right: 2px; bottom: 2px; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: var(--bg); color: var(--subtle); cursor: nwse-resize; touch-action: none; }
 .resize-handle:hover { color: var(--accent); background: var(--raised); }
 .resize-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
