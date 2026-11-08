@@ -6,6 +6,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 - Public repository: [Vertex-Systems-Network/ai-designer-no-figma](https://github.com/Vertex-Systems-Network/ai-designer-no-figma)
 - GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (source changes may be newer; use `npm run package` to rebuild.)
+- Claude Desktop installer: [AI Designer No Figma `.mcpb`](artifacts/ai-designer-no-figma-claude.mcpb) (`npm run package:claude`)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
 ## Project progress
@@ -40,8 +41,8 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
 | Design-system typography, spacing and presets | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Local scales and up to 20 named presets save/load/duplicate/delete; scales validate, import/export and enter AI prompts. Native Figma text styles remain open. |
 | Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
-| Custom MCP stdio server | `████████░░` 80% | SERVER STARTS · RESTART COLLISION FOUND | User's updated Claude log shows `EADDRINUSE` on `127.0.0.1:8788` after a restart. Bridge shutdown now closes keep-alive connections; if an older process already owns the port, stop it once and restart Claude. |
-| Local Figma bridge | `████████░░` 80% | PAIR SETTINGS SAVED · LIVE CONNECTION PENDING | “Pairing details saved” is not confirmation of an active connection. Restart Claude after stopping stale MCP processes, then verify the plugin reports connected and Claude can read connection status. |
+| Custom MCP stdio server | `█████████░` 90% | CLAUDE DESKTOP EXTENSION BUILT · LIVE INSTALL PENDING | `.mcpb` installer removes manual JSON and Node command setup. Shutdown now drains keep-alive connections; live extension installation and Claude tool use remain to verify. |
+| Local Figma bridge | `█████████░` 90% | ONE-CLICK PAIR IMPLEMENTED · LIVE CHECK PENDING | Figma Settings requests local pairing automatically and displays the actual connection status. No endpoint entry or token copying. |
 | Agent pairing and activity | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Pairing form/activity timeline are connected to real bridge events; live re-import and pairing test remains. |
 | Automated verification | `██████████` 100% | PASS | 36 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. |
 
@@ -91,6 +92,10 @@ The manifest allowlists `http://localhost:8787` for optional Ollama and `http://
 4. Paste the answer into **Import**, select **Validate specification**, review the result, then insert it into Figma.
 
 The Edit tab follows the same handoff for selection-aware patch JSON. The plugin sends nothing to an AI app; copying and pasting are user-controlled. It accepts a JSON code fence but validates every layer and edit operation before Figma mutation.
+
+## Connect Claude Desktop
+
+The Claude Desktop extension package is `artifacts/ai-designer-no-figma-claude.mcpb`. Install it through **Settings → Desktop app → Manage extensions → Advanced settings → Install Extension**, then open Figma plugin **Settings** and click **Connect Claude**. The plugin pairs with the local bridge and confirms when the connection is active. No config-file editing, terminal commands, API key, or manual token copying is part of this user flow. Build the extension with `npm run package:claude`.
 
 ## Optional local Ollama
 

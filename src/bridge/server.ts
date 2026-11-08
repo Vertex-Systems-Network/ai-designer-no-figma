@@ -16,9 +16,10 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   if (!isIP(host)||!['127.0.0.1','::1'].includes(host)) throw new Error('BRIDGE_HOST must be a loopback IP address.');
   if (!Number.isInteger(port)||port<0||port>65535) throw new Error('BRIDGE_PORT must be between 0 and 65535.');
   const token=await readOrCreateToken(options.token??process.env.BRIDGE_TOKEN,options.tokenFile);
+  const pluginToken=randomBytes(32).toString('hex');
   const broker=options.broker??new JobBroker();
   const server=createServer(async(req,res)=>{
-    try { await handle(req,res,broker,token); }
+    try { await handle(req,res,broker,token,pluginToken,server.address()); }
     catch(error){
       const fault=error instanceof BridgeFault?error:new BridgeFault('BRIDGE_INTERNAL_ERROR',error instanceof Error?error.message:'Bridge request failed.');
       sendJson(res,fault.code==='INVALID_JSON'?400:fault.code==='BODY_TOO_LARGE'?413:fault.code==='UNAUTHORIZED'?401:fault.code==='ORIGIN_DENIED'?403:fault.code==='NOT_FOUND'?404:409,{error:{code:fault.code,message:fault.message}});
@@ -43,17 +44,24 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   return {server,broker,token,close,address:()=>({host:actual.address,port:actual.port})};
 }
 
-async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string):Promise<void>{
+async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string,pluginToken:string,address:ReturnType<Server['address']>):Promise<void>{
   const origin=req.headers.origin;
   if (origin&&!allowedOrigins.has(origin)) throw new BridgeFault('ORIGIN_DENIED','Request origin is not allowed.');
   if (origin) res.setHeader('Access-Control-Allow-Origin',origin);
   res.setHeader('Vary','Origin');res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');
   res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
   if (req.method==='OPTIONS'){res.statusCode=204;res.end();return;}
+  if(req.method==='POST'&&req.url==='/bridge/pair'){
+    if(!origin||!allowedOrigins.has(origin))throw new BridgeFault('ORIGIN_DENIED','Pairing is only available from the Figma plugin UI.');
+    const port=address&&typeof address!=='string'?address.port:8788;
+    sendJson(res,200,{ok:true,endpoint:`http://localhost:${port}`,token:pluginToken});return;
+  }
+  const url=new URL(req.url??'/','http://127.0.0.1');
   const authorization=req.headers.authorization??'';
   const supplied=authorization.startsWith('Bearer ')?authorization.slice(7):'';
-  if(!constantTimeEqual(supplied,token))throw new BridgeFault('UNAUTHORIZED','Bridge pairing token is missing or invalid.');
-  const url=new URL(req.url??'/','http://127.0.0.1');
+  const isPluginCredential=constantTimeEqual(supplied,pluginToken);
+  if(!isPluginCredential&&!constantTimeEqual(supplied,token))throw new BridgeFault('UNAUTHORIZED','Bridge pairing is no longer valid. Connect Claude again in Figma Settings.');
+  if(isPluginCredential&&!['/bridge/health','/bridge/sessions/connect','/bridge/sessions/heartbeat'].includes(url.pathname)&&!/^\/bridge\/sessions\/[a-zA-Z0-9:_-]+\/jobs\/next$/.test(url.pathname)&&!/^\/bridge\/jobs\/[0-9a-f-]{36}\/result$/i.test(url.pathname))throw new BridgeFault('FORBIDDEN','This pairing only allows the Figma plugin transport.');
   if(req.method==='GET'&&url.pathname==='/bridge/health'){
     sendJson(res,200,{ok:true,service:'local-figma-bridge',activeSessions:broker.getSessions().length});return;
   }

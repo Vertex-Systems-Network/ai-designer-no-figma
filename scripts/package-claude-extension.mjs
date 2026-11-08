@@ -1,0 +1,24 @@
+import { build } from 'esbuild';
+import { copyFile, mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
+
+const outDir=resolve('dist/claude-extension');
+const serverDir=resolve(outDir,'server');
+const archive=resolve('artifacts/ai-designer-no-figma-claude.mcpb');
+await rm(outDir,{recursive:true,force:true});
+await mkdir(serverDir,{recursive:true});
+await mkdir(resolve('artifacts'),{recursive:true});
+await copyFile('claude-extension/manifest.json',resolve(outDir,'manifest.json'));
+await build({entryPoints:['src/mcp/server.ts'],bundle:true,platform:'node',target:'node20',format:'esm',outfile:resolve(serverDir,'index.mjs'),packages:'bundle',sourcemap:false,legalComments:'inline'});
+const manifest=JSON.parse(await readFile(resolve(outDir,'manifest.json'),'utf8'));
+if(manifest.server.entry_point!=='server/index.mjs')throw new Error('Claude Desktop extension entry point is invalid.');
+const fixedDate=new Date('1980-01-01T00:00:00.000Z');
+await utimes(resolve(outDir,'manifest.json'),fixedDate,fixedDate);
+await utimes(resolve(serverDir,'index.mjs'),fixedDate,fixedDate);
+await rm(archive,{force:true});
+execFileSync('zip',['-q','-X','-D',archive,'manifest.json','server/index.mjs'],{cwd:outDir,stdio:'pipe'});
+const digest=createHash('sha256').update(await readFile(archive)).digest('hex');
+await writeFile(resolve('artifacts/CLAUDE-EXTENSION-SHA256.txt'),`${digest}  ai-designer-no-figma-claude.mcpb\n`);
+console.log(`Claude Desktop extension: ${archive}\nSHA-256: ${digest}`);

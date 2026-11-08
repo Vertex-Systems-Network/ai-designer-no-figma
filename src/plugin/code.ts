@@ -437,6 +437,7 @@ async function bridgeLoop(epoch:number):Promise<void>{
 }
 function configureBridge(endpoint:string,token:string):void{
   bridgeEpoch+=1;bridgeToken='';bridgeRegistered=false;bridgeHeartbeatAt=0;
+  if(!token){bridgeStatus('disconnected',{message:'Claude disconnected.'});return;}
   try{
     const url=new URL(endpoint);
     if(url.protocol!=='http:'||!['localhost','127.0.0.1','[::1]'].includes(url.hostname)||url.port!=='8788'||url.pathname!=='/')throw new Error('Use the local bridge endpoint http://localhost:8788.');

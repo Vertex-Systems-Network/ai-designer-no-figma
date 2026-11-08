@@ -17,6 +17,7 @@
     "runtime": "tsx src/runtime/server.ts",
     "mcp": "tsx src/mcp/server.ts",
     "package": "node scripts/package.mjs",
+    "package:claude": "node scripts/package-claude-extension.mjs",
     "docs:audit": "node scripts/repository-audit.mjs",
     "docs:validate": "node scripts/repository-audit.mjs --strict",
     "docs:generate": "node scripts/repository-audit.mjs --generate",

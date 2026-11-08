@@ -1,0 +1,21 @@
+{
+  "manifest_version": "0.3",
+  "name": "ai-designer-no-figma",
+  "version": "0.1.0",
+  "description": "Connect Claude Desktop to the AI Designer No Figma plugin through a private loopback bridge.",
+  "author": {
+    "name": "Vertex Systems Network"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.mjs"]
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["win32", "darwin", "linux"]
+  }
+}
