@@ -19,9 +19,9 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 1. Reimport `dist/manifest.json` in Figma Desktop and use **Connect & hide panel** in plugin Settings; no token entry is needed.
 2. Confirm Figma operator display, then issue one Claude MCP operation with the panel hidden; verify actual result and that reopening the plugin shows Agent Activity.
 3. Verify selection inspect, import, targeted patch, selected export, export/import round-trip, bounds edits, undo and unaffected siblings in Figma.
-5. Test Ollama only if a local runtime/model is actually available; otherwise record NOT TESTED.
-6. Verify new SVG/raster insertion and Auto Layout patch/undo in Figma. Remaining engineering items are live paired large-file transfer verification, schema-backed assets, gradients/components/variables, and accessibility/screenshot QA.
-7. Closed-file operation is still a separate product requirement: Figma plugin sessions stop with the host document. A local desktop runner must be designed to launch/select a Draft file and run the plugin before claiming that Claude can work with Figma fully closed.
+4. Test Ollama only if a local runtime/model is actually available; otherwise record NOT TESTED.
+5. Verify new SVG/raster insertion and Auto Layout patch/undo in Figma. Remaining engineering items are live paired large-file transfer verification, schema-backed assets, gradients/components/variables, and accessibility/screenshot QA.
+6. Closed-file operation is still a separate product requirement: Figma plugin sessions stop with the host document. A local desktop runner must be designed to launch/select a Draft file and run the plugin before claiming that Claude can work with Figma fully closed.
 
 ## Constraints
 
