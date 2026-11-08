@@ -139,7 +139,7 @@ export function auditDesignQuality(spec: DesignSpec): DesignQualityFinding[] {
     return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
   };
   const visit = (node: DesignNodeSpec, path: string, inheritedFill?: string) => {
-    const background = node.fill ?? inheritedFill;
+    const background = node.type === 'text' ? inheritedFill : (node.fill ?? inheritedFill);
     if (genericName.test(node.name.trim())) findings.push({ path: `${path}.name`, severity: 'suggestion', message: 'Use a semantic layer name so the design is easier to edit in Figma.' });
     if (node.type === 'text') {
       if (!node.fontSize) findings.push({ path: `${path}.fontSize`, severity: 'suggestion', message: 'Set an explicit font size to preserve a consistent type hierarchy.' });
