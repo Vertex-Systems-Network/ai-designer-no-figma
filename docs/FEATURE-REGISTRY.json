@@ -234,7 +234,7 @@
         "src/mcp/server.integration.test.ts"
       ],
       "knownIssues": [
-        "Client-specific registration and live Figma invocation are not tested; asset transfer is capped at 192 KiB and no AI client file-access capability is inferred."
+        "Client-specific registration and live Figma invocation are not tested; large raster batch transfer is automated-tested but not live-verified."
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
@@ -365,7 +365,7 @@
     {
       "id": "ASSET-001",
       "name": "Validated local raster and SVG import and reuse",
-      "description": "Validate bounded SVG geometry and PNG/JPEG/GIF signatures/dimensions; insert via native Figma APIs; verify node readback, then persist source bytes in bounded Figma clientStorage over a typed plugin-host bridge.",
+      "description": "Validate bounded SVG and PNG/JPEG/GIF payloads; support 5 MiB raster import through atomic, SHA-256 verified 64 KiB MCP chunks; insert natively, verify node readback, and persist originals in Figma clientStorage.",
       "module": "asset-pipeline",
       "sourceFiles": [
         "src/shared/assets.ts",
@@ -394,13 +394,13 @@
         "src/mcp/server.integration.test.ts"
       ],
       "knownIssues": [
-        "Live Figma insertion/editability remains unverified; generated AI file retrieval varies by client and is not inferred; MCP binary transfer remains capped at 192 KiB without chunking, replacement or crop."
+        "Live Figma insertion, clientStorage persistence and large paired MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred; replacement/crop operations are not implemented."
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
       "lastModified": "2026-11-08",
       "lastVerified": "2026-11-08",
-      "nextAction": "Re-import the latest build and live-check SVG/raster insert, clientStorage persistence, preview and reuse; confirm the plugin has a Figma-assigned ID if the host reports one is required."
+      "nextAction": "Re-import the current build and verify SVG/raster save, preview/reuse, and a raster larger than 192 KiB through the paired MCP bridge; if clientStorage requires an assigned ID, set the official Figma ID."
     }
   ]
 }
