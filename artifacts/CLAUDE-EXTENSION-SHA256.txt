@@ -1,1 +1,1 @@
-5329acf4494105be37812e12620ca50f01728c18d677bc43890e4361b59b2073  ai-designer-no-figma-claude.mcpb
+08bbf4ba210faada6af4984ce9bf359594fdeff188224dd424cee2e3d532acaa  ai-designer-no-figma-claude.mcpb
