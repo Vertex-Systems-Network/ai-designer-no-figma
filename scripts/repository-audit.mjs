@@ -1,0 +1,90 @@
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { dirname, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const registryPath = 'docs/FEATURE-REGISTRY.json';
+const issues = [];
+const files = new Set();
+
+async function walk(dir) {
+  let entries;
+  try { entries = await readdir(resolve(root, dir), { withFileTypes: true }); }
+  catch { return; }
+  for (const entry of entries) {
+    const path = dir ? `${dir}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (!['node_modules','dist','artifacts','.git','.cache'].includes(entry.name)) await walk(path);
+    } else if (entry.isFile()) files.add(path);
+  }
+}
+await walk('');
+
+async function exists(path) {
+  try { await stat(resolve(root, path)); return true; } catch { return false; }
+}
+function fail(message) { issues.push(message); }
+
+const requiredDocs = [
+  'AGENTS.md','CLAUDE.md','GEMINI.md','.github/copilot-instructions.md',
+  '.cursor/rules/project-core.mdc','.cursor/rules/engineering.mdc','.cursor/rules/figma-integration.mdc','.cursor/rules/testing-documentation.mdc',
+  'docs/PROJECT-OVERVIEW.md','docs/SYSTEM-ARCHITECTURE.md','docs/PROJECT-STATUS.md','docs/FEATURE-REGISTRY.json',
+  'docs/DEVELOPMENT-ROADMAP.md','docs/KNOWN-ISSUES.md','docs/AI-HANDOFF.md','docs/AI-SESSION-LOG.md','docs/SECURITY-ARCHITECTURE.md',
+  'docs/BUILD-AND-RELEASE.md','docs/TESTING-STRATEGY.md','docs/COMPATIBILITY-MATRIX.md','docs/REPOSITORY-MAP.md',
+];
+for (const path of requiredDocs) if (!files.has(path)) fail(`Required project-memory file is missing: ${path}`);
+
+let registry;
+try { registry = JSON.parse(await readFile(resolve(root, registryPath), 'utf8')); }
+catch (error) { fail(`Cannot parse ${registryPath}: ${error instanceof Error ? error.message : String(error)}`); }
+if (registry) {
+  const validStatuses = new Set(registry.statusValues ?? []);
+  const validTests = new Set(registry.testStatusValues ?? []);
+  const seen = new Set();
+  if (!Array.isArray(registry.features)) fail('Feature registry must have a features array.');
+  for (const feature of registry.features ?? []) {
+    if (!feature.id || seen.has(feature.id)) fail(`Feature ID missing or duplicated: ${feature.id ?? '(empty)'}`);
+    seen.add(feature.id);
+    if (!validStatuses.has(feature.status)) fail(`${feature.id}: invalid implementation status ${feature.status}`);
+    if (!validTests.has(feature.testStatus)) fail(`${feature.id}: invalid test status ${feature.testStatus}`);
+    for (const path of feature.sourceFiles ?? []) if (!files.has(path)) fail(`${feature.id}: source reference does not exist: ${path}`);
+    for (const path of feature.tests ?? []) if (!files.has(path)) fail(`${feature.id}: test reference does not exist: ${path}`);
+    if (!feature.name || !feature.description || !feature.module || !feature.nextAction) fail(`${feature.id}: required registry fields are missing.`);
+  }
+}
+
+const markdownFiles = [...files].filter((path) => path.endsWith('.md'));
+for (const markdownPath of markdownFiles) {
+  const body = await readFile(resolve(root, markdownPath), 'utf8');
+  for (const match of body.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+    const link = match[1].trim().replace(/^<|>$/g, '');
+    if (!link || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(link) || link.startsWith('#')) continue;
+    const pathname = decodeURIComponent(link.split('#')[0].split('?')[0]);
+    if (!pathname) continue;
+    const target = resolve(root, dirname(markdownPath), pathname);
+    const relativeTarget = relative(root, target).split(sep).join('/');
+    if (relativeTarget.startsWith('../') || relativeTarget === '..' || !await exists(relativeTarget)) fail(`${markdownPath}: broken local link ${link}`);
+  }
+}
+
+const sourceFiles = [...files].filter((path) => /^src\/.+\.tsx?$/.test(path) && !path.endsWith('.test.ts') && !path.endsWith('.integration.test.ts')).sort();
+const importPattern = /\b(?:from\s*|import\s*)['"](\.[^'"]+)['"]/g;
+const inventory = [];
+for (const path of sourceFiles) {
+  const body = await readFile(resolve(root, path), 'utf8');
+  const dependencies = [...body.matchAll(importPattern)].map((m) => m[1]);
+  const registeredBy = (registry?.features ?? []).filter((feature) => feature.sourceFiles?.includes(path)).map((feature) => feature.id);
+  if (registeredBy.length === 0) fail(`Public source module is not registered: ${path}`);
+  inventory.push({ path, dependencies: [...new Set(dependencies)].sort(), features: registeredBy });
+}
+
+const generated = process.argv.includes('--generate');
+const formatTable = (rows) => rows.map((row) => `| \`${row.path}\` | ${row.dependencies.length ? row.dependencies.map((dependency) => `\`${dependency}\``).join(', ') : '—'} | ${row.features.length ? row.features.join(', ') : 'UNREGISTERED'} |`).join('\n');
+if (generated) {
+  const report = `# Source inventory (generated)\n\nGenerated by \`npm run docs:generate\` from TypeScript import statements and the feature registry. This inventory describes source references, not runtime verification.\n\n| Source module | Relative imports | Registered feature IDs |\n|---|---|---|\n${formatTable(inventory)}\n`;
+  await writeFile(resolve(root, 'docs/architecture/SOURCE-INVENTORY.md'), report);
+}
+
+const report = `Repository documentation audit\nSource modules scanned: ${sourceFiles.length}\nFeature records: ${registry?.features?.length ?? 0}\nMarkdown documents checked: ${markdownFiles.length}\nFindings: ${issues.length}\n${issues.map((issue) => `- ${issue}`).join('\n')}`;
+console.log(report);
+if (process.argv.includes('--strict') && issues.length) process.exitCode = 1;

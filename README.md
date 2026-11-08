@@ -10,7 +10,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 59%** — simple mean of the 11 phase estimates below; it is not a release-readiness claim.
+**Overall completion: 70%** — rounded simple mean of the 11 phase estimates below, including custom MCP, pairing, and agent activity work. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -18,27 +18,28 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 | 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
 | 2 · Figma plugin and renderer | `████████████░░░░░░░░` 60% | IN PROGRESS | Broader native node support and renderer coverage |
 | 3 · Specification and validation | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
-| 4 · AI integration | `█████████████░░░░░░░` 65% | IN PROGRESS | Direct desktop bridges and live local-model checks |
+| 4 · AI integration | `██████████████░░░░░░` 70% | IN PROGRESS | Additional client interoperability and live local-model checks |
 | 5 · Selection editing | `██████████████░░░░░░` 70% | IN PROGRESS | Component replacement, Auto Layout operations, live preservation test |
 | 6 · Design system | `██████░░░░░░░░░░░░░░` 30% | IN PROGRESS | Typography/spacing scales and native reusable components |
-| 7 · Application UI | `███████████████░░░░░` 75% | IN PROGRESS | Broader visual/accessibility QA and remaining feature controls |
-| 8 · Testing and hardening | `██████████████░░░░░░` 70% | IN PROGRESS | Broader renderer coverage and real local-model check |
+| 7 · Application UI | `████████████████░░░░` 80% | IN PROGRESS | Pairing/activity UI needs Figma live confirmation and accessibility review |
+| 8 · Testing and hardening | `███████████████░░░░░` 75% | IN PROGRESS | Broader renderer coverage and real local-model check |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
-| 10 · Final audit | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Close open gates and publish final evidence report |
+| 10 · Final audit | `██████████░░░░░░░░░░` 50% | IN PROGRESS | Complete live Figma and client interoperability evidence |
 
 Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
 
 ## Current task tracker
 
-| Task | Status | Evidence / next step |
-|---|---|---|
-| VSN-branded startup loader | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
-| Workspace reveal and interface transitions | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
-| Live Figma verification of this update | PASS | User confirmed the current build is working. Broader UI and renderer gates remain open. |
-| Selection-aware layer bounds editing | IMPLEMENTED · AUTOMATED VERIFIED | `set-bounds` validates selected IDs and bounded dimensions; rollback snapshots preserve position and size. Live patch preservation still needs confirmation. |
-| Plugin-session patch checkpoints and undo | IMPLEMENTED · AUTOMATED VERIFIED | Successful edits store up to 20 pre-edit snapshots; Undo restores the latest patch. Live Figma undo behavior needs confirmation. |
-| Selected Figma design export | IMPLEMENTED · BUILD VERIFIED | Exports one selection to a validated editable schema; unsupported layers and paints produce explicit errors instead of silent loss. Live export/import round-trip remains to test. |
-| Automated verification | PASS | Typecheck, lint, 16 unit tests, 8 integration tests, build, local audit, and ZIP packaging pass. |
+| Task | Progress | Status | Evidence / next step |
+|---|---:|---|---|
+| VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
+| Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
+| Selected bounds patch and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Current selection/patch validation and snapshots are covered in code; targeted preservation and undo need a fresh live Figma check. |
+| Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
+| Custom MCP stdio server | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | MCP SDK tool discovery, input rejection, session status and capabilities pass protocol integration tests. Client-specific install/live invocation is pending. |
+| Local Figma bridge | `██████████` 100% | IMPLEMENTED · AUTOMATED VERIFIED | Loopback HTTP, 256-bit pairing token, origin allowlist, payload limits, per-session correlation, and results pass integration tests. |
+| Agent pairing and activity | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Pairing form/activity timeline are connected to real bridge events; live re-import and pairing test remains. |
+| Automated verification | `██████████` 100% | PASS | Typecheck, lint, 21 unit tests, 14 integration tests, documentation audit, compatibility report, local security audit, build and deterministic ZIP verification pass. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
 
@@ -58,7 +59,7 @@ npm run verify
 
 In Figma, open **Plugins → Development → Import plugin from manifest…** and select `dist/manifest.json`. The development manifest intentionally has no invented plugin ID; Figma supplies the ID when the plugin is registered for distribution.
 
-The manifest allowlists `http://localhost:8787`, which Figma accepts for local development. The optional companion process itself still binds only to `127.0.0.1`.
+The manifest allowlists `http://localhost:8787` for optional Ollama and `http://localhost:8788` for the custom token-protected MCP bridge. Both services bind only to `127.0.0.1`.
 
 ## Use any AI app without an API
 

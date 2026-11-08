@@ -1,0 +1,6 @@
+---
+description: Verification and project-memory requirements
+globs: "**/*"
+alwaysApply: false
+---
+Run the relevant checks and report exact command results. Update `/docs/FEATURE-REGISTRY.json`, `/docs/PROJECT-STATUS.md`, `/docs/AI-HANDOFF.md`, changelog and README progress/task table when affected. Use `npm run docs:validate`; never claim live Figma/Ollama verification from a mock.

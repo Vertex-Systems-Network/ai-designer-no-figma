@@ -1,5 +1,6 @@
 import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec } from '../shared/spec';
-import type { EditPatch, UiToHost } from '../shared/protocol';
+import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
+import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -8,6 +9,13 @@ let cancelActiveRender: (() => void) | undefined;
 const logicalIds = new Map<string, string>();
 type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined };
 const patchCheckpoints: PatchSnapshot[][] = [];
+let bridgeEndpoint = 'http://localhost:8788';
+let bridgeToken = '';
+let bridgeSessionId = '';
+let bridgeEpoch = 0;
+let bridgeRegistered = false;
+let bridgeHeartbeatAt = 0;
+let bridgeHeartbeatInFlight = false;
 
 function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
@@ -18,7 +26,7 @@ function paint(hex: string): SolidPaint { return { type: 'SOLID', color: rgb(hex
 type RenderControl = { cancelled: boolean; nodes: number };
 async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin, control: RenderControl, fontFallback: string): Promise<SceneNode> {
   control.nodes += 1;
-  if (control.nodes % 32 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+  if (control.nodes % 32 === 0) { await maintainBridgeHeartbeat(); await new Promise((resolve) => setTimeout(resolve, 0)); }
   if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
   let node: SceneNode;
   if (spec.type === 'text') {
@@ -128,12 +136,10 @@ function countLayers(node: BaseNode & ChildrenMixin): number {
   return count;
 }
 
-function inspectSelection(): void {
+type SelectionSummary = Extract<HostToUi,{type:'selection'}>['summary'];
+function getSelectionSummary(): SelectionSummary {
   const selected = figma.currentPage.selection[0];
-  if (!selected || !('width' in selected) || !('height' in selected)) {
-    figma.ui.postMessage({ type: 'selection', summary: null });
-    return;
-  }
+  if (!selected || !('width' in selected) || !('height' in selected)) return null;
   const nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> = [];
   const collect = (node: SceneNode, depth: number) => {
     if (nodes.length >= 100 || depth > 5) return;
@@ -149,8 +155,9 @@ function inspectSelection(): void {
     if ('children' in node) for (const child of node.children) collect(child, depth + 1);
   };
   collect(selected, 0);
-  figma.ui.postMessage({ type: 'selection', summary: { name: selected.name, type: selected.type, width: Math.round(selected.width), height: Math.round(selected.height), layerCount: 'children' in selected ? countLayers(selected as BaseNode & ChildrenMixin) : 0, nodes } });
+  return { name: selected.name, type: selected.type, width: Math.round(selected.width), height: Math.round(selected.height), layerCount: 'children' in selected ? countLayers(selected as BaseNode & ChildrenMixin) : 0, nodes };
 }
+function inspectSelection(): void { figma.ui.postMessage({ type:'selection', summary:getSelectionSummary() }); }
 
 async function applyPatch(patch: EditPatch): Promise<void> {
   const targets = new Map<string, SceneNode>();
@@ -286,6 +293,83 @@ function exportSelectedDesign(): DesignSpec {
   return spec;
 }
 
+async function bridgeRequest<T>(path:string,method:'GET'|'POST',body?:unknown):Promise<T>{
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),5000);
+  try{
+    const response=await fetch(`${bridgeEndpoint}${path}`,{method,headers:{Authorization:`Bearer ${bridgeToken}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:controller.signal});
+    const data=await response.json() as T & {error?:{code?:string;message?:string}};
+    if(!response.ok)throw new Error(`${data.error?.code??'BRIDGE_HTTP_ERROR'}: ${data.error?.message??`Bridge returned ${response.status}.`}`);
+    return data;
+  }finally{clearTimeout(timeout);}
+}
+async function maintainBridgeHeartbeat():Promise<void>{
+  if(!bridgeRegistered||!bridgeToken||bridgeHeartbeatInFlight||Date.now()-bridgeHeartbeatAt<5000)return;
+  bridgeHeartbeatInFlight=true;
+  try{await bridgeRequest('/bridge/sessions/heartbeat','POST',{sessionId:bridgeSessionId});bridgeHeartbeatAt=Date.now();}
+  catch{bridgeRegistered=false;}
+  finally{bridgeHeartbeatInFlight=false;}
+}
+function bridgeStatus(status:Extract<HostToUi,{type:'agent-status'}>['status'],details:Partial<Extract<HostToUi,{type:'agent-status'}>>={}):void{
+  figma.ui.postMessage({type:'agent-status',status,...(bridgeSessionId?{sessionId:bridgeSessionId}:{}),...details});
+}
+function bridgeOperationLabel(operation:BridgeOperation):string{
+  if(operation.type==='inspect-selection')return 'Inspecting selection';
+  if(operation.type==='render-spec')return `Inserting ${operation.spec.name}`;
+  if(operation.type==='apply-patch')return `Applying ${operation.patch.operations.length} reviewed edit(s)`;
+  return 'Exporting selected design';
+}
+async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
+  const operation=job.operation;const label=bridgeOperationLabel(operation);const startedAt=Date.now();
+  bridgeStatus('working',{jobId:job.jobId,agentLabel:job.agentLabel,operation:label});
+  figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-started`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'started',timestamp:startedAt,message:'Plugin accepted the queued operation.'});
+  try{
+    let result:unknown;
+    if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
+    else if(operation.type==='render-spec')result={created:await renderSpec(operation.spec,'Inter'),message:'Editable Figma layers were inserted.'};
+    else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
+    else result={spec:exportSelectedDesign()};
+    if(epoch!==bridgeEpoch)return;
+    await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:true,result});
+    figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-completed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'completed',timestamp:Date.now(),message:`Operation completed in ${Date.now()-startedAt} ms.`});
+    bridgeStatus('connected');
+  }catch(error){
+    if(epoch!==bridgeEpoch)return;
+    const message=error instanceof Error?error.message:'Plugin operation failed.';
+    try{await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:false,error:{code:message.startsWith('RENDER_CANCELLED:')?'RENDER_CANCELLED':'PLUGIN_OPERATION_FAILED',message}});}catch{/* A dropped bridge session will show disconnected on the next poll. */}
+    figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-failed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'failed',timestamp:Date.now(),message});
+    bridgeStatus('connected');
+  }
+}
+async function bridgeLoop(epoch:number):Promise<void>{
+  while(epoch===bridgeEpoch&&bridgeToken){
+    try{
+      if(!bridgeRegistered){await bridgeRequest('/bridge/sessions/connect','POST',{sessionId:bridgeSessionId,pluginVersion:'0.2.0'});bridgeRegistered=true;}
+      else {await bridgeRequest('/bridge/sessions/heartbeat','POST',{sessionId:bridgeSessionId});bridgeHeartbeatAt=Date.now();}
+      bridgeStatus('connected');
+      const {job}=await bridgeRequest<{job:BridgeJob|null}>(`/bridge/sessions/${bridgeSessionId}/jobs/next`,'GET');
+      if(job)await executeBridgeJob(job,epoch);
+      else await new Promise((resolve)=>setTimeout(resolve,900));
+    }catch(error){
+      if(epoch!==bridgeEpoch)return;
+      bridgeRegistered=false;
+      bridgeStatus('error',{message:error instanceof Error?error.message:'Local bridge connection failed.'});
+      await new Promise((resolve)=>setTimeout(resolve,1800));
+    }
+  }
+}
+function configureBridge(endpoint:string,token:string):void{
+  bridgeEpoch+=1;bridgeToken='';bridgeRegistered=false;bridgeHeartbeatAt=0;
+  try{
+    const url=new URL(endpoint);
+    if(url.protocol!=='http:'||!['localhost','127.0.0.1','[::1]'].includes(url.hostname)||url.port!=='8788'||url.pathname!=='/')throw new Error('Use the local bridge endpoint http://localhost:8788.');
+    if(!/^[a-f0-9]{64}$/i.test(token))throw new Error('Paste the 64-character pairing token from the local bridge token file.');
+    bridgeEndpoint=url.origin;bridgeToken=token;
+    if(!bridgeSessionId)bridgeSessionId=`figma-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+    bridgeStatus('connecting',{message:'Connecting to the local agent bridge…'});
+    void bridgeLoop(bridgeEpoch);
+  }catch(error){bridgeStatus('disconnected',{message:error instanceof Error?error.message:'Bridge is not configured.'});}
+}
+
 figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
   try {
@@ -295,6 +379,7 @@ figma.ui.onmessage = async (message: UiToHost) => {
       figma.ui.resize(width, height);
       return;
     }
+    if(message.type==='configure-bridge'){configureBridge(message.endpoint,message.token);return;}
     if (message.type === 'cancel-render') { cancelActiveRender?.(); return; }
     if (message.type === 'inspect-selection') inspectSelection();
     if (message.type === 'render') {

@@ -1,0 +1,6 @@
+---
+description: TypeScript engineering and safe-change rules
+globs: "src/**/*.ts,src/**/*.tsx,scripts/**/*.mjs"
+alwaysApply: false
+---
+Use strict TypeScript, small modules, explicit contracts, bounded inputs and actionable error codes. Add deterministic tests for changed behavior. Do not shell out to Git. Do not turn incomplete interfaces into advertised functionality. Follow `/AGENTS.md` and the relevant module documentation.

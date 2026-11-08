@@ -41,8 +41,9 @@ await esbuild({
   define: { __html__: JSON.stringify(html) },
 });
 await esbuild({ entryPoints: ['src/runtime/server.ts'], bundle: true, outfile: 'dist/runtime.mjs', platform: 'node', target: 'node20', format: 'esm', packages: 'external' });
+await esbuild({ entryPoints: ['src/mcp/server.ts'], bundle: true, outfile: 'dist/mcp.mjs', platform: 'node', target: 'node20', format: 'esm', packages: 'external' });
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 manifest.main = 'plugin.js';
 manifest.ui = 'ui.html';
 await writeFile(resolve('dist/manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log('Built inline plugin UI, Figma host bundle, local runtime, and development manifest.');
+console.log('Built inline plugin UI, Figma host bundle, local runtime, MCP server, and development manifest.');

@@ -1,0 +1,5 @@
+---
+description: Core repository constraints for AI Designer No Figma
+alwaysApply: true
+---
+Read `/AGENTS.md` before editing; it is canonical. Read `/docs/AI-HANDOFF.md` and `/docs/PROJECT-STATUS.md` for current work. Never run Git CLI/GitHub CLI, require paid AI APIs, invoke official Figma MCP, or execute model-generated code. Keep local services loopback-only and preserve JSON import without an AI runtime. Record evidence honestly and update repository docs with each change.

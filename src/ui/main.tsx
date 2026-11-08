@@ -8,12 +8,13 @@ import './styles.css';
 
 const vsnLogo = document.querySelector<HTMLImageElement>('.boot-logo')?.src ?? '';
 
-type Tab = 'Generate' | 'Edit' | 'Design System' | 'Import' | 'History' | 'Settings';
+type Tab = 'Generate' | 'Edit' | 'Design System' | 'Import' | 'History' | 'Agent Activity' | 'Settings';
 type Model = { name: string; details?: { parameter_size?: string } };
 type HistoryItem = { id: string; prompt: string; model: string; createdAt: string; spec: DesignSpec };
 type Token = { id: string; name: string; color: string };
 type GenerationMode = 'handoff' | 'ollama';
 const defaultUrl = 'http://localhost:8787';
+const defaultBridgeUrl = 'http://localhost:8788';
 function safeEndpoint(value: string): string {
   try {
     const url = new URL(value);
@@ -22,7 +23,7 @@ function safeEndpoint(value: string): string {
   return defaultUrl;
 }
 const promptTemplate = `Return one JSON object only. Use this schema: {"schemaVersion":"1.0","name":"Design name","pages":[{"id":"page-1","name":"Page name","children":[{"type":"frame","id":"frame-1","name":"Main frame","width":1440,"height":900,"fill":"#FFFFFF","children":[{"type":"text","id":"title-1","name":"Title","x":48,"y":48,"width":600,"height":60,"text":"A clear heading","fontSize":36,"fontWeight":700,"color":"#171A1E"}]}]}]}. Supported types: frame, group, text, rectangle, ellipse, line. Give every id a unique stable value and make all layers editable. Do not include markdown.`;
-const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'History'];
+const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'History', 'Agent Activity'];
 function post(message: UiToHost) { parent.postMessage({ pluginMessage: message }, '*'); }
 function createLocalId(prefix='item'): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -84,6 +85,12 @@ function App() {
   const [tokenName, setTokenName] = useState('');
   const [tokenColor, setTokenColor] = useState('#0D8A60');
   const [fontFallback, setFontFallback] = useState(() => load('adnf-font-fallback','Inter'));
+  const [bridgeUrl, setBridgeUrl] = useState(() => load('adnf-bridge-url',defaultBridgeUrl));
+  const [bridgeUrlDraft, setBridgeUrlDraft] = useState(bridgeUrl);
+  const [bridgeToken, setBridgeToken] = useState(() => load('adnf-bridge-token',''));
+  const [bridgeTokenDraft, setBridgeTokenDraft] = useState(bridgeToken);
+  const [agentStatus, setAgentStatus] = useState<Extract<HostToUi,{type:'agent-status'}>>({type:'agent-status',status:'disconnected',message:'Pair a local MCP client from Settings.'});
+  const [agentEvents, setAgentEvents] = useState<Array<Extract<HostToUi,{type:'agent-event'}>>>([]);
   const activeController = useRef<AbortController|null>(null);
   const historySource = useRef<{prompt:string;model:string}|null>(null);
   const pendingRenderHistory = useRef<HistoryItem|null>(null);
@@ -103,7 +110,10 @@ function App() {
   useEffect(() => { save('adnf-tokens',tokens); },[tokens]);
   useEffect(() => {
     post({type:'inspect-selection'});
+    if (bridgeToken) post({type:'configure-bridge',endpoint:bridgeUrl,token:bridgeToken});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
+      if(msg.type==='agent-status')setAgentStatus(msg);
+      if(msg.type==='agent-event')setAgentEvents(items=>[msg,...items.filter(item=>item.id!==msg.id)].slice(0,50));
       if(msg.type==='selection')setSelection(msg.summary);
       if(msg.type==='export-result'){
         setBusy(false);
@@ -249,10 +259,16 @@ function App() {
         <div className="section-heading"><div><p className="eyebrow">THIS DEVICE</p><h1>History</h1><p className="muted">Recent prompts and results stay in this browser profile.</p></div><button className="icon-button icon-only-button danger-text" aria-label="Clear history" title="Clear history" onClick={()=>setHistory([])}><HeaderIcon kind="remove"/></button></div>
         {!history.length?<div className="empty-state"><strong>No completed designs yet</strong><p>Successfully inserted designs appear here, including manual JSON imports.</p></div>:<div className="history-list">{history.map(item=><article className="history-item" key={item.id}><div className="history-head"><strong>{item.spec.name}</strong><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{item.prompt}</p><span className="history-meta">{item.model||'Manual import'} · {item.spec.pages.length} page(s)</span><div className="button-row compact-row"><button className="secondary-button small" onClick={()=>reuseHistoryItem(item)} disabled={busy}>{busy?'Inserting…':'Reuse & insert'}</button><button className="secondary-button small" onClick={()=>download(item.spec,`${item.spec.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`)}>Export</button><button className="secondary-button small" onClick={()=>{setSpec(item.spec);setJsonInput(JSON.stringify(item.spec,null,2));setTab('Import');}}>View JSON</button><button className="icon-button danger-text" aria-label="Delete history item" onClick={()=>setHistory(items=>items.filter(x=>x.id!==item.id))}>Delete</button></div></article>)}</div>}
       </>}
+      {tab==='Agent Activity'&&<>
+        <div className="section-heading"><div><p className="eyebrow">LOCAL MCP BRIDGE</p><h1>Agent activity</h1><p className="muted">See real work accepted from a paired local MCP client.</p></div><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status}</span></div>
+        <div className="settings-card"><strong>{agentStatus.agentLabel??'No active agent job'}</strong><p className="muted">{agentStatus.operation??agentStatus.message??(agentStatus.status==='connected'?'Bridge connected; waiting for a request.':'Pair a local MCP client in Settings.')}</p>{agentStatus.jobId&&<code>Job {agentStatus.jobId}</code>}</div>
+        {!agentEvents.length?<div className="empty-state"><strong>No agent activity yet</strong><p>Once paired, MCP requests and their actual Figma results will appear here.</p></div>:<div className="history-list">{agentEvents.map(item=><article className="history-item" key={item.id}><div className="history-head"><strong>{item.operation}</strong><time>{new Date(item.timestamp).toLocaleString()}</time></div><p>{item.message}</p><span className="history-meta">{item.agentLabel} · {item.status} · {item.jobId}</span></article>)}</div>}
+      </>}
       {tab==='Settings'&&<>
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
         <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
+        <div className="settings-card"><div className="preview-head"><strong>Local MCP agent bridge</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status}</span></div><label className="field-label">Loopback bridge endpoint<input value={bridgeUrlDraft} onChange={e=>setBridgeUrlDraft(e.target.value)} placeholder="http://localhost:8788"/></label><label className="field-label">Pairing token<input type="password" autoComplete="off" value={bridgeTokenDraft} onChange={e=>setBridgeTokenDraft(e.target.value)} placeholder="64-character token from local bridge"/></label><p className="hint">Run <code>npm run mcp</code> in the project folder. Copy the token from <code>~/.ai-designer-no-figma/bridge-token</code>. It remains in this browser profile and is sent only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(bridgeUrlDraft);if(u.protocol!=='http:'||!['localhost','127.0.0.1','[::1]'].includes(u.hostname)||u.port!=='8788')throw new Error('Use http://localhost:8788.');if(!/^[a-f0-9]{64}$/i.test(bridgeTokenDraft))throw new Error('Token must contain 64 hexadecimal characters.');setBridgeUrl(u.origin);setBridgeToken(bridgeTokenDraft);save('adnf-bridge-url',u.origin);save('adnf-bridge-token',bridgeTokenDraft);post({type:'configure-bridge',endpoint:u.origin,token:bridgeTokenDraft});setNotice('Pairing details saved. Checking local bridge…');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid local bridge settings.');}}}>Pair local agent</button><button className="secondary-button small" onClick={()=>{setBridgeToken('');setBridgeTokenDraft('');save('adnf-bridge-token','');setAgentStatus({type:'agent-status',status:'disconnected',message:'Bridge pairing removed.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:''});}}>Disconnect</button></div></div>
         <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
       </>}
     </section>

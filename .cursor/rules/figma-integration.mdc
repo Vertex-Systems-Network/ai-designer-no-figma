@@ -1,0 +1,6 @@
+---
+description: Figma Plugin API and MCP boundary rules
+globs: "src/plugin/**/*.ts,src/shared/protocol.ts,src/shared/spec.ts"
+alwaysApply: false
+---
+Only the Figma plugin may mutate Figma document nodes. Validate schemas and selection IDs before mutation; bound recursion and preserve rollback snapshots. Keep MCP contracts provider-neutral and isolate Figma-specific API mappings. Never invoke Figma AI or official Figma MCP. Mark mock and live Figma evidence separately.

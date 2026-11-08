@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Local-first AI-assisted native Figma design generation",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
@@ -12,17 +15,28 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "build": "node scripts/build.mjs",
     "runtime": "tsx src/runtime/server.ts",
+    "mcp": "tsx src/mcp/server.ts",
     "package": "node scripts/package.mjs",
+    "docs:audit": "node scripts/repository-audit.mjs",
+    "docs:validate": "node scripts/repository-audit.mjs --strict",
+    "docs:generate": "node scripts/repository-audit.mjs --generate",
+    "repo:audit": "node scripts/repository-audit.mjs --strict && npm run audit:local",
+    "repo:verify": "npm run verify && npm run docs:validate && npm run compatibility:check",
+    "compatibility:check": "node scripts/compatibility-check.mjs",
+    "release:verify": "npm run verify && npm run docs:validate && node scripts/release-verify.mjs",
     "verify": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build && npm run audit:local && npm run package",
     "audit:local": "node scripts/audit-local.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
     "ajv": "^8.17.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.117.0",
+    "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",

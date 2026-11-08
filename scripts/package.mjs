@@ -7,13 +7,14 @@ import { tmpdir } from 'node:os';
 await stat('dist/plugin.js');
 await stat('dist/ui.html');
 await stat('dist/runtime.mjs');
+await stat('dist/mcp.mjs');
 const artifactDir = 'artifacts';
 await mkdir(artifactDir, { recursive: true });
 const archive = resolve(artifactDir, 'ai-designer-no-figma-0.1.0.zip');
 const stage = await mkdtemp(join(tmpdir(), 'ai-designer-package-'));
 const paths = [
-  'dist/manifest.json','dist/plugin.js','dist/ui.html','dist/runtime.mjs','dist/schema/design-spec-1.0.schema.json',
-  'src','schema','scripts','docs','README.md','manifest.json','package.json','package-lock.json','tsconfig.json',
+  'dist/manifest.json','dist/plugin.js','dist/ui.html','dist/runtime.mjs','dist/mcp.mjs','dist/schema/design-spec-1.0.schema.json',
+  'src','schema','scripts','docs','tools','AGENTS.md','CLAUDE.md','GEMINI.md','.cursor','.github','README.md','manifest.json','package.json','package-lock.json','tsconfig.json',
   'vite.config.ts','vitest.config.ts','vitest.integration.config.ts','eslint.config.js','.gitignore','.env.example',
 ];
 for (const path of paths) {
