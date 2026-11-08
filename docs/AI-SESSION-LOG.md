@@ -1,10 +1,17 @@
 # AI session log
 
+## 2026-11-09 — bounded visual capture and MCP image return
+
+- Implemented one-frame visual capture in the Figma host. It exports JPG at progressive widths (1024, 768, 512), caps bytes at 700 KiB, validates selection/type/aspect/height, and encodes bytes without TextEncoder/btoa dependencies.
+- New renders focus/select the first root frame. Added `figma_capture_selection`, plus MCP result handling that sends the actual captured image to AI clients as `image/jpeg` content. Tool descriptions invite inspect → targeted patch → recapture.
+- Added base64, MCP image validation and host-operation regression tests; integration discovery now checks the new capture operation.
+- `npm run release:verify` passed: 45 unit and 15 integration tests, typecheck/lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. The generated package hash is in `artifacts/SHA256SUMS.txt`. Live verification in the user's Figma/Claude setup remains open. This is agent-driven via tool calls, not a model loop running autonomously inside the plugin.
+
 ## 2026-11-08 — design-quality prompt and advisory audit
 
 - Added concrete design instructions to provider-neutral generation prompts and a deterministic non-blocking audit for measurable text contrast, generic names, unspecified sizes, and repeated containers without Auto Layout.
 - Import UI now displays path-specific suggestions without blocking valid insertion. Added regression coverage for all findings and validity preservation.
-- Validation complete: `npm run release:verify` passes with 40 unit and 15 integration tests, strict typecheck/lint, local security audit, production build/package, strict documentation audit (0 findings), ZIP integrity and SHA-256. Current package checksum is recorded in `artifacts/SHA256SUMS.txt`. No live Figma screenshot review or Figma Agent benchmark was performed.
+- Validation complete: `npm run release:verify` passes with 45 unit and 15 integration tests, strict typecheck/lint, local security audit, production build/package, strict documentation audit (0 findings), ZIP integrity and SHA-256. Current package checksum is recorded in `artifacts/SHA256SUMS.txt`. No live Figma screenshot review or Figma Agent benchmark was performed.
 
 ## 2026-11-08 — hidden Claude/Figma job session and signed-in operator
 
