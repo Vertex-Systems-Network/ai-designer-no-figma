@@ -1,6 +1,7 @@
 import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
+import { sanitizeSvg, validateRasterAsset } from '../shared/assets';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -95,6 +96,30 @@ function fontStyle(weight: number): string {
   if (weight >= 600) return 'Semi Bold';
   if (weight >= 500) return 'Medium';
   return 'Regular';
+}
+
+function placeAssetNode(node:SceneNode,width:number,height:number,name:string):void{
+  node.name=name.replace(/[\u0000-\u001f]/g,' ').trim().slice(0,160)||'Imported asset';
+  const selected=figma.currentPage.selection.length===1?figma.currentPage.selection[0]:undefined;
+  const parent=selected?.type==='FRAME'?selected:figma.currentPage;
+  parent.appendChild(node);
+  if(parent.type==='FRAME'){node.x=24;node.y=24;}
+  else{node.x=figma.viewport.center.x-width/2;node.y=figma.viewport.center.y-height/2;}
+  figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
+}
+
+function insertSvg(name:string,source:string){
+  const asset=sanitizeSvg(source);const node=figma.createNodeFromSvg(asset.svg);
+  try{node.resize(asset.width,asset.height);placeAssetNode(node,asset.width,asset.height,name);return {kind:'svg' as const,name:node.name,width:asset.width,height:asset.height,elements:asset.elements,nodeId:node.id};}
+  catch(error){if(!node.removed)node.remove();throw error;}
+}
+
+function insertRaster(name:string,mimeType:string,input:number[]){
+  if(!Array.isArray(input)||input.length>5*1024*1024)throw new Error('Image payload exceeds the 5 MB import limit.');
+  const bytes=new Uint8Array(input);const info=validateRasterAsset(bytes,mimeType);const image=figma.createImage(bytes);
+  const node=figma.createRectangle();
+  try{node.resize(info.width,info.height);node.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:'FIT'}];placeAssetNode(node,info.width,info.height,name);return {kind:'image' as const,name:node.name,width:info.width,height:info.height,mimeType:info.mimeType,bytes:info.size,nodeId:node.id};}
+  catch(error){if(!node.removed)node.remove();throw error;}
 }
 
 async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<number> {
@@ -316,6 +341,8 @@ function bridgeOperationLabel(operation:BridgeOperation):string{
   if(operation.type==='inspect-selection')return 'Inspecting selection';
   if(operation.type==='render-spec')return `Inserting ${operation.spec.name}`;
   if(operation.type==='apply-patch')return `Applying ${operation.patch.operations.length} reviewed edit(s)`;
+  if(operation.type==='insert-svg')return `Importing SVG ${operation.name}`;
+  if(operation.type==='insert-image')return `Importing image ${operation.name}`;
   return 'Exporting selected design';
 }
 async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
@@ -327,6 +354,8 @@ async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
     else if(operation.type==='render-spec')result={created:await renderSpec(operation.spec,'Inter'),message:'Editable Figma layers were inserted.'};
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
+    else if(operation.type==='insert-svg'){const asset=insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported as editable vector geometry.',...asset});}
+    else if(operation.type==='insert-image'){const asset=insertRaster(operation.name,operation.mimeType,operation.bytes);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied image imported as native image fill.',...asset});}
     else result={spec:exportSelectedDesign()};
     if(epoch!==bridgeEpoch)return;
     await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:true,result});
@@ -404,6 +433,20 @@ figma.ui.onmessage = async (message: UiToHost) => {
     if (message.type === 'apply-color-selection') {
       applyColorToSelection(message.color);
       figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Color applied to the selected layers.' });
+    }
+    if(message.type==='import-svg'){
+      const result=insertSvg(message.name,message.svg);
+      figma.ui.postMessage({type:'asset-result',ok:true,message:'Sanitized SVG imported as an editable Figma vector frame.',...result});
+    }
+    if(message.type==='import-image'){
+      const result=insertRaster(message.name,message.mimeType,message.bytes);
+      figma.ui.postMessage({type:'asset-result',ok:true,message:'Image imported as a native editable Figma image fill.',...result});
+    }
+    if(message.type==='select-node'){
+      const node=await figma.getNodeByIdAsync(message.nodeId);
+      if(!node||node.type==='DOCUMENT'||node.type==='PAGE')throw new Error('This asset node is no longer available in the open document.');
+      if(node.parent?.type==='PAGE'&&node.parent!==figma.currentPage)await figma.setCurrentPageAsync(node.parent);
+      figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
     }
   } catch (error) {
     figma.ui.postMessage({ type: 'error', code: 'PLUGIN_OPERATION_FAILED', message: error instanceof Error ? error.message : 'Plugin operation failed.' });
