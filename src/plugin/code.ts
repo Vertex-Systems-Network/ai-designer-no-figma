@@ -2,6 +2,8 @@ import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type Des
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { sanitizeSvg, validateRasterAsset } from '../shared/assets';
+import { createAssetLibrary } from '../shared/asset-library';
+import { verifyAssetReadback } from '../shared/asset-readback';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -17,6 +19,7 @@ let bridgeEpoch = 0;
 let bridgeRegistered = false;
 let bridgeHeartbeatAt = 0;
 let bridgeHeartbeatInFlight = false;
+const assetLibrary=createAssetLibrary({getAsync:(key)=>figma.clientStorage.getAsync(key),setAsync:(key,value)=>figma.clientStorage.setAsync(key,value),deleteAsync:(key)=>figma.clientStorage.deleteAsync(key)});
 
 function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
@@ -108,17 +111,26 @@ function placeAssetNode(node:SceneNode,width:number,height:number,name:string):v
   figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
 }
 
-function insertSvg(name:string,source:string){
+async function verifyInsertedAsset(node:SceneNode,kind:'svg'|'image',width:number,height:number):Promise<void>{
+  const readback=await figma.getNodeByIdAsync(node.id);
+  if(!readback||readback.removed)verifyAssetReadback(null,{id:node.id,kind,width,height});
+  if(!readback)return;
+  if(!('width' in readback)||!('height' in readback)){verifyAssetReadback(null,{id:node.id,kind,width,height});return;}
+  const imageFill='fills' in readback&&Array.isArray(readback.fills)&&readback.fills.some(fill=>fill.type==='IMAGE');
+  verifyAssetReadback({id:readback.id,type:readback.type,width:readback.width,height:readback.height,...('children' in readback?{childCount:readback.children.length}:{}),imageFill},{id:node.id,kind,width,height});
+}
+
+async function insertSvg(name:string,source:string){
   const asset=sanitizeSvg(source);const node=figma.createNodeFromSvg(asset.svg);
-  try{node.resize(asset.width,asset.height);placeAssetNode(node,asset.width,asset.height,name);return {kind:'svg' as const,name:node.name,width:asset.width,height:asset.height,elements:asset.elements,nodeId:node.id};}
+  try{node.resize(asset.width,asset.height);placeAssetNode(node,asset.width,asset.height,name);await verifyInsertedAsset(node,'svg',asset.width,asset.height);return {kind:'svg' as const,name:node.name,width:asset.width,height:asset.height,elements:asset.elements,nodeId:node.id};}
   catch(error){if(!node.removed)node.remove();throw error;}
 }
 
-function insertRaster(name:string,mimeType:string,input:number[]){
+async function insertRaster(name:string,mimeType:string,input:number[]){
   if(!Array.isArray(input)||input.length>5*1024*1024)throw new Error('Image payload exceeds the 5 MB import limit.');
   const bytes=new Uint8Array(input);const info=validateRasterAsset(bytes,mimeType);const image=figma.createImage(bytes);
   const node=figma.createRectangle();
-  try{node.resize(info.width,info.height);node.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:'FIT'}];placeAssetNode(node,info.width,info.height,name);return {kind:'image' as const,name:node.name,width:info.width,height:info.height,mimeType:info.mimeType,bytes:info.size,nodeId:node.id};}
+  try{node.resize(info.width,info.height);node.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:'FIT'}];placeAssetNode(node,info.width,info.height,name);await verifyInsertedAsset(node,'image',info.width,info.height);return {kind:'image' as const,name:node.name,width:info.width,height:info.height,mimeType:info.mimeType,bytes:info.size,nodeId:node.id};}
   catch(error){if(!node.removed)node.remove();throw error;}
 }
 
@@ -360,8 +372,8 @@ async function executeBridgeJob(job:BridgeJob,epoch:number):Promise<void>{
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
     else if(operation.type==='render-spec')result={created:await renderSpec(operation.spec,'Inter'),message:'Editable Figma layers were inserted.'};
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
-    else if(operation.type==='insert-svg'){const asset=insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported as editable vector geometry.',...asset});}
-    else if(operation.type==='insert-image'){const asset=insertRaster(operation.name,operation.mimeType,operation.bytes);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied image imported as native image fill.',...asset});}
+    else if(operation.type==='insert-svg'){const asset=await insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported and read back as editable vector geometry.',...asset});}
+    else if(operation.type==='insert-image'){const asset=await insertRaster(operation.name,operation.mimeType,operation.bytes);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied image imported and read back as a native image fill.',...asset});}
     else result={spec:exportSelectedDesign()};
     if(epoch!==bridgeEpoch)return;
     await bridgeRequest(`/bridge/jobs/${job.jobId}/result`,'POST',{sessionId:bridgeSessionId,ok:true,result});
@@ -407,6 +419,18 @@ function configureBridge(endpoint:string,token:string):void{
 
 figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
+  if(message.type==='asset-library-request'){
+    try{
+      let response:Extract<HostToUi,{type:'asset-library-response'}>;
+      if(message.operation==='list')response={type:'asset-library-response',requestId:message.requestId,operation:'list',ok:true,assets:await assetLibrary.list()};
+      else if(message.operation==='read'){if(!message.sha)throw new Error('Asset fingerprint is required.');const asset=await assetLibrary.read(message.sha);response={type:'asset-library-response',requestId:message.requestId,operation:'read',ok:true,...(asset?{asset}:{})};}
+      else if(message.operation==='save'){if(!message.asset)throw new Error('Asset source is missing.');const saved=await assetLibrary.save(message.asset);response={type:'asset-library-response',requestId:message.requestId,operation:'save',ok:true,asset:saved.asset,duplicate:saved.duplicate};}
+      else if(message.operation==='delete'){if(!message.sha)throw new Error('Asset fingerprint is required.');await assetLibrary.delete(message.sha);response={type:'asset-library-response',requestId:message.requestId,operation:'delete',ok:true};}
+      else{await assetLibrary.clear();response={type:'asset-library-response',requestId:message.requestId,operation:'clear',ok:true};}
+      figma.ui.postMessage(response);
+    }catch(error){figma.ui.postMessage({type:'asset-library-response',requestId:message.requestId,operation:message.operation,ok:false,message:error instanceof Error?error.message:'Figma client storage failed.'});}
+    return;
+  }
   try {
     if (message.type === 'resize-ui') {
       const width = Math.max(360, Math.min(760, Math.round(message.width)));
@@ -441,12 +465,12 @@ figma.ui.onmessage = async (message: UiToHost) => {
       figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Color applied to the selected layers.' });
     }
     if(message.type==='import-svg'){
-      const result=insertSvg(message.name,message.svg);
-      figma.ui.postMessage({type:'asset-result',ok:true,message:'Sanitized SVG imported as an editable Figma vector frame.',...result});
+      const result=await insertSvg(message.name,message.svg);
+      figma.ui.postMessage({type:'asset-result',ok:true,message:'Sanitized SVG imported and read back as editable Figma vector layers.',...result});
     }
     if(message.type==='import-image'){
-      const result=insertRaster(message.name,message.mimeType,message.bytes);
-      figma.ui.postMessage({type:'asset-result',ok:true,message:'Image imported as a native editable Figma image fill.',...result});
+      const result=await insertRaster(message.name,message.mimeType,message.bytes);
+      figma.ui.postMessage({type:'asset-result',ok:true,message:'Image imported and read back as a native Figma image fill.',...result});
     }
     if(message.type==='select-node'){
       const node=await figma.getNodeByIdAsync(message.nodeId);
