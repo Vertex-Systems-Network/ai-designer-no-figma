@@ -10,6 +10,8 @@ export type LayoutSpec = {
   primaryAxisSizing?: 'AUTO' | 'FIXED';
   counterAxisSizing?: 'AUTO' | 'FIXED';
 };
+export type GradientSpec = { direction: 'horizontal' | 'vertical'; stops: Array<{ position: number; color: string; opacity?: number }> };
+export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 
 type BaseNode = {
   id: string;
@@ -21,6 +23,8 @@ type BaseNode = {
   fill?: string;
   radius?: number;
   opacity?: number;
+  gradient?: GradientSpec;
+  shadow?: ShadowSpec;
 };
 export type TextNodeSpec = BaseNode & {
   type: 'text';
@@ -37,9 +41,12 @@ export type ContainerNodeSpec = BaseNode & {
   children: DesignNodeSpec[];
   layout?: LayoutSpec;
 };
+export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec };
+export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: string };
+export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
 export type ShapeNodeSpec = BaseNode & { type: 'rectangle' | 'ellipse' };
 export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeWidth?: number };
-export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ShapeNodeSpec | LineNodeSpec;
+export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ShapeNodeSpec | LineNodeSpec;
 export type PageSpec = { id: string; name: string; children: DesignNodeSpec[] };
 export type DesignSpec = { schemaVersion: '1.0'; name: string; pages: PageSpec[] };
 
@@ -53,7 +60,7 @@ const validateSchema = ajv.compile(designSpecSchema);
 export type ValidationIssue = { path: string; message: string };
 export type ValidationResult = { valid: boolean; issues: ValidationIssue[]; value?: DesignSpec };
 export type DesignQualityFinding = { path: string; severity: 'warning' | 'suggestion'; message: string };
-const supportedNodeTypes = ['frame', 'group', 'text', 'rectangle', 'ellipse', 'line'] as const;
+const supportedNodeTypes = ['frame', 'group', 'component', 'instance', 'vector', 'text', 'rectangle', 'ellipse', 'line'] as const;
 
 function valueAtInstancePath(input: unknown, instancePath: string): unknown {
   return instancePath.split('/').slice(1).reduce<unknown>((value, segment) => {
@@ -93,6 +100,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
   }
   const spec = input as DesignSpec;
   const seen = new Set<string>();
+  const componentIds = new Set<string>();
   const issues: ValidationIssue[] = [];
   let nodes = 0;
   const addId = (id: string, path: string) => {
@@ -100,11 +108,14 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','children','layout'],
-    group: ['type','id','name','x','y','width','height','fill','radius','opacity','children','layout'],
-    text: ['type','id','name','x','y','width','height','fill','radius','opacity','text','fontFamily','fontSize','fontWeight','lineHeight','color','align'],
-    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity'],
-    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity'],
+    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout'],
+    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout'],
+    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout'],
+    instance: ['type','id','name','x','y','width','height','opacity','componentRef'],
+    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','path'],
+    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','text','fontFamily','fontSize','fontWeight','lineHeight','color','align'],
+    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow'],
+    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow'],
     line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth'],
   };
   const visit = (node: DesignNodeSpec, path: string, depth: number) => {
@@ -113,7 +124,11 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (depth > MAX_DEPTH) { issues.push({ path, message: `Layer depth exceeds ${MAX_DEPTH}.` }); return; }
     addId(node.id, `${path}.id`);
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
-    if (node.type === 'frame' || node.type === 'group') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, depth + 1));
+    if (node.type === 'frame' || node.type === 'group' || node.type === 'component') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, depth + 1));
+    if (node.type === 'component') componentIds.add(node.id);
+    if (node.type === 'instance' && !componentIds.has(node.componentRef)) issues.push({ path: `${path}.componentRef`, message: `Component reference "${node.componentRef}" must point to a component declared earlier in the document.` });
+    if (node.type === 'vector' && (!node.path.trim() || node.path.length > 8192 || !/^[\sMmLlHhVvCcSsQqTtAaZz0-9.,+\-]+$/.test(node.path) || !/[Mm]/.test(node.path))) issues.push({ path: `${path}.path`, message: 'Vector path must be a bounded SVG path using standard path commands and numbers only.' });
+    if (node.gradient && (node.gradient.stops.length < 2 || node.gradient.stops.some((stop, index) => index > 0 && stop.position < node.gradient!.stops[index - 1]!.position))) issues.push({ path: `${path}.gradient.stops`, message: 'Gradient needs at least two stops ordered by position.' });
   };
   spec.pages.forEach((page, p) => {
     addId(page.id, `pages[${p}].id`);
@@ -149,10 +164,10 @@ export function auditDesignQuality(spec: DesignSpec): DesignQualityFinding[] {
         if (ratio < 4.5) findings.push({ path: `${path}.color`, severity: 'warning', message: `Text contrast is approximately ${ratio.toFixed(1)}:1 against its nearest solid fill; check readability (WCAG AA normal-text target: 4.5:1).` });
       }
     }
-    if ((node.type === 'frame' || node.type === 'group') && node.children.length >= 3 && (!node.layout || node.layout.mode === 'none')) {
+    if ((node.type === 'frame' || node.type === 'group' || node.type === 'component') && node.children.length >= 3 && (!node.layout || node.layout.mode === 'none')) {
       findings.push({ path: `${path}.layout`, severity: 'suggestion', message: 'This container has several children but no Auto Layout; consider using a consistent gap and padding.' });
     }
-    if (node.type === 'frame' || node.type === 'group') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, background));
+    if (node.type === 'frame' || node.type === 'group' || node.type === 'component') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, background));
   };
   spec.pages.forEach((page, p) => page.children.forEach((node, n) => visit(node, `pages[${p}].children[${n}]`)));
   return findings;
