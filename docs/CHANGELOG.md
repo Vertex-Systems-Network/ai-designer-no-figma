@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-09 — advanced native renderer and design schema
+
+- Extended design-spec 1.0 with reusable components and instances, bounded SVG path vectors, horizontal/vertical linear gradients, and drop shadows.
+- Added native Figma `ComponentNode`, instance, vector-path, gradient-paint, and drop-shadow rendering, plus prompt guidance and honest MCP capability reporting.
+- Added positive and negative schema/renderer capability regression cases. Typecheck and focused tests pass; a live Figma render is NOT TESTED because the user is unavailable for that verification.
+- Raster image nodes, Figma Variables/styles, and complete selected-tree export round-tripping remain open.
+
 ## 2026-11-09 — AI-orchestrated visual feedback loop
 
 - Added Figma frame capture through `exportAsync` as a JPEG preview. The host tries 1024/768/512 px widths and enforces a 700 KiB byte cap, one selected frame, supported aspect ratio and 8192 px maximum preview height.
