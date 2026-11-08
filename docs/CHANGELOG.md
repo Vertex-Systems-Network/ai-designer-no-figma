@@ -2,11 +2,12 @@
 
 ## Unreleased — repository intelligence and MCP foundation
 
+- Replaced Figma/browser storage for imported assets with validated, size-bounded persistence in the private local bridge file, because the user's Figma context denies IndexedDB and plugin storage. Pair credentials now persist across bridge restarts, and plugin bridge endpoint validation no longer uses the unavailable Figma JSVM `URL` global. Typecheck, lint, build, MCPB packaging and ZIP packaging pass; live Windows Claude/Figma confirmation is pending.
 - Added canonical cross-agent repository instructions and source-aware project status documents.
 - Added the official `@modelcontextprotocol/server` SDK dependency (2.4.0); no MCP server is claimed until its stdio implementation and tests exist.
 - Added selected Figma layer export, bounded selection geometry edits and plugin-session undo in the current code line; see README and backlog for verification state.
 - Added bounded native SVG and PNG/JPEG/GIF asset imports, validation MCP tools, the AI Assets UI, local recent-import metadata, and explicit client capability reporting. Automated validation exists; native asset rendering has not been live-verified.
-- Moved the bounded asset library into Figma host `clientStorage` through a typed UI message bridge, avoiding iframe IndexedDB/localStorage restrictions. Added SHA-256 integrity checks, persistent image/vector bytes, preview, reuse, deletion and clear actions. Added post-insert Figma node readback checks for dimensions, vector children and native image fills. Added atomic MCP batch queueing and 64 KiB SHA-256-verified raster chunks for transfers up to 5 MiB.
+- Implemented SHA-256 integrity checks, persistent image/vector bytes, preview, reuse, deletion and clear actions. Added post-insert Figma node readback checks for dimensions, vector children and native image fills. Added atomic MCP batch queueing and 64 KiB SHA-256-verified raster chunks for transfers up to 5 MiB.
 - Added reviewed frame-only Auto Layout patch operations with validation, application, rollback snapshots and undo support.
 - Added locally persisted typography and spacing scales with bounded import/export validation; both scales are attached to local-model and external-AI design prompts.
 - Added up to 20 named design-system presets with save/load/duplicate/delete controls.

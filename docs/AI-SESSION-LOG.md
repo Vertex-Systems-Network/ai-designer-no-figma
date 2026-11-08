@@ -1,12 +1,18 @@
 # AI session log
 
+## 2026-11-08 — Figma pairing and local asset persistence repair
+
+- Fixed the pairing failure caused by Figma's plugin JSVM lacking the global `URL` constructor; endpoint validation now checks the exact loopback endpoint directly.
+- Pairing tokens now persist across Claude Desktop bridge restarts. Asset source bytes use validated, bounded persistence in the private local bridge file because the user's Figma context denies browser and plugin storage.
+- TypeScript typecheck, ESLint, production plugin build, Claude `.mcpb` package and source ZIP package pass. Live Windows Claude Desktop/Figma pairing, asset save/reload/reuse, and final import remain pending.
+
 ## 2026-11-08 — local SVG and raster asset vertical slice
 
 - Added bounded conservative SVG sanitization and PNG/JPEG/GIF signature, structure, dimension and checksum validation.
 - Added UI manual asset import, Figma native SVG/image-fill host operations, bounded custom MCP validate/insert tools, capability reporting, and recent local metadata.
 - Added asset capability/transport/architecture/test docs and refreshed README, backlog and roadmap progress bars.
 - Full release verification passed: 26 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma asset insertion and AI-client generated-file handoff remain NOT TESTED.
-- Implemented this session: host-side Figma clientStorage over the UI bridge, post-insert native node readback, and atomic SHA-256-verified 64 KiB MCP image chunks (up to 5 MiB). Next gates: live-test storage and a >192 KiB paired MCP transfer; schema-backed assets, gradients/components/variables, and visual accessibility review remain.
+- Earlier implementation used Figma host-side clientStorage and was later superseded after the user's development plugin rejected writes due to its missing assigned ID. Current persistence is handled by the paired local bridge as documented in the newer entry above.
 
 ## 2026-11-08 — repository-memory and connectivity extension
 

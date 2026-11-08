@@ -6,7 +6,7 @@ import { parseEditPatch } from '../shared/edit-patch';
 import { buildDesignPrompt, buildDesignSystemPrompt, buildPatchPrompt } from '../shared/prompts';
 import { sanitizeSvg } from '../shared/assets';
 import { utf8ByteLength } from '../shared/utf8';
-import { clearStoredAssets, deleteStoredAsset, initializeAssetLibraryBridge, listStoredAssets, readStoredAsset, saveStoredAsset, type AssetPayload, type AssetSummary } from './asset-library';
+import { clearStoredAssets, configureStoredAssetBridge, deleteStoredAsset, initializeAssetLibraryBridge, listStoredAssets, readStoredAsset, saveStoredAsset, type AssetPayload, type AssetSummary } from './asset-library';
 import './styles.css';
 
 const vsnLogo = document.querySelector<HTMLImageElement>('.boot-logo')?.src ?? '';
@@ -139,7 +139,7 @@ function App() {
   useEffect(()=>()=>{if(assetPreview?.url)URL.revokeObjectURL(assetPreview.url);},[assetPreview]);
   useEffect(() => {
     initializeAssetLibraryBridge();
-    void listStoredAssets().then(setAssetRecords).catch(error=>setNotice(error instanceof Error?`Local asset library unavailable: ${error.message}`:'Local asset library unavailable.'));
+    if(bridgeToken){configureStoredAssetBridge(bridgeUrl,bridgeToken);void listStoredAssets().then(setAssetRecords).catch(()=>{});}
     post({type:'inspect-selection'});
     if (bridgeToken) post({type:'configure-bridge',endpoint:bridgeUrl,token:bridgeToken});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
@@ -189,8 +189,10 @@ function App() {
       const result=await response.json() as {ok?:boolean;endpoint?:string;token?:string;error?:{message?:string}};
       if(!response.ok||!result.ok||!result.endpoint||!result.token)throw new Error(result.error?.message??'Claude Desktop is not running yet. Open Claude Desktop and try Connect again.');
       setBridgeUrl(result.endpoint);setBridgeToken(result.token);
+      configureStoredAssetBridge(result.endpoint,result.token);
       save('adnf-bridge-url',result.endpoint);save('adnf-bridge-token',result.token);
       post({type:'configure-bridge',endpoint:result.endpoint,token:result.token});
+      void listStoredAssets().then(setAssetRecords).catch(()=>{});
       setNotice('Claude found. Connecting to this Figma file…');
     }catch(error){
       const reason=error instanceof Error&&error.message!=='Failed to fetch'?error.message:'Open Claude Desktop and install the AI Designer extension, then try Connect again.';
@@ -367,7 +369,7 @@ function App() {
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
         <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
-        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the Figma file that is open now. Your prompts and design data stay on this device.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={agentStatus.status==='connecting'}>{agentStatus.status==='connecting'?'Connecting…':'Connect Claude'}</button>{bridgeToken&&<button className="secondary-button small" onClick={()=>{setBridgeToken('');save('adnf-bridge-token','');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:''});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If Claude is installed but cannot connect, check that the AI Designer extension is enabled in Claude Desktop, then select Connect again.</p></details></div>
+        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the Figma file that is open now. Prompts and saved assets stay on this device.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={agentStatus.status==='connecting'}>{agentStatus.status==='connecting'?'Connecting…':'Connect Claude'}</button>{bridgeToken&&<button className="secondary-button small" onClick={()=>{setBridgeToken('');save('adnf-bridge-token','');configureStoredAssetBridge(bridgeUrl,'');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:''});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If Claude is installed but cannot connect, check that the AI Designer extension is enabled in Claude Desktop, then select Connect again.</p></details></div>
         <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
       </>}
     </section>

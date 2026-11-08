@@ -365,7 +365,7 @@
     {
       "id": "ASSET-001",
       "name": "Validated local raster and SVG import and reuse",
-      "description": "Validate bounded SVG and PNG/JPEG/GIF payloads; support 5 MiB raster import through atomic, SHA-256 verified 64 KiB MCP chunks; insert natively, verify node readback, and persist originals in Figma clientStorage.",
+      "description": "Validate bounded SVG and PNG/JPEG/GIF payloads; support 5 MiB raster import through atomic, SHA-256 verified 64 KiB MCP chunks; insert natively, verify node readback, and persist originals in the paired local bridge library.",
       "module": "asset-pipeline",
       "sourceFiles": [
         "src/shared/assets.ts",
@@ -394,13 +394,13 @@
         "src/mcp/server.integration.test.ts"
       ],
       "knownIssues": [
-        "Live Figma insertion, clientStorage persistence and large paired MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred; replacement/crop operations are not implemented."
+        "Live Figma insertion, paired bridge persistence and large MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred; replacement/crop operations are not implemented."
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
       "lastModified": "2026-11-08",
       "lastVerified": "2026-11-08",
-      "nextAction": "Re-import the current build and verify SVG/raster save, preview/reuse, and a raster larger than 192 KiB through the paired MCP bridge; if clientStorage requires an assigned ID, set the official Figma ID."
+      "nextAction": "Re-import the current build, pair Claude from plugin Settings, and verify SVG/raster save, preview/reuse, reload persistence, and a raster larger than 192 KiB through the paired MCP bridge."
     }
   ]
 }

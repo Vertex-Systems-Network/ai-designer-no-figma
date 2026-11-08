@@ -2,7 +2,6 @@ import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type Des
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
-import { createAssetLibrary } from '../shared/asset-library';
 import { verifyAssetReadback } from '../shared/asset-readback';
 import { sha256 } from '../shared/sha256';
 
@@ -20,7 +19,6 @@ let bridgeEpoch = 0;
 let bridgeRegistered = false;
 let bridgeHeartbeatAt = 0;
 let bridgeHeartbeatInFlight = false;
-const assetLibrary=createAssetLibrary({getAsync:(key)=>figma.clientStorage.getAsync(key),setAsync:(key,value)=>figma.clientStorage.setAsync(key,value),deleteAsync:(key)=>figma.clientStorage.deleteAsync(key)});
 type PendingImageTransfer={name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number;bytes:Uint8Array;receivedBytes:number;updatedAt:number};
 const pendingImageTransfers=new Map<string,PendingImageTransfer>();
 
@@ -439,10 +437,10 @@ function configureBridge(endpoint:string,token:string):void{
   bridgeEpoch+=1;bridgeToken='';bridgeRegistered=false;bridgeHeartbeatAt=0;
   if(!token){bridgeStatus('disconnected',{message:'Claude disconnected.'});return;}
   try{
-    const url=new URL(endpoint);
-    if(url.protocol!=='http:'||!['localhost','127.0.0.1','[::1]'].includes(url.hostname)||url.port!=='8788'||url.pathname!=='/')throw new Error('Use the local bridge endpoint http://localhost:8788.');
+    // Figma's plugin JSVM does not expose the browser URL constructor.
+    if(!/^http:\/\/(?:localhost|127\.0\.0\.1):8788\/?$/.test(endpoint))throw new Error('Use the local bridge endpoint http://localhost:8788.');
     if(!/^[a-f0-9]{64}$/i.test(token))throw new Error('Paste the 64-character pairing token from the local bridge token file.');
-    bridgeEndpoint=url.origin;bridgeToken=token;
+    bridgeEndpoint='http://localhost:8788';bridgeToken=token;
     if(!bridgeSessionId)bridgeSessionId=`figma-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
     bridgeStatus('connecting',{message:'Connecting to the local agent bridge…'});
     void bridgeLoop(bridgeEpoch);
@@ -451,19 +449,6 @@ function configureBridge(endpoint:string,token:string):void{
 
 figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
-  if(message.type==='asset-library-request'){
-    try{
-      if(!figma.pluginId)throw new Error('Figma client storage requires a Figma-assigned plugin ID. Register this development plugin in Figma, add its assigned ID to manifest.json, rebuild, and re-import. The design asset can still be inserted, but local save/reuse needs that ID.');
-      let response:Extract<HostToUi,{type:'asset-library-response'}>;
-      if(message.operation==='list')response={type:'asset-library-response',requestId:message.requestId,operation:'list',ok:true,assets:await assetLibrary.list()};
-      else if(message.operation==='read'){if(!message.sha)throw new Error('Asset fingerprint is required.');const asset=await assetLibrary.read(message.sha);response={type:'asset-library-response',requestId:message.requestId,operation:'read',ok:true,...(asset?{asset}:{})};}
-      else if(message.operation==='save'){if(!message.asset)throw new Error('Asset source is missing.');const saved=await assetLibrary.save(message.asset);response={type:'asset-library-response',requestId:message.requestId,operation:'save',ok:true,asset:saved.asset,duplicate:saved.duplicate};}
-      else if(message.operation==='delete'){if(!message.sha)throw new Error('Asset fingerprint is required.');await assetLibrary.delete(message.sha);response={type:'asset-library-response',requestId:message.requestId,operation:'delete',ok:true};}
-      else{await assetLibrary.clear();response={type:'asset-library-response',requestId:message.requestId,operation:'clear',ok:true};}
-      figma.ui.postMessage(response);
-    }catch(error){figma.ui.postMessage({type:'asset-library-response',requestId:message.requestId,operation:message.operation,ok:false,message:error instanceof Error?error.message:'Figma client storage failed.'});}
-    return;
-  }
   try {
     if (message.type === 'resize-ui') {
       const width = Math.max(360, Math.min(760, Math.round(message.width)));

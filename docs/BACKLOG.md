@@ -11,7 +11,7 @@ Status means evidence in this repository, not an estimate.
 | 4 | Provider-neutral AI integration and custom MCP | 70% | IN PROGRESS | User-operated no-API handoff and optional Ollama remain; custom MCP stdio server is implemented and protocol-tested. Client-specific setup and live Figma actions remain unverified. |
 | 5 | Selection-aware editing and rollback | 80% | IN PROGRESS | Geometry-aware selection summary, safe bounds/text/fill/name/Auto Layout patches, preview, rollback snapshots, and up to 20 plugin-session undo checkpoints implemented; component replacement and live preservation test remain. |
 | 6 | Design system engine | 65% | IN PROGRESS | Color token CRUD/import/export/apply, prompt-linked typography/spacing scales and up to 20 local save/load/duplicate/delete presets work; reusable components, native Variables/styles and direct text-style application remain. |
-| 7 | Complete premium UI | 88% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, asset import and local asset-library preview/reuse/delete controls exist; broader visual/accessibility QA remains. |
+| 7 | Complete premium UI | 90% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, and device-local asset-library controls exist; broader visual/accessibility QA remains. |
 | 8 | Testing and hardening | 85% | IN PROGRESS | 36 unit and 15 integration tests passed after the Figma storage and chunked transfer changes; typecheck/lint/build/package and local privacy audit pass. Full renderer/edit preservation, live bridge pairing and local-model checks remain. |
 | 9 | Build and release packaging | 100% | PASS | Plugin/runtime bundles, source ZIP, SHA-256 manifest, ZIP integrity, and reproducible archive hash verified. |
 | 10 | Final audit and evidence report | 60% | IN PROGRESS | Traceability and asset release verification pass; startup UI is user-confirmed live. Close remaining feature gates and report renderer/edit preservation, local-model, screenshot, client pairing and registration evidence. A separate Figma Web cloud session failed GPU initialization; no offline edits were synced. |
@@ -22,7 +22,7 @@ Status means evidence in this repository, not an estimate.
 |---|---:|---|
 | MCP stdio server and actual tool catalog | 100% | Protocol integration test covers initialization, discovery, validation errors and capabilities. |
 | Token-authenticated loopback bridge | 100% | Broker and HTTP integration tests cover token/origin rejection, session isolation, correlated delivery and result return. |
-| Plugin pairing and Agent Activity UI | 80% | Build-verified and connected to host status/events; live re-import/pairing is not tested. |
+| Plugin pairing and Agent Activity UI | 90% | Pair token now persists across bridge restarts; plugin runtime no longer depends on the unavailable `URL` global; live pairing still requires user-side confirmation. |
 | Cross-client installation and Figma live actions | 0% | Not tested in this environment; use installation guide and confirm on desktop. |
 
 ## Master Prompt 04 · AI assets
@@ -36,7 +36,7 @@ Status means evidence in this repository, not an estimate.
 | 5 · Raster image pipeline | `██████░░░░` 60% | PNG/JPEG/GIF validation plus native image-fill handler; tests pass, live rendering untested. |
 | 6 · AI capability routing | `██░░░░░░░░` 20% | Manual handoff is explicit; no generic AI-client asset router is verified. |
 | 7 · Agent activity integration | `███░░░░░░░` 30% | Import completion result is surfaced; full transfer/verify lifecycle absent. |
-| 8 · Asset intelligence | `█████████░` 90% | SHA-256 keyed Figma `clientStorage` library stores safe original bytes through the plugin host message bridge, deduplicates matching imports, enforces 50-item/2-MiB source limits, supports preview/reuse and explicit deletion. UI iframe storage is no longer used; latest build needs live Figma save/reuse confirmation. |
+| 8 · Asset intelligence | `█████████░` 90% | SHA-256 keyed local bridge library stores sanitized source bytes in a private companion-service file, deduplicates imports, enforces 50-item/2-MiB source limits, and supports preview/reuse/delete. Figma and browser storage are not used; latest build needs live save/reuse confirmation. |
 | 9 · AI Assets UI | `███████░░░` 75% | Import, capability disclosure, local preview/reuse/select/remove and clear-all controls are connected; live screenshot review remains. |
 | 10 · Autonomous verification | `████░░░░░░` 40% | SVG/image insertions now query the Figma host for the created node and verify dimensions, vector children or image fill; helper has positive/negative unit cases. Live-editor verification remains. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | Bounds, allowlist, and no remote asset fetch; client checks/live security evidence remain. |

@@ -33,4 +33,4 @@ If `node.exe` is installed elsewhere, use its actual path. Save the config and f
 
 The MCP server starts the local bridge itself. Even with the developer fallback, Figma **Connect Claude** handles pairing. Do not start a second `npm run mcp` process on the same port.
 
-The manifest deliberately has no invented plugin ID. Figma `clientStorage` cannot persist the asset library until the plugin is registered in Figma and its assigned ID is added to `manifest.json`; rebuild and re-import after adding it. Native SVG/image insertion can succeed while the optional local library save fails. The plugin now reports this cause directly.
+The manifest deliberately has no invented plugin ID. Asset-library source bytes are persisted by the paired loopback bridge in a private local file because this Figma context denies IndexedDB and plugin client storage. Pair Claude once from plugin Settings; the app obtains and renews the loopback credential automatically. SVG/image insertion remains available while disconnected, but persistent library save/reuse requires the bridge to be running.

@@ -17,7 +17,7 @@
 
 The custom MCP server must not depend on undocumented Figma endpoints or the official Figma MCP. The bridge transports commands/results only; the plugin remains the sole document mutation authority. The universal design schema, MCP tool contracts, and Figma adapter each receive separate versions.
 
-The custom MCP and bridge path is implemented and automated-tested, but live Figma pairing remains unverified. Client generation/file access is not inferred. The standalone asset path is separate from the JSON design schema. MCP raster transfer supports up to 5 MiB in checksum-verified chunks; local source bytes use a content-addressed Figma clientStorage library. Replacement/crop operations and live post-insert verification remain open.
+The custom MCP and bridge path is implemented and automated-tested, but live Figma pairing remains unverified. Client generation/file access is not inferred. The standalone asset path is separate from the JSON design schema. MCP raster transfer supports up to 5 MiB in checksum-verified chunks; the paired bridge stores local source bytes in a private content-addressed file because Figma blocks browser and plugin storage in this development context. Replacement/crop operations and live post-insert verification remain open.
 
 ## Safety boundaries
 

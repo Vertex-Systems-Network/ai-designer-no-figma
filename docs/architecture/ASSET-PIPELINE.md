@@ -8,7 +8,7 @@ Design prompts and AI responses are data. The plugin never evaluates model outpu
 
 - Manual UI: user pastes SVG markup or selects a local image file. The UI caps raster files at 5 MiB, passes bytes over the plugin UI/host message, and the host validates again before Figma node creation.
 - MCP bridge: a paired MCP client supplies SVG text or base64 image bytes. The server accepts raster files up to 5 MiB, sends files above 192 KiB as atomic batches of 64 KiB chunks, and validates before queueing. The plugin reassembles chunks, verifies SHA-256, validates again, inserts, and reads back the native node.
-- Results include the inserted node ID, media type, dimensions, and vector element count where applicable. Figma `clientStorage` holds the saved asset bytes and metadata through the plugin-host message bridge.
+- Results include the inserted node ID, media type, dimensions, and vector element count where applicable. The paired local bridge holds saved bytes and metadata in a private bounded file because this Figma runtime denies plugin and iframe storage.
 
 The supported import actions are standalone and are not design JSON schema nodes. Replacement, crop, direct vector path editing, resumable chunk uploads and automatic remote AI-client file access are not implemented.
 

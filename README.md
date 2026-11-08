@@ -35,15 +35,15 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 |---|---:|---|---|
 | Manual SVG and raster asset import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Strict SVG sanitization and PNG/JPEG/GIF validation feed native Figma nodes; re-import and inspect in live Figma. |
 | MCP asset validation and transfer | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED · LIVE TRANSFER PENDING | Supports 5 MiB raster imports, sends files over 192 KiB as 64 KiB SHA-256 checked chunks, and reserves the bridge queue batch atomically; paired Figma transfer remains unverified. |
-| Asset registry and client capability discovery | `███████░░░` 70% | INSERTION LIVE · STORAGE BLOCKED | User confirmed SVG insertion, but Figma client storage rejects saves because this development manifest has no Figma-assigned plugin ID. Register the plugin, add its assigned ID, rebuild/re-import, then verify save/reuse. |
+| Asset registry and client capability discovery | `█████████░` 90% | LOCAL BRIDGE PERSISTENCE IMPLEMENTED · LIVE REUSE CHECK PENDING | SVG and raster assets save to a bounded, private local library through the paired loopback service, independent of browser storage and Figma plugin registration. Pair Claude, then confirm save, refresh, preview, and reuse in Figma. |
 | VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
 | Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
 | Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
 | Design-system typography, spacing and presets | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Local scales and up to 20 named presets save/load/duplicate/delete; scales validate, import/export and enter AI prompts. Native Figma text styles remain open. |
 | Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
 | Custom MCP stdio server | `█████████░` 90% | CLAUDE DESKTOP EXTENSION BUILT · LIVE INSTALL PENDING | `.mcpb` installer removes manual JSON and Node command setup. Shutdown now drains keep-alive connections; live extension installation and Claude tool use remain to verify. |
-| Local Figma bridge | `█████████░` 90% | ONE-CLICK PAIR IMPLEMENTED · LIVE CHECK PENDING | Figma Settings requests local pairing automatically and displays the actual connection status. No endpoint entry or token copying. |
-| Agent pairing and activity | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Pairing form/activity timeline are connected to real bridge events; live re-import and pairing test remains. |
+| Local Figma bridge | `█████████░` 90% | RESTART-STABLE PAIR TOKEN · LIVE CHECK PENDING | Pairing credentials persist across Claude Desktop restarts; Figma requests pairing automatically and no token entry or copying is required. |
+| Agent pairing and activity | `█████████░` 90% | IMPLEMENTED · BUILD VERIFIED | Pairing and activity use real bridge events; Claude Desktop extension startup and live pairing need confirmation after re-import. |
 | Automated verification | `██████████` 100% | PASS | 36 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
@@ -59,7 +59,7 @@ This tracker records implementation evidence separately from live Figma verifica
 | 5 · Raster image import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | PNG/JPEG/GIF signatures/dimensions/checksums and native image fills are validated; live rendering untested. |
 | 6 · Capability routing | `██░░░░░░░░` 20% | PARTIAL | Honest manual/local options and unsupported client claims are reported; no generic AI client router is verified. |
 | 7 · Agent activity | `███░░░░░░░` 30% | PARTIAL | Actual import completion result appears in plugin UI; intermediate lifecycle events are not implemented. |
-| 8 · Local asset library | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | SHA-256 dedupe, bounded persistent bytes, preview, reuse and explicit delete/clear controls are implemented. |
+| 8 · Local asset library | `█████████░` 90% | IMPLEMENTED · BUILD VERIFIED | SHA-256 dedupe, bounded local bridge file storage, preview, reuse and explicit delete/clear controls no longer depend on Figma plugin ID or iframe storage; live refresh/reuse confirmation remains. |
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
@@ -80,9 +80,9 @@ npm install
 npm run verify
 ```
 
-In Figma, open **Plugins → Development → Import plugin from manifest…** and select `dist/manifest.json`. The development manifest intentionally has no invented plugin ID; Figma supplies the ID when the plugin is registered for distribution.
+In Figma, open **Plugins → Development → Import plugin from manifest…** and select `dist/manifest.json`. Local asset saving works on this development build without a plugin ID; registration is only needed if you later publish it through Figma.
 
-The manifest allowlists `http://localhost:8787` for optional Ollama and `http://localhost:8788` for the custom token-protected MCP bridge. Both services bind only to `127.0.0.1`.
+The manifest allowlists `http://localhost:8787` for optional Ollama and `http://localhost:8788` for the custom token-protected MCP bridge. Both services bind only to `127.0.0.1`. The local asset library is stored with the companion bridge so it works when Figma blocks browser and plugin storage; connect Claude in Settings to enable save and reuse.
 
 ## Use any AI app without an API
 
