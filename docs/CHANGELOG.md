@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-08 — design quality review slice
+
+- Strengthened provider-neutral generation prompts with concrete hierarchy, grid, semantic naming, readable contrast, realistic content and layer-quality requirements.
+- Added a non-blocking design-spec audit for low contrast when solid fills are known, generic layer names, missing explicit font sizes, and multi-child containers without Auto Layout. Findings are shown in Import with exact JSON paths; imports remain valid and insertable.
+- Added deterministic positive/negative fixture coverage. This is not screenshot analysis or proof of visual superiority over Figma Agent.
+
 ## Unreleased — repository intelligence and MCP foundation
 
 - Moved authenticated MCP bridge polling and network requests out of the Figma JSVM host into the browser-based plugin UI iframe. The host now handles only Figma document work and returns correlated job results to the UI. Added a Connect & hide flow using `figma.ui.hide()`, background heartbeat while jobs run, a Figma toast for each job's working/completed/failed state, and display of the signed-in Figma operator via the declared `currentuser` permission. Added a regression suite preventing browser network/timer globals from returning to the Figma host. Closing Figma or the current document still ends the session; new-file automation needs a separate desktop runner.
