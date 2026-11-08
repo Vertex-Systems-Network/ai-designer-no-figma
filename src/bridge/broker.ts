@@ -64,6 +64,23 @@ export class JobBroker {
     return structuredClone(job);
   }
 
+  enqueueBatch(operations: BridgeOperation[], options: { sessionId?: string; agentLabel?: string; operationId?: string } = {}): BridgeJob[] {
+    this.expire();
+    if (!Array.isArray(operations) || operations.length < 1 || operations.length > this.maxJobs) throw new BridgeFault('INVALID_BATCH','Bridge batch must contain between 1 and the active job limit operations.');
+    const sessionId=this.resolveSession(options.sessionId);
+    const activeJobs=[...this.jobs.values()].filter(job=>['queued','running'].includes(job.status)).length;
+    if(activeJobs+operations.length>this.maxJobs)throw new BridgeFault('QUEUE_FULL',`Bridge queue can accept ${Math.max(0,this.maxJobs-activeJobs)} more jobs; the batch needs ${operations.length}.`);
+    const root=options.operationId?.trim()||randomUUID();
+    const staged=operations.map((operation,index)=>{
+      const operationId=`${root}:${index}`;
+      if(operationId.length>128)throw new BridgeFault('INVALID_OPERATION_ID','Batch operation IDs must be no longer than 128 characters after their index is added.');
+      const priorId=this.operationIds.get(operationId);if(priorId)throw new BridgeFault('DUPLICATE_OPERATION_ID','This batch operation ID was already used.');
+      const now=this.now();return{jobId:randomUUID(),operationId,sessionId,agentLabel:sanitizeLabel(options.agentLabel),operation:structuredClone(operation),status:'queued' as const,createdAt:now,updatedAt:now};
+    });
+    for(const job of staged){this.jobs.set(job.jobId,job);this.operationIds.set(job.operationId,job.jobId);}
+    return staged.map(job=>structuredClone(job));
+  }
+
   takeNext(sessionId: string): BridgeJob | null {
     this.heartbeat(sessionId);
     const job = [...this.jobs.values()].filter((candidate)=>candidate.sessionId===sessionId&&candidate.status==='queued').sort((a,b)=>a.createdAt-b.createdAt)[0];
