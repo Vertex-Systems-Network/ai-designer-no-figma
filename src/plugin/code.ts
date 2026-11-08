@@ -3,6 +3,9 @@ import type { EditPatch, UiToHost } from '../shared/protocol';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
+// Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
+// for this plugin session and fall back to native Figma node IDs otherwise.
+const logicalIds = new Map<string, string>();
 
 function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
@@ -60,7 +63,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   node.opacity = spec.opacity ?? 1;
   if ((spec.type === 'frame' || spec.type === 'group') && spec.fill) (node as FrameNode).fills = [paint(spec.fill)];
   if ((spec.type === 'frame' || spec.type === 'group') && spec.radius !== undefined) (node as FrameNode).cornerRadius = spec.radius;
-  node.setPluginData('ai-designer-id', spec.id);
+  logicalIds.set(node.id, spec.id);
   if ((spec.type === 'frame' || spec.type === 'group') && 'children' in spec) {
     const frame = node as FrameNode;
     const layout = spec.layout;
@@ -105,7 +108,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
   } finally {
     cancelActiveRender = undefined;
   }
-  figma.currentPage = createdPages[0]!;
+  await figma.setCurrentPageAsync(createdPages[0]!);
   return createdPages.reduce((sum, page) => sum + page.children.length, 0);
 }
 
@@ -132,7 +135,7 @@ function inspectSelection(): void {
   const nodes: Array<{id:string;name:string;type:string;text?:string;fill?:string}> = [];
   const collect = (node: SceneNode, depth: number) => {
     if (nodes.length >= 100 || depth > 5) return;
-    const logicalId = node.getPluginData('ai-designer-id') || node.id;
+    const logicalId = logicalIds.get(node.id) || node.id;
     {
       const item: {id:string;name:string;type:string;text?:string;fill?:string} = { id: logicalId, name: node.name, type: node.type };
       if (node.type === 'TEXT') item.text = node.characters.slice(0, 500);
@@ -150,7 +153,7 @@ function inspectSelection(): void {
 async function applyPatch(patch: EditPatch): Promise<void> {
   const targets = new Map<string, SceneNode>();
   const visit = (node: SceneNode) => {
-    const id = node.getPluginData('ai-designer-id') || node.id;
+    const id = logicalIds.get(node.id) || node.id;
     targets.set(id, node);
     if ('children' in node) for (const child of node.children) visit(child);
   };

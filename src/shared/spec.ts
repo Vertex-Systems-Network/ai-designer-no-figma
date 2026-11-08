@@ -1,5 +1,6 @@
 import Ajv from 'ajv';
 import designSpecSchema from '../../schema/design-spec-1.0.schema.json' with { type: 'json' };
+import { utf8ByteLength } from './utf8';
 
 export type LayoutSpec = {
   mode: 'none' | 'horizontal' | 'vertical';
@@ -59,7 +60,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     catch { return { valid: false, issues: [{ path: '$', message: 'Specification must not contain circular references.' }] }; }
     if (serialized === undefined) return { valid: false, issues: [{ path: '$', message: 'Specification must be a JSON-compatible object.' }] };
   }
-  const size = rawBytes ?? new TextEncoder().encode(serialized!).byteLength;
+  const size = rawBytes ?? utf8ByteLength(serialized!);
   if (size > MAX_SPEC_BYTES) return { valid: false, issues: [{ path: '$', message: `Specification exceeds ${MAX_SPEC_BYTES} bytes.` }] };
   if (!validateSchema(input)) {
     return { valid: false, issues: (validateSchema.errors ?? []).map((e) => ({ path: e.instancePath || '$', message: e.message ?? 'Invalid value' })) };
@@ -96,8 +97,8 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
 }
 
 export function parseDesignSpec(json: string): ValidationResult {
-  if (new TextEncoder().encode(json).byteLength > MAX_SPEC_BYTES) return { valid: false, issues: [{ path: '$', message: `JSON exceeds ${MAX_SPEC_BYTES} bytes.` }] };
+  if (utf8ByteLength(json) > MAX_SPEC_BYTES) return { valid: false, issues: [{ path: '$', message: `JSON exceeds ${MAX_SPEC_BYTES} bytes.` }] };
   const source = json.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  try { return validateDesignSpec(JSON.parse(source), new TextEncoder().encode(source).byteLength); }
+  try { return validateDesignSpec(JSON.parse(source), utf8ByteLength(source)); }
   catch { return { valid: false, issues: [{ path: '$', message: 'Invalid JSON syntax. Check commas, quotes, and braces.' }] }; }
 }

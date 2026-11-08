@@ -23,6 +23,7 @@ const promptTemplate = `Return one JSON object only. Use this schema: {"schemaVe
 const navTabs: Tab[] = ['Generate', 'Edit', 'Design System', 'Import', 'History'];
 function post(message: UiToHost) { parent.postMessage({ pluginMessage: message }, '*'); }
 function load<T>(key: string, fallback: T): T { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
+function save(key: string, value: unknown): void { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage; keep the current session usable. */ } }
 function App() {
   const [tab, setTab] = useState<Tab>('Generate');
   const [theme, setTheme] = useState<'dark'|'light'>(() => load('adnf-theme','dark'));
@@ -49,6 +50,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('Ready');
+  const [copyFallback, setCopyFallback] = useState('');
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [spec, setSpec] = useState<DesignSpec|null>(null);
   const [jsonInput, setJsonInput] = useState('');
@@ -64,9 +66,9 @@ function App() {
   const [fontFallback, setFontFallback] = useState(() => load('adnf-font-fallback','Inter'));
   const activeController = useRef<AbortController|null>(null);
 
-  useEffect(() => { document.documentElement.dataset.theme=theme; localStorage.setItem('adnf-theme',JSON.stringify(theme)); },[theme]);
-  useEffect(() => { localStorage.setItem('adnf-history',JSON.stringify(history.slice(0,40))); },[history]);
-  useEffect(() => { localStorage.setItem('adnf-tokens',JSON.stringify(tokens)); },[tokens]);
+  useEffect(() => { document.documentElement.dataset.theme=theme; save('adnf-theme',theme); },[theme]);
+  useEffect(() => { save('adnf-history',history.slice(0,40)); },[history]);
+  useEffect(() => { save('adnf-tokens',tokens); },[tokens]);
   useEffect(() => {
     post({type:'inspect-selection'});
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
@@ -87,7 +89,7 @@ function App() {
     } catch(err) {setModels([]);setRuntime('disconnected');setError(err instanceof Error?err.message:'Could not connect to the local service.');}
   }
   useEffect(()=>{
-    localStorage.setItem('adnf-generation-mode',JSON.stringify(generationMode));
+    save('adnf-generation-mode',generationMode);
     if(generationMode==='ollama')void refreshModels();
     else{setRuntime('disconnected');setModels([]);setError('');setNotice('External AI handoff is ready. No API key or Ollama runtime required.');}
   },[baseUrl,generationMode]);
@@ -116,8 +118,16 @@ function App() {
     }catch(err){if(err instanceof DOMException&&err.name==='AbortError')setNotice('Generation cancelled.');else setError(err instanceof Error?err.message:'Generation failed.');}finally{setBusy(false);}
   }
   async function copyText(value:string,success:string){
-    try{if(!navigator.clipboard)throw new Error('Clipboard is unavailable.');await navigator.clipboard.writeText(value);setNotice(success);setError('');}
-    catch{setNotice('Select the text and copy it manually. Clipboard access is unavailable in this Figma panel.');}
+    setCopyFallback('');
+    try{if(!navigator.clipboard)throw new Error('Clipboard API unavailable.');await navigator.clipboard.writeText(value);setNotice(success);setError('');return;}
+    catch{ /* Fall back to the legacy clipboard command used by embedded plugin iframes. */ }
+    try{
+      const field=document.createElement('textarea');field.value=value;field.setAttribute('readonly','');
+      field.style.position='fixed';field.style.left='-10000px';field.style.top='0';document.body.appendChild(field);field.focus();field.select();
+      const copied=document.execCommand('copy');field.remove();
+      if(copied){setNotice(success);setError('');return;}
+    }catch{ /* Keep a visible, selectable copy field below. */ }
+    setCopyFallback(value);setNotice('Automatic clipboard access is blocked here. Copy the selected text below with Ctrl+C.');setError('');
   }
   function validateImport(){const result=parseDesignSpec(jsonInput);setIssues(result.issues);setError('');if(!result.valid||!result.value){setSpec(null);setError('Review the validation findings and correct the JSON.');return;}setSpec(result.value);if(preparedPrompt){setHistory(items=>[{id:crypto.randomUUID(),prompt,model:'External AI handoff',createdAt:new Date().toISOString(),spec:result.value!},...items]);setPreparedPrompt('');}setNotice('Specification is valid. Insert is ready.');}
   function insert(){if(!spec)return;setBusy(true);setError('');setNotice('Creating editable native Figma layers…');post({type:'render',spec,fontFallback});}
@@ -184,12 +194,42 @@ function App() {
       </>}
       {tab==='Settings'&&<>
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
-        <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);localStorage.setItem('adnf-endpoint',JSON.stringify(value));setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
-        <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);localStorage.setItem('adnf-font-fallback',JSON.stringify(e.target.value));}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
+        <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
+        <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
         <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
       </>}
     </section>
+    {copyFallback&&<div className="template-panel copy-fallback"><label className="field-label" htmlFor="copy-fallback">Copy manually · press Ctrl+C</label><textarea id="copy-fallback" className="handoff-text" readOnly value={copyFallback} onFocus={e=>e.currentTarget.select()} onClick={e=>e.currentTarget.select()}/></div>}
     <footer className="status-footer">{error?<p className="message error-message">{error}</p>:<p className="message">{notice||'Ready'} · No Figma AI credits or paid API required</p>}{issues.length>0&&<div className="validation-list"><strong>{issues.length} validation finding(s)</strong>{issues.slice(0,8).map((i,n)=><p key={`${i.path}-${n}`}><code>{i.path}</code> {i.message}</p>)}</div>}</footer>
   </main>;
 }
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+function showRuntimeFailure(reason: unknown) {
+  const container = document.getElementById('root');
+  if (!container) return;
+  const details = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason);
+  const panel = document.createElement('main');
+  panel.className = 'boot-error';
+  panel.setAttribute('role', 'alert');
+  const title = document.createElement('strong');
+  title.textContent = 'AI Designer UI stopped';
+  const message = document.createElement('p');
+  message.textContent = 'The plugin UI hit a browser runtime error. Copy this detail when reporting the problem.';
+  const detail = document.createElement('pre');
+  detail.textContent = details.slice(0, 1200);
+  const hint = document.createElement('small');
+  hint.textContent = 'Re-import the updated dist/manifest.json after replacing the plugin build.';
+  panel.append(title, message, detail, hint);
+  container.replaceChildren(panel);
+}
+
+window.addEventListener('error', event => showRuntimeFailure(event.error ?? event.message));
+window.addEventListener('unhandledrejection', event => showRuntimeFailure(event.reason));
+
+try {
+  const container = document.getElementById('root');
+  if (!container) throw new Error('Plugin UI root element is missing.');
+  createRoot(container, { onUncaughtError: error => showRuntimeFailure(error) })
+    .render(<React.StrictMode><App/></React.StrictMode>);
+} catch (error) {
+  showRuntimeFailure(error);
+}

@@ -1,9 +1,10 @@
 import type { EditPatch } from './protocol';
+import { utf8ByteLength } from './utf8';
 
 export type PatchValidation = { valid: true; value: EditPatch } | { valid: false; message: string };
 
 export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): PatchValidation {
-  if (new TextEncoder().encode(json).byteLength > 262_144) return { valid: false, message: 'Patch JSON exceeds the 256 KB limit.' };
+  if (utf8ByteLength(json) > 262_144) return { valid: false, message: 'Patch JSON exceeds the 256 KB limit.' };
   const source = json.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   let parsed: unknown;
   try { parsed = JSON.parse(source); }

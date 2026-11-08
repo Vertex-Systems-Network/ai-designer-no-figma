@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDesignSpec, validateDesignSpec, type DesignSpec } from './spec';
+import { utf8ByteLength } from './utf8';
 
 const valid: DesignSpec = {
   schemaVersion: '1.0', name: 'Sample', pages: [{ id: 'page-1', name: 'Home', children: [
@@ -10,6 +11,11 @@ const valid: DesignSpec = {
 };
 
 describe('design specification validation', () => {
+  it('counts UTF-8 bytes without TextEncoder, including multibyte and surrogate-pair characters', () => {
+    expect(utf8ByteLength('ASCII')).toBe(5);
+    expect(utf8ByteLength('é漢😀')).toBe(9);
+    expect(utf8ByteLength('\ud800')).toBe(3);
+  });
   it('accepts a well-formed editable design tree', () => expect(validateDesignSpec(valid).valid).toBe(true));
   it('reports invalid JSON syntax', () => expect(parseDesignSpec('{broken').issues[0]?.message).toMatch(/syntax/i));
   it('accepts a JSON code block pasted from an external AI chat', () => {
