@@ -3,19 +3,19 @@
 Status means evidence in this repository, not an estimate.
 
 | Phase | Scope | Progress | Status | Evidence / next gate |
-| Design quality | Quality-oriented prompt and spec audit | 70% | AUTOMATED VERIFIED · VISUAL QA OPEN | Deterministic advisory checks and prompt requirements are implemented; rendered screenshots, responsive behavior, and Figma Agent comparison are not verified. |
 |---|---|---:|---|---|
+| Design quality | Quality-oriented prompt and spec audit | 70% | AUTOMATED VERIFIED · VISUAL QA OPEN | Deterministic advisory checks and prompt requirements are implemented; rendered screenshots, responsive behavior, and Figma Agent comparison are not verified. |
 | 0 | Environment and existing-work audit | 100% | PASS | Node/npm available; blank target workspace; organization `open-designer` inspected as a separate desktop/web editor, not a drop-in plugin. |
 | 1 | TypeScript foundation, schema, tooling, docs | 100% | PASS | Dependency install, strict typecheck, lint, unit tests, runtime integration tests, and build completed. |
-| 2 | Plugin lifecycle and native renderer | 76% | IN PROGRESS | Browser networking moved from the Figma JSVM host to the UI iframe; renderer commands still run through the Figma host. User confirmed the base UI; live background operation and asset render remain. |
+| 2 | Plugin lifecycle and native renderer | 78% | IN PROGRESS | Renderer selects the first generated frame and can export a size-bounded JPEG preview; broader native node support and live asset/preview rendering remain. |
 | 3 | Versioned specification and validation | 40% | IN PROGRESS | JSON Schema 1.0, bounded validation, and validated export of one supported Figma selection; images/vectors/gradients/components remain. |
-| 4 | Provider-neutral AI integration and custom MCP | 74% | IN PROGRESS | Provider-neutral handoff, optional Ollama and custom MCP are implemented; bridge polling now continues in the hidden UI iframe. Client-specific setup and live Figma actions remain unverified. |
+| 4 | Provider-neutral AI integration and custom MCP | 76% | IN PROGRESS | Provider-neutral handoff, optional Ollama, custom MCP, and an image-returning visual capture tool are implemented; client-specific setup and live Figma actions remain unverified. |
 | 5 | Selection-aware editing and rollback | 80% | IN PROGRESS | Geometry-aware selection summary, safe bounds/text/fill/name/Auto Layout patches, preview, rollback snapshots, and up to 20 plugin-session undo checkpoints implemented; component replacement and live preservation test remain. |
 | 6 | Design system engine | 65% | IN PROGRESS | Color token CRUD/import/export/apply, prompt-linked typography/spacing scales and up to 20 local save/load/duplicate/delete presets work; reusable components, native Variables/styles and direct text-style application remain. |
 | 7 | Complete premium UI | 90% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, signed-in Figma operator display and hide-after-connect exist; broader visual/accessibility QA remains. |
-| 8 | Testing and hardening | 88% | IN PROGRESS | 40 unit and 15 integration tests passed after adding the design-quality audit; typecheck/lint/build/package and local privacy audit pass. Full renderer/edit preservation, live hidden bridge pairing and local-model checks remain. |
+| 8 | Testing and hardening | 89% | IN PROGRESS | 45 unit and 15 integration tests pass with the bounded visual-preview path; typecheck/lint/build/package and local privacy audit pass. Live Figma capture, visual critique and repair remain unverified. |
 | 9 | Build and release packaging | 100% | PASS | Plugin/runtime bundles, source ZIP, SHA-256 manifest, ZIP integrity, and reproducible archive hash verified. |
-| 10 | Final audit and evidence report | 60% | IN PROGRESS | Traceability and asset release verification pass; startup UI is user-confirmed live. Close remaining feature gates and report renderer/edit preservation, local-model, screenshot, client pairing and registration evidence. A separate Figma Web cloud session failed GPU initialization; no offline edits were synced. |
+| 10 | Final audit and evidence report | 64% | IN PROGRESS | Automated preview capture and MCP image delivery are implemented. Live Figma rendering, agent visual critique, client pairing, and registration evidence remain. |
 
 ## Custom MCP workstream
 
