@@ -23,4 +23,11 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('figma.ui.hide()');
     expect(hostSource).toContain("message.type==='bridge-job'");
   });
+
+  it('exports one selected frame as a bounded visual preview and selects the first rendered frame', () => {
+    expect(hostSource).toContain("operation.type==='capture-selection'");
+    expect(hostSource).toContain("format:'JPG'");
+    expect(hostSource).toContain('700 * 1024');
+    expect(hostSource).toContain('figma.currentPage.selection = [firstFrame]');
+  });
 });
