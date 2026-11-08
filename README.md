@@ -30,9 +30,9 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 
 | Task | Status | Evidence / next step |
 |---|---|---|
-| VSN-branded startup loader | IMPLEMENTED · BUILD VERIFIED | Logo is bundled locally; loader is shown before workspace controls. Re-import `dist/manifest.json` in Figma for live confirmation. |
-| Workspace reveal and interface transitions | IMPLEMENTED · BUILD VERIFIED | Options reveal after startup; reduced-motion preferences are respected. Live visual review is still pending. |
-| Live Figma verification of this update | NOT TESTED | Launch the re-imported plugin, confirm loader disappears and controls work, then report any console error or visual issue. |
+| VSN-branded startup loader | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
+| Workspace reveal and interface transitions | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
+| Live Figma verification of this update | PASS | User confirmed the current build is working. Broader UI and renderer gates remain open. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
 
