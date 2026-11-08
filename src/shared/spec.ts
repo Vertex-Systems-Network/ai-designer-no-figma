@@ -1,6 +1,8 @@
 import Ajv from 'ajv';
 import designSpecSchema from '../../schema/design-spec-1.0.schema.json' with { type: 'json' };
 import { utf8ByteLength } from './utf8';
+import { decodeBase64 } from './base64';
+import { validateRasterAsset } from './assets';
 
 export type LayoutSpec = {
   mode: 'none' | 'horizontal' | 'vertical';
@@ -12,6 +14,10 @@ export type LayoutSpec = {
 };
 export type GradientSpec = { direction: 'horizontal' | 'vertical'; stops: Array<{ position: number; color: string; opacity?: number }> };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
+export type ConstraintsSpec = { horizontal: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE'; vertical: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE' };
+export type GridSpec = { pattern: 'GRID'; sectionSize: number; visible?: boolean } | { pattern: 'COLUMNS'|'ROWS'; sectionSize?: number; gutterSize: number; count: number; offset?: number; alignment?: 'MIN'|'CENTER'|'MAX'|'STRETCH'; visible?: boolean };
+export type ColorTokenSpec = { name: string; color: string };
+export type TextStyleTokenSpec = { name: string; fontFamily: string; fontSize: number; fontWeight: number; lineHeight?: number };
 
 type BaseNode = {
   id: string;
@@ -25,6 +31,8 @@ type BaseNode = {
   opacity?: number;
   gradient?: GradientSpec;
   shadow?: ShadowSpec;
+  constraints?: ConstraintsSpec;
+  fillToken?: string;
 };
 export type TextNodeSpec = BaseNode & {
   type: 'text';
@@ -35,22 +43,22 @@ export type TextNodeSpec = BaseNode & {
   lineHeight?: number;
   color?: string;
   align?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
+  textStyleToken?: string;
 };
-export type ContainerNodeSpec = BaseNode & {
-  type: 'frame' | 'group';
-  children: DesignNodeSpec[];
-  layout?: LayoutSpec;
-};
-export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec };
+export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[] }) | (BaseNode & { type: 'group'; children: DesignNodeSpec[]; layout?: LayoutSpec });
+export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[] };
 export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: string };
 export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
+export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP' };
 export type ShapeNodeSpec = BaseNode & { type: 'rectangle' | 'ellipse' };
 export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeWidth?: number };
-export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ShapeNodeSpec | LineNodeSpec;
+export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ImageNodeSpec | ShapeNodeSpec | LineNodeSpec;
+export type DesignSystemSpec = { name?: string; colors?: ColorTokenSpec[]; typography?: TextStyleTokenSpec[] };
 export type PageSpec = { id: string; name: string; children: DesignNodeSpec[] };
-export type DesignSpec = { schemaVersion: '1.0'; name: string; pages: PageSpec[] };
+export type DesignSpec = { schemaVersion: '1.0'; name: string; pages: PageSpec[]; designSystem?: DesignSystemSpec };
 
 export const MAX_SPEC_BYTES = 512_000;
+export const MAX_EMBEDDED_IMAGE_BYTES = 256 * 1024;
 export const MAX_NODES = 2_000;
 export const MAX_DEPTH = 16;
 
@@ -60,7 +68,7 @@ const validateSchema = ajv.compile(designSpecSchema);
 export type ValidationIssue = { path: string; message: string };
 export type ValidationResult = { valid: boolean; issues: ValidationIssue[]; value?: DesignSpec };
 export type DesignQualityFinding = { path: string; severity: 'warning' | 'suggestion'; message: string };
-const supportedNodeTypes = ['frame', 'group', 'component', 'instance', 'vector', 'text', 'rectangle', 'ellipse', 'line'] as const;
+const supportedNodeTypes = ['frame', 'group', 'component', 'instance', 'vector', 'image', 'text', 'rectangle', 'ellipse', 'line'] as const;
 
 function valueAtInstancePath(input: unknown, instancePath: string): unknown {
   return instancePath.split('/').slice(1).reduce<unknown>((value, segment) => {
@@ -108,22 +116,35 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout'],
-    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout'],
-    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout'],
-    instance: ['type','id','name','x','y','width','height','opacity','componentRef'],
-    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','path'],
-    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','text','fontFamily','fontSize','fontWeight','lineHeight','color','align'],
-    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow'],
-    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow'],
-    line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth'],
+    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout','layoutGrids','constraints','fillToken'],
+    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout','constraints','fillToken'],
+    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout','layoutGrids','constraints','fillToken'],
+    instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
+    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','path','constraints'],
+    image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','constraints'],
+    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','text','fontFamily','fontSize','fontWeight','lineHeight','color','align','textStyleToken','constraints','fillToken'],
+    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','constraints','fillToken'],
+    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','constraints','fillToken'],
+    line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth','constraints'],
   };
+  const colors = new Set((spec.designSystem?.colors ?? []).map((token) => token.name));
+  const typography = new Set((spec.designSystem?.typography ?? []).map((token) => token.name));
   const visit = (node: DesignNodeSpec, path: string, depth: number) => {
     nodes += 1;
     if (nodes > MAX_NODES) { issues.push({ path, message: `Document exceeds ${MAX_NODES} nodes.` }); return; }
     if (depth > MAX_DEPTH) { issues.push({ path, message: `Layer depth exceeds ${MAX_DEPTH}.` }); return; }
     addId(node.id, `${path}.id`);
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
+    if (node.fillToken && !colors.has(node.fillToken)) issues.push({ path: `${path}.fillToken`, message: `Unknown color token: ${node.fillToken}` });
+    if (node.type === 'text' && node.textStyleToken && !typography.has(node.textStyleToken)) issues.push({ path: `${path}.textStyleToken`, message: `Unknown text style token: ${node.textStyleToken}` });
+    if(node.type==='group'&&'layoutGrids' in node)issues.push({path:`${path}.layoutGrids`,message:'Layout grids can only be attached to frames or components.'});
+    if (node.type === 'image') {
+      try {
+        const bytes = decodeBase64(node.data, MAX_EMBEDDED_IMAGE_BYTES);
+        const image = validateRasterAsset(bytes, node.mimeType);
+        if (image.mimeType !== node.mimeType) issues.push({ path: `${path}.mimeType`, message: 'Image MIME type does not match its data.' });
+      } catch (error) { issues.push({ path: `${path}.data`, message: error instanceof Error ? error.message : 'Invalid embedded image.' }); }
+    }
     if (node.type === 'frame' || node.type === 'group' || node.type === 'component') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, depth + 1));
     if (node.type === 'component') componentIds.add(node.id);
     if (node.type === 'instance' && !componentIds.has(node.componentRef)) issues.push({ path: `${path}.componentRef`, message: `Component reference "${node.componentRef}" must point to a component declared earlier in the document.` });
