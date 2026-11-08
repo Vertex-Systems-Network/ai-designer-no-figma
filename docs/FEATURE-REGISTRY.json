@@ -1,23 +1,401 @@
 {
   "registryVersion": "1.0",
   "lastReviewed": "2026-11-08",
-  "statusValues": ["IMPLEMENTED", "PARTIAL", "PLANNED", "BLOCKED", "DEPRECATED"],
-  "testStatusValues": ["VERIFIED", "FAILED", "NOT TESTED", "ENVIRONMENT BLOCKED"],
+  "statusValues": [
+    "IMPLEMENTED",
+    "PARTIAL",
+    "PLANNED",
+    "BLOCKED",
+    "DEPRECATED"
+  ],
+  "testStatusValues": [
+    "VERIFIED",
+    "FAILED",
+    "NOT TESTED",
+    "ENVIRONMENT BLOCKED"
+  ],
   "features": [
-    { "id":"CORE-001", "name":"Versioned design specification validation", "description":"Validate schema 1.0 documents, supported node fields, IDs and resource limits.", "module":"shared-schema", "sourceFiles":["src/shared/spec.ts","schema/design-spec-1.0.schema.json"], "dependencies":[], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":["src/shared/spec.test.ts"], "knownIssues":[], "priority":"P1", "releaseTarget":"0.1.x", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Extend schema and regression cases for additional Figma node features." },
-    { "id":"FIGMA-001", "name":"Native Figma rendering and asset insertion", "description":"Create editable basic design nodes; import sanitized SVG as vector geometry and validated PNG/JPEG/GIF bytes as native image fills.", "module":"figma-plugin-adapter", "sourceFiles":["src/plugin/code.ts","src/shared/assets.ts"], "dependencies":["CORE-001"], "status":"PARTIAL", "testStatus":"NOT TESTED", "tests":["src/shared/assets.test.ts"], "knownIssues":["Asset operations are not live-verified; images and SVGs are not part of design-spec schema generation, replacement/crop operations are not implemented."], "priority":"P1", "releaseTarget":"0.3.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Run a live Figma import for sanitized SVG and PNG/JPEG/GIF; verify node dimensions and image fill." },
-    { "id":"FIGMA-002", "name":"Selection inspection and edit patches", "description":"Bounded selection inspection and targeted text, fill, rename, bounds and frame Auto Layout edits with up to 20 session undo checkpoints.", "module":"figma-plugin-adapter", "sourceFiles":["src/plugin/code.ts","src/shared/edit-patch.ts","src/shared/protocol.ts","src/ui/main.tsx"], "dependencies":["CORE-001"], "status":"PARTIAL", "testStatus":"VERIFIED", "tests":["src/shared/edit-patch.test.ts"], "knownIssues":["Live Figma preservation and Undo are not reverified."], "priority":"P1", "releaseTarget":"0.2.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Reimport and verify targeted edits, Auto Layout, undo and unchanged sibling layers." },
-    { "id":"EXPORT-001", "name":"Selected design export", "description":"Export one selected supported layer tree to a schema-validated design specification.", "module":"figma-plugin-adapter", "sourceFiles":["src/plugin/code.ts","src/ui/main.tsx","src/shared/spec.ts"], "dependencies":["CORE-001"], "status":"PARTIAL", "testStatus":"NOT TESTED", "tests":[], "knownIssues":["Only one selection; unsupported nodes/paints fail explicitly; no round-trip test."], "priority":"P2", "releaseTarget":"0.2.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Verify selected export/import round-trip and add adapter tests." },
-    { "id":"AI-001", "name":"Provider-neutral AI handoff", "description":"Prepare generation/edit prompts for user-controlled copy/paste, include local color/typography/spacing tokens, and validate returned JSON.", "module":"plugin-ui", "sourceFiles":["src/shared/prompts.ts","src/shared/edit-patch.ts","src/ui/main.tsx"], "dependencies":["CORE-001"], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":["src/shared/prompts.test.ts","src/shared/edit-patch.test.ts"], "knownIssues":[], "priority":"P1", "releaseTarget":"0.1.x", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Retain manual import fallback as other integrations are added." },
-    { "id":"OLLAMA-001", "name":"Optional local Ollama adapter", "description":"Discover installed local Ollama models and request bounded structured generation over loopback.", "module":"local-runtime", "sourceFiles":["src/runtime/server.ts","src/ui/main.tsx"], "dependencies":["CORE-001"], "status":"PARTIAL", "testStatus":"NOT TESTED", "tests":["src/runtime/server.integration.test.ts"], "knownIssues":["Integration suite uses a fake local server; no real model has been verified."], "priority":"P2", "releaseTarget":"0.1.x", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Record actual Ollama/model results only when runtime is available." },
-    { "id":"UI-001", "name":"VSN startup loader and plugin panel", "description":"Show bundled VSN logo loader and load responsive plugin workflows.", "module":"plugin-ui", "sourceFiles":["src/ui/index.html","src/ui/main.tsx","src/ui/styles.css","scripts/build.mjs"], "dependencies":[], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":[], "knownIssues":["Screenshot/keyboard/contrast audit remains incomplete."], "priority":"P1", "releaseTarget":"0.1.x", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Complete broader UI accessibility and visual QA." },
-    { "id":"RUNTIME-001", "name":"Loopback companion HTTP service", "description":"Serve optional local model endpoints with origin checks, payload bounds and loopback binding.", "module":"local-runtime", "sourceFiles":["src/runtime/server.ts"], "dependencies":[], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":["src/runtime/server.integration.test.ts"], "knownIssues":[], "priority":"P1", "releaseTarget":"0.1.x", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Keep runtime and future bridge endpoints separated by contract." },
-    { "id":"MCP-001", "name":"Custom MCP server and asset tools", "description":"Expose validated Figma selection, design operations and manual asset import/validation to compatible MCP clients through the official SDK.", "module":"mcp-server", "sourceFiles":["src/mcp/server.ts","src/bridge/broker.ts","src/shared/bridge-contract.ts","src/shared/assets.ts"], "dependencies":["BRIDGE-001","ASSET-001"], "status":"PARTIAL", "testStatus":"VERIFIED", "tests":["src/mcp/server.integration.test.ts"], "knownIssues":["Client-specific registration and live Figma invocation are not tested; asset transfer is capped at 192 KiB and no AI client file-access capability is inferred."], "priority":"P1", "releaseTarget":"0.3.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Test asset tools through a live Figma pairing and actual MCP client file-transfer capability." },
-    { "id":"BRIDGE-001", "name":"Authenticated local Figma bridge", "description":"Correlate, queue and return MCP-originated operations for paired plugin sessions over loopback.", "module":"local-bridge", "sourceFiles":["src/bridge/server.ts","src/bridge/broker.ts","src/shared/bridge-contract.ts"], "dependencies":["FIGMA-001"], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":["src/bridge/broker.test.ts","src/bridge/server.integration.test.ts"], "knownIssues":["Local machine pairing is required; no remote bridge is supported."], "priority":"P1", "releaseTarget":"0.2.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Keep bridge bound to loopback and confirm browser Figma pairing on a desktop host." },
-    { "id":"AGENT-001", "name":"Live agent activity and jobs", "description":"Show bridge connection, operation events and actual outcomes inside the plugin.", "module":"plugin-ui", "sourceFiles":["src/ui/main.tsx","src/shared/protocol.ts","src/plugin/code.ts"], "dependencies":["MCP-001","BRIDGE-001"], "status":"PARTIAL", "testStatus":"NOT TESTED", "tests":[], "knownIssues":["UI event display and secure pairing have not yet been exercised in a live Figma session."], "priority":"P2", "releaseTarget":"0.3.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Re-import the build, pair with local token, then verify activity and returned results in Figma." },
-    { "id":"COMPAT-001", "name":"Figma compatibility adapter and matrix", "description":"Separate universal semantic properties from Figma-specific API mappings and capability evidence.", "module":"compatibility-adapter", "sourceFiles":[], "dependencies":["FIGMA-001"], "status":"PLANNED", "testStatus":"NOT TESTED", "tests":[], "knownIssues":["No dedicated compatibility adapter or automated changelog audit exists."], "priority":"P2", "releaseTarget":"0.3.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Extract semantic mappings and test against installed official typings." },
-    { "id":"REPO-001", "name":"AI-readable repository memory and audits", "description":"Keep source-backed registry, status, handoff and docs validation synchronized.", "module":"repository-audit", "sourceFiles":["AGENTS.md","docs/PROJECT-STATUS.md","docs/AI-HANDOFF.md","scripts/repository-audit.mjs"], "dependencies":[], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":["tools/repository-audit/audit.test.ts"], "knownIssues":[], "priority":"P1", "releaseTarget":"0.2.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Update the source registry and README task table whenever shipped scope changes." },
-    { "id":"CORE-002", "name":"UTF-8 bounded size accounting", "description":"Measure JSON text by UTF-8 bytes so non-ASCII input cannot bypass size limits.", "module":"shared-schema", "sourceFiles":["src/shared/utf8.ts"], "dependencies":[], "status":"IMPLEMENTED", "testStatus":"VERIFIED", "tests":["src/shared/spec.test.ts"], "knownIssues":[], "priority":"P2", "releaseTarget":"0.1.x", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Keep byte-limit edge cases in schema regression tests." },
-    { "id":"ASSET-001", "name":"Validated local raster and SVG import and reuse", "description":"Validate bounded SVG geometry and PNG/JPEG/GIF file signatures/dimensions; insert through native Figma APIs; persist safe originals in a bounded IndexedDB library keyed by SHA-256 for preview, reuse and deletion.", "module":"asset-pipeline", "sourceFiles":["src/shared/assets.ts","src/plugin/code.ts","src/ui/main.tsx","src/ui/asset-library.ts","src/shared/protocol.ts","src/shared/bridge-contract.ts","src/mcp/server.ts"], "dependencies":["BRIDGE-001"], "status":"PARTIAL", "testStatus":"VERIFIED", "tests":["src/shared/assets.test.ts","src/ui/asset-library.test.ts","src/mcp/server.integration.test.ts"], "knownIssues":["Live Figma insertion/editability remains unverified; generated AI file retrieval varies by client and is not inferred; MCP binary transfer remains capped at 192 KiB without chunking, replacement or crop."], "priority":"P1", "releaseTarget":"0.3.0", "lastModified":"2026-11-08", "lastVerified":"2026-11-08", "nextAction":"Live-check import, preview and reuse in Figma when a controllable editor is available." }
+    {
+      "id": "CORE-001",
+      "name": "Versioned design specification validation",
+      "description": "Validate schema 1.0 documents, supported node fields, IDs and resource limits.",
+      "module": "shared-schema",
+      "sourceFiles": [
+        "src/shared/spec.ts",
+        "schema/design-spec-1.0.schema.json"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/spec.test.ts"
+      ],
+      "knownIssues": [],
+      "priority": "P1",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Extend schema and regression cases for additional Figma node features."
+    },
+    {
+      "id": "FIGMA-001",
+      "name": "Native Figma rendering and asset insertion",
+      "description": "Create editable basic design nodes; import sanitized SVG as vector geometry and validated PNG/JPEG/GIF bytes as native image fills.",
+      "module": "figma-plugin-adapter",
+      "sourceFiles": [
+        "src/plugin/code.ts",
+        "src/shared/assets.ts"
+      ],
+      "dependencies": [
+        "CORE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "NOT TESTED",
+      "tests": [
+        "src/shared/assets.test.ts"
+      ],
+      "knownIssues": [
+        "Asset operations are not live-verified; images and SVGs are not part of design-spec schema generation, replacement/crop operations are not implemented."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Run a live Figma import for sanitized SVG and PNG/JPEG/GIF; verify node dimensions and image fill."
+    },
+    {
+      "id": "FIGMA-002",
+      "name": "Selection inspection and edit patches",
+      "description": "Bounded selection inspection and targeted text, fill, rename, bounds and frame Auto Layout edits with up to 20 session undo checkpoints.",
+      "module": "figma-plugin-adapter",
+      "sourceFiles": [
+        "src/plugin/code.ts",
+        "src/shared/edit-patch.ts",
+        "src/shared/protocol.ts",
+        "src/ui/main.tsx"
+      ],
+      "dependencies": [
+        "CORE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/edit-patch.test.ts"
+      ],
+      "knownIssues": [
+        "Live Figma preservation and Undo are not reverified."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Reimport and verify targeted edits, Auto Layout, undo and unchanged sibling layers."
+    },
+    {
+      "id": "EXPORT-001",
+      "name": "Selected design export",
+      "description": "Export one selected supported layer tree to a schema-validated design specification.",
+      "module": "figma-plugin-adapter",
+      "sourceFiles": [
+        "src/plugin/code.ts",
+        "src/ui/main.tsx",
+        "src/shared/spec.ts"
+      ],
+      "dependencies": [
+        "CORE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "NOT TESTED",
+      "tests": [],
+      "knownIssues": [
+        "Only one selection; unsupported nodes/paints fail explicitly; no round-trip test."
+      ],
+      "priority": "P2",
+      "releaseTarget": "0.2.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Verify selected export/import round-trip and add adapter tests."
+    },
+    {
+      "id": "AI-001",
+      "name": "Provider-neutral AI handoff",
+      "description": "Prepare generation/edit prompts for user-controlled copy/paste, include local color/typography/spacing tokens, and validate returned JSON.",
+      "module": "plugin-ui",
+      "sourceFiles": [
+        "src/shared/prompts.ts",
+        "src/shared/edit-patch.ts",
+        "src/ui/main.tsx"
+      ],
+      "dependencies": [
+        "CORE-001"
+      ],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/prompts.test.ts",
+        "src/shared/edit-patch.test.ts"
+      ],
+      "knownIssues": [],
+      "priority": "P1",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Retain manual import fallback as other integrations are added."
+    },
+    {
+      "id": "OLLAMA-001",
+      "name": "Optional local Ollama adapter",
+      "description": "Discover installed local Ollama models and request bounded structured generation over loopback.",
+      "module": "local-runtime",
+      "sourceFiles": [
+        "src/runtime/server.ts",
+        "src/ui/main.tsx"
+      ],
+      "dependencies": [
+        "CORE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "NOT TESTED",
+      "tests": [
+        "src/runtime/server.integration.test.ts"
+      ],
+      "knownIssues": [
+        "Integration suite uses a fake local server; no real model has been verified."
+      ],
+      "priority": "P2",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Record actual Ollama/model results only when runtime is available."
+    },
+    {
+      "id": "UI-001",
+      "name": "VSN startup loader and plugin panel",
+      "description": "Show bundled VSN logo loader and load responsive plugin workflows.",
+      "module": "plugin-ui",
+      "sourceFiles": [
+        "src/ui/index.html",
+        "src/ui/main.tsx",
+        "src/ui/styles.css",
+        "scripts/build.mjs"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [],
+      "knownIssues": [
+        "Screenshot/keyboard/contrast audit remains incomplete."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Complete broader UI accessibility and visual QA."
+    },
+    {
+      "id": "RUNTIME-001",
+      "name": "Loopback companion HTTP service",
+      "description": "Serve optional local model endpoints with origin checks, payload bounds and loopback binding.",
+      "module": "local-runtime",
+      "sourceFiles": [
+        "src/runtime/server.ts"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/runtime/server.integration.test.ts"
+      ],
+      "knownIssues": [],
+      "priority": "P1",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Keep runtime and future bridge endpoints separated by contract."
+    },
+    {
+      "id": "MCP-001",
+      "name": "Custom MCP server and asset tools",
+      "description": "Expose validated Figma selection, design operations and manual asset import/validation to compatible MCP clients through the official SDK.",
+      "module": "mcp-server",
+      "sourceFiles": [
+        "src/mcp/server.ts",
+        "src/bridge/broker.ts",
+        "src/shared/bridge-contract.ts",
+        "src/shared/assets.ts"
+      ],
+      "dependencies": [
+        "BRIDGE-001",
+        "ASSET-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/mcp/server.integration.test.ts"
+      ],
+      "knownIssues": [
+        "Client-specific registration and live Figma invocation are not tested; asset transfer is capped at 192 KiB and no AI client file-access capability is inferred."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Test asset tools through a live Figma pairing and actual MCP client file-transfer capability."
+    },
+    {
+      "id": "BRIDGE-001",
+      "name": "Authenticated local Figma bridge",
+      "description": "Correlate, queue and return MCP-originated operations for paired plugin sessions over loopback.",
+      "module": "local-bridge",
+      "sourceFiles": [
+        "src/bridge/server.ts",
+        "src/bridge/broker.ts",
+        "src/shared/bridge-contract.ts"
+      ],
+      "dependencies": [
+        "FIGMA-001"
+      ],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/bridge/broker.test.ts",
+        "src/bridge/server.integration.test.ts"
+      ],
+      "knownIssues": [
+        "Local machine pairing is required; no remote bridge is supported."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Keep bridge bound to loopback and confirm browser Figma pairing on a desktop host."
+    },
+    {
+      "id": "AGENT-001",
+      "name": "Live agent activity and jobs",
+      "description": "Show bridge connection, operation events and actual outcomes inside the plugin.",
+      "module": "plugin-ui",
+      "sourceFiles": [
+        "src/ui/main.tsx",
+        "src/shared/protocol.ts",
+        "src/plugin/code.ts"
+      ],
+      "dependencies": [
+        "MCP-001",
+        "BRIDGE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "NOT TESTED",
+      "tests": [],
+      "knownIssues": [
+        "UI event display and secure pairing have not yet been exercised in a live Figma session."
+      ],
+      "priority": "P2",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Re-import the build, pair with local token, then verify activity and returned results in Figma."
+    },
+    {
+      "id": "COMPAT-001",
+      "name": "Figma compatibility adapter and matrix",
+      "description": "Separate universal semantic properties from Figma-specific API mappings and capability evidence.",
+      "module": "compatibility-adapter",
+      "sourceFiles": [],
+      "dependencies": [
+        "FIGMA-001"
+      ],
+      "status": "PLANNED",
+      "testStatus": "NOT TESTED",
+      "tests": [],
+      "knownIssues": [
+        "No dedicated compatibility adapter or automated changelog audit exists."
+      ],
+      "priority": "P2",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Extract semantic mappings and test against installed official typings."
+    },
+    {
+      "id": "REPO-001",
+      "name": "AI-readable repository memory and audits",
+      "description": "Keep source-backed registry, status, handoff and docs validation synchronized.",
+      "module": "repository-audit",
+      "sourceFiles": [
+        "AGENTS.md",
+        "docs/PROJECT-STATUS.md",
+        "docs/AI-HANDOFF.md",
+        "scripts/repository-audit.mjs"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "tools/repository-audit/audit.test.ts"
+      ],
+      "knownIssues": [],
+      "priority": "P1",
+      "releaseTarget": "0.2.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Update the source registry and README task table whenever shipped scope changes."
+    },
+    {
+      "id": "CORE-002",
+      "name": "UTF-8 bounded size accounting",
+      "description": "Measure JSON text by UTF-8 bytes so non-ASCII input cannot bypass size limits.",
+      "module": "shared-schema",
+      "sourceFiles": [
+        "src/shared/utf8.ts"
+      ],
+      "dependencies": [],
+      "status": "IMPLEMENTED",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/spec.test.ts"
+      ],
+      "knownIssues": [],
+      "priority": "P2",
+      "releaseTarget": "0.1.x",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Keep byte-limit edge cases in schema regression tests."
+    },
+    {
+      "id": "ASSET-001",
+      "name": "Validated local raster and SVG import and reuse",
+      "description": "Validate bounded SVG geometry and PNG/JPEG/GIF file signatures/dimensions; insert through native Figma APIs; persist safe originals in a bounded localStorage library keyed by SHA-256 for preview, reuse and deletion.",
+      "module": "asset-pipeline",
+      "sourceFiles": [
+        "src/shared/assets.ts",
+        "src/plugin/code.ts",
+        "src/ui/main.tsx",
+        "src/ui/asset-library.ts",
+        "src/shared/protocol.ts",
+        "src/shared/bridge-contract.ts",
+        "src/mcp/server.ts",
+        "src/shared/utf8.ts",
+        "src/shared/sha256.ts"
+      ],
+      "dependencies": [
+        "BRIDGE-001"
+      ],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/assets.test.ts",
+        "src/ui/asset-library.test.ts",
+        "src/mcp/server.integration.test.ts"
+      ],
+      "knownIssues": [
+        "Live Figma insertion/editability remains unverified; generated AI file retrieval varies by client and is not inferred; MCP binary transfer remains capped at 192 KiB without chunking, replacement or crop."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.3.0",
+      "lastModified": "2026-11-08",
+      "lastVerified": "2026-11-08",
+      "nextAction": "Run release verification, re-import the latest development build in Figma, then confirm SVG/raster save, preview and reuse."
+    }
   ]
 }
