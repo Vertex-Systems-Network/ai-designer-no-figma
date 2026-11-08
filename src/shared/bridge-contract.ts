@@ -5,7 +5,9 @@ export type BridgeOperation =
   | { type: 'inspect-selection' }
   | { type: 'render-spec'; spec: DesignSpec }
   | { type: 'apply-patch'; patch: EditPatch }
-  | { type: 'export-selection' };
+  | { type: 'export-selection' }
+  | { type:'insert-svg'; name:string; svg:string }
+  | { type:'insert-image'; name:string; mimeType:string; bytes:number[] };
 
 export type BridgeJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type BridgeError = { code: string; message: string };
