@@ -365,7 +365,7 @@
     {
       "id": "ASSET-001",
       "name": "Validated local raster and SVG import and reuse",
-      "description": "Validate bounded SVG geometry and PNG/JPEG/GIF file signatures/dimensions; insert through native Figma APIs; persist safe originals in a bounded localStorage library keyed by SHA-256 for preview, reuse and deletion.",
+      "description": "Validate bounded SVG geometry and PNG/JPEG/GIF signatures/dimensions; insert via native Figma APIs; verify node readback, then persist source bytes in bounded Figma clientStorage over a typed plugin-host bridge.",
       "module": "asset-pipeline",
       "sourceFiles": [
         "src/shared/assets.ts",
@@ -376,7 +376,11 @@
         "src/shared/bridge-contract.ts",
         "src/mcp/server.ts",
         "src/shared/utf8.ts",
-        "src/shared/sha256.ts"
+        "src/shared/sha256.ts",
+        "src/shared/asset-library.ts",
+        "src/shared/asset-library.test.ts",
+        "src/shared/asset-readback.ts",
+        "src/shared/asset-readback.test.ts"
       ],
       "dependencies": [
         "BRIDGE-001"
@@ -385,7 +389,8 @@
       "testStatus": "VERIFIED",
       "tests": [
         "src/shared/assets.test.ts",
-        "src/ui/asset-library.test.ts",
+        "src/shared/asset-library.test.ts",
+        "src/shared/asset-readback.test.ts",
         "src/mcp/server.integration.test.ts"
       ],
       "knownIssues": [
@@ -395,7 +400,7 @@
       "releaseTarget": "0.3.0",
       "lastModified": "2026-11-08",
       "lastVerified": "2026-11-08",
-      "nextAction": "Run release verification, re-import the latest development build in Figma, then confirm SVG/raster save, preview and reuse."
+      "nextAction": "Re-import the latest build and live-check SVG/raster insert, clientStorage persistence, preview and reuse; confirm the plugin has a Figma-assigned ID if the host reports one is required."
     }
   ]
 }
