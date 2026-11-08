@@ -2,6 +2,7 @@ import { utf8ByteLength } from './utf8';
 
 export const MAX_RASTER_BYTES = 5 * 1024 * 1024;
 export const MAX_MCP_ASSET_BYTES = 192 * 1024;
+export const MCP_ASSET_CHUNK_BYTES = 64 * 1024;
 export const MAX_SVG_BYTES = 512 * 1024;
 export const MAX_IMAGE_DIMENSION = 4096;
 export type RasterInfo = { mimeType:'image/png'|'image/jpeg'|'image/gif'; width:number; height:number; size:number };
