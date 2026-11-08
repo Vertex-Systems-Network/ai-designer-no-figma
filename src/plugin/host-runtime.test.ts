@@ -39,4 +39,15 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("type:'GRADIENT_LINEAR'");
     expect(hostSource).toContain("type:'DROP_SHADOW'");
   });
+
+  it('supports embedded images, responsive grids, native tokens/styles, and advanced export paths',()=>{
+    expect(hostSource).toContain('figma.createImage(bytes)');
+    expect(hostSource).toContain('frame.layoutGrids=makeLayoutGrids');
+    expect(hostSource).toContain('applyConstraints(node,spec.constraints)');
+    expect(hostSource).toContain('figma.variables.createVariableCollection');
+    expect(hostSource).toContain('figma.createTextStyle()');
+    expect(hostSource).toContain('setBoundVariableForPaint');
+    expect(hostSource).toContain("type:'vector',path");
+    expect(hostSource).toContain('getBytesAsync()');
+  });
 });
