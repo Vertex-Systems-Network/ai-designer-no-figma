@@ -1,4 +1,4 @@
-import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec } from '../shared/spec';
+import { MAX_DEPTH, MAX_NODES, validateDesignSpec, type DesignNodeSpec, type DesignSpec, type GradientSpec, type LayoutSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
@@ -23,7 +23,24 @@ function rgb(hex: string): RGB {
 }
 function paint(hex: string): SolidPaint { return { type: 'SOLID', color: rgb(hex) }; }
 
-type RenderControl = { cancelled: boolean; nodes: number };
+type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode> };
+function gradientPaint(spec:GradientSpec):GradientPaint {
+  const transform:Transform = spec.direction==='horizontal' ? [[1,0,0],[0,1,0]] : [[0,-1,1],[1,0,0]];
+  return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity:1,blendMode:'NORMAL'};
+}
+function applyNodePaint(node:SceneNode,fill?:string,gradient?:GradientSpec,shadow?:ShadowSpec):void {
+  if('fills' in node){if(gradient)node.fills=[gradientPaint(gradient)];else if(fill)node.fills=[paint(fill)];}
+  if(shadow&&'effects' in node)node.effects=[{type:'DROP_SHADOW',color:{...rgb(shadow.color),a:shadow.opacity},offset:{x:shadow.offsetX,y:shadow.offsetY},radius:shadow.blur,...(shadow.spread!==undefined?{spread:shadow.spread}:{}),visible:true,blendMode:'NORMAL'}];
+}
+function applyLayout(frame:FrameNode,layout:LayoutSpec|undefined):void {
+  if(!layout||layout.mode==='none')return;
+  frame.layoutMode=layout.mode==='horizontal'?'HORIZONTAL':'VERTICAL';
+  frame.itemSpacing=layout.gap??0;
+  frame.paddingTop=frame.paddingRight=frame.paddingBottom=frame.paddingLeft=layout.padding??0;
+  frame.primaryAxisAlignItems=layout.alignment==='SPACE_BETWEEN'?'SPACE_BETWEEN':layout.alignment??'MIN';
+  frame.primaryAxisSizingMode=layout.primaryAxisSizing??'FIXED';
+  frame.counterAxisSizingMode=layout.counterAxisSizing??'FIXED';
+}
 async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin, control: RenderControl, fontFallback: string): Promise<SceneNode> {
   control.nodes += 1;
   if (control.nodes % 32 === 0) await Promise.resolve();
@@ -43,24 +60,35 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     text.characters = spec.text;
     text.fontSize = spec.fontSize ?? 16;
     text.textAlignHorizontal = spec.align ?? 'LEFT';
-    if (spec.color) text.fills = [paint(spec.color)];
+    if (spec.color || spec.fill || spec.gradient || spec.shadow) applyNodePaint(text,spec.color??spec.fill,spec.gradient,spec.shadow);
     if (spec.lineHeight) text.lineHeight = { value: spec.lineHeight, unit: 'PIXELS' };
     node = text;
   } else if (spec.type === 'rectangle') {
     node = figma.createRectangle();
-    if (spec.fill) node.fills = [paint(spec.fill)];
+    if (spec.fill || spec.gradient || spec.shadow) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow);
     if (spec.radius !== undefined) node.cornerRadius = spec.radius;
   } else if (spec.type === 'ellipse') {
     node = figma.createEllipse();
-    if (spec.fill) node.fills = [paint(spec.fill)];
+    if (spec.fill || spec.gradient || spec.shadow) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow);
   } else if (spec.type === 'line') {
     const line = figma.createLine();
     line.strokes = [paint(spec.stroke ?? spec.fill ?? '#333333')];
     line.strokeWeight = spec.strokeWidth ?? 1;
     node = line;
+  } else if(spec.type==='vector') {
+    const vector=figma.createVector();
+    vector.vectorPaths=[{windingRule:'NONZERO',data:spec.path}];
+    if(spec.fill||spec.gradient||spec.shadow)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow);
+    node=vector;
+  } else if(spec.type==='instance') {
+    const component=control.components.get(spec.componentRef);
+    if(!component||component.removed)throw new Error(`COMPONENT_NOT_FOUND: Component "${spec.componentRef}" must be created before its instance.`);
+    node=component.createInstance();
   } else if (spec.type === 'frame') {
     node = figma.createFrame();
     (node as FrameNode).clipsContent = false;
+  } else if(spec.type==='component') {
+    node=figma.createComponent();
   } else {
     node = figma.createFrame();
     (node as FrameNode).fills = [];
@@ -71,20 +99,15 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   node.x = spec.x ?? 0;
   node.y = spec.y ?? 0;
   node.opacity = spec.opacity ?? 1;
-  if ((spec.type === 'frame' || spec.type === 'group') && spec.fill) (node as FrameNode).fills = [paint(spec.fill)];
-  if ((spec.type === 'frame' || spec.type === 'group') && spec.radius !== undefined) (node as FrameNode).cornerRadius = spec.radius;
+  if (spec.type==='frame'||spec.type==='group'||spec.type==='component') {
+    applyNodePaint(node,spec.fill,spec.gradient,spec.shadow);
+    if(spec.radius!==undefined)(node as FrameNode).cornerRadius=spec.radius;
+    if(spec.type==='component')control.components.set(spec.id,node as ComponentNode);
+  }
   logicalIds.set(node.id, spec.id);
-  if ((spec.type === 'frame' || spec.type === 'group') && 'children' in spec) {
+  if ((spec.type === 'frame' || spec.type === 'group' || spec.type==='component') && 'children' in spec) {
     const frame = node as FrameNode;
-    const layout = spec.layout;
-    if (layout && layout.mode !== 'none') {
-      frame.layoutMode = layout.mode === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL';
-      frame.itemSpacing = layout.gap ?? 0;
-      frame.paddingTop = frame.paddingRight = frame.paddingBottom = frame.paddingLeft = layout.padding ?? 0;
-      frame.primaryAxisAlignItems = layout.alignment === 'SPACE_BETWEEN' ? 'SPACE_BETWEEN' : layout.alignment ?? 'MIN';
-      frame.primaryAxisSizingMode = layout.primaryAxisSizing ?? 'FIXED';
-      frame.counterAxisSizingMode = layout.counterAxisSizing ?? 'FIXED';
-    }
+    applyLayout(frame,spec.layout);
     for (const child of spec.children) await renderNode(child, frame, control, fontFallback);
   }
   return node;
@@ -134,7 +157,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
   const checked = validateDesignSpec(spec);
   if (!checked.valid) throw new Error(`Invalid specification: ${checked.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`);
   const createdPages: PageNode[] = [];
-  const control: RenderControl = { cancelled: false, nodes: 0 };
+  const control: RenderControl = { cancelled: false, nodes: 0, components:new Map() };
   cancelActiveRender = () => { control.cancelled = true; };
   try {
     for (const pageSpec of spec.pages) {
@@ -485,4 +508,13 @@ figma.ui.onmessage = async (message: UiToHost) => {
     if(message.type==='select-node'){
       const node=await figma.getNodeByIdAsync(message.nodeId);
       if(!node||node.type==='DOCUMENT'||node.type==='PAGE')throw new Error('This asset node is no longer available in the open document.');
-      if(node.parent?.type==='PAGE'&&node.parent!==figma.currentPa
+      if(node.parent?.type==='PAGE'&&node.parent!==figma.currentPage)await figma.setCurrentPageAsync(node.parent);
+      figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
+    }
+  } catch (error) {
+    figma.ui.postMessage({ type: 'error', code: 'PLUGIN_OPERATION_FAILED', message: error instanceof Error ? error.message : 'Plugin operation failed.' });
+  }
+};
+
+figma.on('run',()=>{figma.ui.show();sendCurrentUser();inspectSelection();});
+sendCurrentUser();
