@@ -32,6 +32,7 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 ## Current task tracker
 
 | Task | Progress | Status | Evidence / next step |
+| AI design quality audit | `███████░░░` 70% | IMPLEMENTED · AUTOMATED VERIFIED | Import/generation specs get advisory contrast, semantic layer-name, explicit type-size and repeated-container Auto Layout checks; human review and live visual comparison remain. |
 |---|---:|---|---|
 | Manual SVG and raster asset import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Strict SVG sanitization and PNG/JPEG/GIF validation feed native Figma nodes; re-import and inspect in live Figma. |
 | MCP asset validation and transfer | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED · LIVE TRANSFER PENDING | Supports 5 MiB raster imports, sends files over 192 KiB as 64 KiB SHA-256 checked chunks, and reserves the bridge queue batch atomically; paired Figma transfer remains unverified. |
@@ -44,7 +45,8 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | Custom MCP stdio server | `█████████░` 90% | CLAUDE DESKTOP EXTENSION BUILT · LIVE INSTALL PENDING | `.mcpb` installer removes manual JSON and Node command setup. Shutdown now drains keep-alive connections; live extension installation and Claude tool use remain to verify. |
 | Local Figma bridge | `█████████░` 95% | UI-IFRAME POLLING · LIVE CHECK PENDING | Browser HTTP polling runs in the plugin iframe; the Figma JSVM only executes validated canvas operations. The panel hides after pairing while the document session remains open. |
 | Agent pairing, background jobs and Figma operator identity | `█████████░` 95% | IMPLEMENTED · AUTOMATED VERIFIED · LIVE CHECK PENDING | Loopback polling now runs in the browser UI iframe, document commands execute through the Figma host, the signed-in Figma user is shown, and Connect hides the panel while its iframe stays alive. Closing Figma/document still stops the session. |
-| Automated verification | `██████████` 100% | PASS · AUTOMATED | 39 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit, ZIP integrity and SHA-256; live hidden-session check remains pending. |
+| AI design quality audit | `███████░░░` 70% | AUTOMATED VERIFIED · VISUAL QA OPEN | Advisory text contrast, semantic naming, explicit font-size and Auto Layout checks; no screenshot or Figma Agent superiority test yet. |
+| Automated verification | `██████████` 100% | PASS · AUTOMATED | 40 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit, ZIP integrity and SHA-256; live hidden-session check remains pending. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
 
@@ -63,7 +65,7 @@ This tracker records implementation evidence separately from live Figma verifica
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 39 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 40 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
