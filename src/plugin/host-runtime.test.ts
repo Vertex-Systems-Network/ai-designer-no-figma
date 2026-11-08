@@ -30,4 +30,13 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('700 * 1024');
     expect(hostSource).toContain('figma.currentPage.selection = [firstFrame]');
   });
+
+  it('renders native components, instances, vectors, gradients, and shadows', () => {
+    expect(hostSource).toContain('figma.createComponent()');
+    expect(hostSource).toContain('component.createInstance()');
+    expect(hostSource).toContain('figma.createVector()');
+    expect(hostSource).toContain('vector.vectorPaths=');
+    expect(hostSource).toContain("type:'GRADIENT_LINEAR'");
+    expect(hostSource).toContain("type:'DROP_SHADOW'");
+  });
 });
