@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseEditPatch } from './edit-patch';
-import { buildDesignPrompt, buildPatchPrompt } from './prompts';
+import { buildDesignPrompt, buildDesignSystemPrompt, buildPatchPrompt } from './prompts';
 
 describe('provider-neutral AI handoff prompts', () => {
   it('builds a self-contained design prompt for any external assistant', () => {
@@ -23,6 +23,17 @@ describe('provider-neutral AI handoff prompts', () => {
     expect(prompt).toContain('Improve heading contrast');
     expect(prompt).toContain('node-1');
     expect(prompt).toContain('Return an empty operations array');
+  });
+
+  it('includes color, typography and spacing tokens in the AI design handoff',()=>{
+    const prompt=buildDesignSystemPrompt({
+      colors:[{name:'Brand primary',color:'#006039'}],
+      typography:[{name:'Body',fontFamily:'Inter',fontSize:14,fontWeight:400,lineHeight:20}],
+      spacing:[{name:'Space 16',value:16}],
+    });
+    expect(prompt).toContain('Brand primary');
+    expect(prompt).toContain('"fontSize": 14');
+    expect(prompt).toContain('"value": 16');
   });
 });
 
