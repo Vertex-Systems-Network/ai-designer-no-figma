@@ -3,12 +3,12 @@
 Bars estimate verified acceptance scope, not schedule. See [BACKLOG.md](BACKLOG.md) for evidence and open gates.
 
 | Order | Workstream | Progress | Status | Dependency / exit evidence |
-| 0 | Design quality audit | `███████░░░` 70% | AUTOMATED · PARTIAL | Prompt guidance plus measurable contrast, naming, typography and Auto Layout findings are tested; screenshot QA and comparative evaluation remain. |
 |---:|---|---:|---|---|
+| 0 | Design quality audit | `███████░░░` 70% | AUTOMATED · PARTIAL | Prompt guidance plus measurable contrast, naming, typography and Auto Layout findings are tested; screenshot QA and comparative evaluation remain. |
 | 1 | Repository baseline and AI-readable project memory | `██████████` 100% | IMPLEMENTED | Registry/source/link audits pass; generated source inventory included in release verify. |
 | 2 | Official MCP SDK stdio foundation and honest tool catalog | `████████░░` 80% | IMPLEMENTED · PARTIAL | Protocol initialization, discovery, validation, capabilities and asset tools are integration-tested; client setup is not. |
 | 3 | Authenticated loopback plugin bridge and queue | `█████████░` 90% | IMPLEMENTED · PARTIAL | UI iframe owns authenticated polling; host-only Figma mutations return correlated results. Live hidden-session pairing and cancellation remain. |
-| 4 | Universal design operations through plugin adapter | `████████░░` 75% | IMPLEMENTED · PARTIAL | Design and asset import/edit/inspect/export handlers are wired; live Figma invocation remains untested. |
+| 4 | Universal design operations through plugin adapter | `████████░░` 78% | IMPLEMENTED · PARTIAL | Design and asset import/edit/inspect/export plus bounded frame preview are wired; live Figma invocation remains untested. |
 | 5 | Real agent job lifecycle and plugin activity panel | `████████░░` 80% | IMPLEMENTED · PARTIAL | UI shows signed-in Figma operator and actual job outcomes; Connect hides the panel while iframe polling continues. Live UI event proof remains. |
 | 6 | Design schema/render/export extensions | `█████░░░░░` 50% | IN PROGRESS | Standalone SVG/image import implemented; schema-backed assets, gradients, components/variables, complete export and live checks remain. |
 | 7 | Compatibility matrix and regression adapter | `████░░░░░░` 40% | PARTIAL | Truthful asset capabilities are declared; client-specific probes and live compatibility review remain. |
