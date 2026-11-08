@@ -1,4 +1,5 @@
 import type { DesignSpec } from './spec';
+import type { AssetSummary, StoredAsset } from './asset-library';
 
 export type HostToUi =
   | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> } | null }
@@ -6,6 +7,7 @@ export type HostToUi =
   | { type: 'export-result'; ok: boolean; message: string; spec?: DesignSpec }
   | { type: 'patch-result'; ok: boolean; message: string; undoCount?: number }
   | { type:'asset-result'; ok:boolean; message:string; name?:string; kind?:'svg'|'image'; width?:number; height?:number; elements?:number; mimeType?:string; bytes?:number; nodeId?:string }
+  | { type:'asset-library-response';requestId:string;operation:'list'|'read'|'save'|'delete'|'clear';ok:boolean;assets?:AssetSummary[];asset?:StoredAsset|AssetSummary;duplicate?:boolean;message?:string }
   | { type: 'agent-status'; status:'disconnected'|'connecting'|'connected'|'working'|'error'; sessionId?:string; jobId?:string; agentLabel?:string; operation?:string; message?:string }
   | { type: 'agent-event'; id:string; jobId:string; agentLabel:string; operation:string; status:'started'|'completed'|'failed'; timestamp:number; message:string }
   | { type: 'error'; code: string; message: string };
@@ -22,6 +24,7 @@ export type UiToHost =
   | { type: 'apply-color-selection'; color: string }
   | { type:'import-svg'; name:string; svg:string }
   | { type:'import-image'; name:string; mimeType:string; bytes:number[] }
+  | { type:'asset-library-request';requestId:string;operation:'list'|'read'|'save'|'delete'|'clear';sha?:string;asset?:Omit<StoredAsset,'sha256'> }
   | { type:'select-node'; nodeId:string };
 
 export type EditPatch = {
