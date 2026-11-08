@@ -5,6 +5,7 @@
 - Added canonical cross-agent repository instructions and source-aware project status documents.
 - Added the official `@modelcontextprotocol/server` SDK dependency (2.4.0); no MCP server is claimed until its stdio implementation and tests exist.
 - Added selected Figma layer export, bounded selection geometry edits and plugin-session undo in the current code line; see README and backlog for verification state.
+- Added bounded native SVG and PNG/JPEG/GIF asset imports, validation MCP tools, the AI Assets UI, local recent-import metadata, and explicit client capability reporting. Automated validation exists; native asset rendering has not been live-verified.
 
 ## 0.1.0
 
@@ -15,4 +16,4 @@
 - Added a token-authenticated loopback bridge with session-correlated queue, payload bounds, origin allowlist and result handling.
 - Added plugin pairing settings and an Agent Activity timeline driven by actual bridge events.
 - Added bundled MCP server build, docs/source registration auditing, compatibility metadata reporting and release verification.
-- Automated verification: 21 unit tests, 14 integration tests, typecheck, lint, local audit and release package checks pass. Live Figma pairing and client-specific setup remain unverified.
+- Automated verification for the current asset-inclusive source: 26 unit tests and 15 integration tests, typecheck, lint, local security audit, build, packaging, strict docs audit, ZIP integrity and SHA-256 checks pass. Live Figma asset rendering, pairing and client-specific setup remain unverified.
