@@ -7,17 +7,17 @@ Bars estimate verified acceptance scope, not schedule. See [BACKLOG.md](BACKLOG.
 | 1 | Repository baseline and AI-readable project memory | `██████████` 100% | IMPLEMENTED | Registry/source/link audits pass; generated source inventory included in release verify. |
 | 2 | Official MCP SDK stdio foundation and honest tool catalog | `████████░░` 80% | IMPLEMENTED · PARTIAL | Protocol initialization, discovery, validation, capabilities and asset tools are integration-tested; client setup is not. |
 | 3 | Authenticated loopback plugin bridge and queue | `████████░░` 80% | IMPLEMENTED · PARTIAL | Pairing/session handshake, correlation, payload/origin checks, session isolation and completion pass; live pairing and cancellation remain. |
-| 4 | Universal design operations through plugin adapter | `███████░░░` 70% | IMPLEMENTED · PARTIAL | Design and asset import/edit/inspect/export handlers are wired; live Figma invocation remains untested. |
+| 4 | Universal design operations through plugin adapter | `████████░░` 75% | IMPLEMENTED · PARTIAL | Design and asset import/edit/inspect/export handlers are wired; live Figma invocation remains untested. |
 | 5 | Real agent job lifecycle and plugin activity panel | `██████░░░░` 60% | IMPLEMENTED · PARTIAL | UI displays real connection and operation result events; full asset lifecycle and live UI event proof remain. |
 | 6 | Design schema/render/export extensions | `█████░░░░░` 50% | IN PROGRESS | Standalone SVG/image import implemented; schema-backed assets, gradients, components/variables, complete export and live checks remain. |
 | 7 | Compatibility matrix and regression adapter | `████░░░░░░` 40% | PARTIAL | Truthful asset capabilities are declared; client-specific probes and live compatibility review remain. |
 | 8 | Client configuration and asset capability guides | `████░░░░░░` 40% | IN PROGRESS | Existing client guides plus capability endpoint; asset transport and per-client evidence docs are being completed. |
-| 9 | Repository docs automation | `████████░░` 80% | IMPLEMENTED | Registry/link/source/test audits and clean report command pass; refresh and release audit pending. |
+| 9 | Repository docs automation | `██████████` 100% | PASS | Registry/link/source/test audits and strict release documentation audit pass with 0 findings. |
 | 10 | Live validation and release report | `█████░░░░░` 50% | PARTIAL | User-confirmed base UI; current asset build, live Figma render and client pairing need verification. |
 | 11 | Master Prompt 04 · repository audit | `██████████` 100% | PASS | Existing sources and limitations inspected. |
 | 12 | Master Prompt 04 · native SVG and raster asset paths | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Sanitization and image validation tests; visual/editable result in live Figma remains untested. |
 | 13 | Master Prompt 04 · capability routing and activity | `███░░░░░░░` 30% | PARTIAL | Explicit NOT_VERIFIED signals; no universal client routing or full job lifecycle. |
-| 14 | Master Prompt 04 · local asset intelligence and UI | `████░░░░░░` 40% | PARTIAL | Manual import UI and local metadata; content-addressed library and screenshot review remain. |
-| 15 | Master Prompt 04 · security, compatibility, tests and packaging | `████░░░░░░` 40% | IN PROGRESS | Focused tests pass; full release verification and package regeneration pending. |
+| 14 | Master Prompt 04 · local asset intelligence and UI | `███████░░░` 75% | IMPLEMENTED · PARTIAL | Bounded content-addressed local asset library with preview/reuse/delete; screenshot review and actual AI-client file retrieval remain. |
+| 15 | Master Prompt 04 · security, compatibility, tests and packaging | `███████░░░` 75% | AUTOMATED PASS · LIVE GATES OPEN | Full automated release verification and regenerated package pass; live client/Figma checks remain environment-dependent. |
 
 Prioritize secure end-to-end vertical slices over registering a large number of nonfunctional tools. Preserve JSON import and the optional Ollama workflow. Do not claim automatic access to an AI desktop app's generated files unless that integration has been exercised and verified.
