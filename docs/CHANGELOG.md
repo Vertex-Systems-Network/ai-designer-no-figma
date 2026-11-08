@@ -44,3 +44,11 @@
 - Added plugin pairing settings and an Agent Activity timeline driven by actual bridge events.
 - Added bundled MCP server build, docs/source registration auditing, compatibility metadata reporting and release verification.
 - The 2026-11-08 release verification before the Figma storage compatibility fix passed 31 unit tests and 15 integration tests, typecheck, lint, local security audit, build, packaging, strict docs audit (0 findings), ZIP integrity and SHA-256. The earlier localStorage fallback passed 33 unit tests and 15 integration tests, then was replaced after the user confirmed Figma blocks UI iframe storage. The new Figma clientStorage host bridge and structural readback checks passed 36 unit tests and 15 integration tests, typecheck/lint, local security audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma save/reuse confirmation is still pending.
+
+## 2026-11-09 — image, token, responsive layout, and export coverage
+
+- Added schema-backed bounded PNG/JPEG design nodes and deterministic base64/MIME validation.
+- Added native color Variable and Text Style creation/binding, responsive constraints, and row/column/grid layout definitions in the Figma renderer.
+- Extended supported selected-tree export for images, token references, grids, constraints, component definitions, gradients, vectors and shadows; unsupported data now fails explicitly.
+- Added category-specific generation recipes for website, dashboard, mobile app, admin, WordPress admin, e-commerce, landing page and custom interfaces.
+- Automated release verification is pending. Live Figma rendering and export/import round-trip remain NOT TESTED.
