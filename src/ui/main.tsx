@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parseDesignSpec, type DesignSpec, type ValidationIssue } from '../shared/spec';
+import { auditDesignQuality, parseDesignSpec, type DesignSpec, type ValidationIssue } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import { parseEditPatch } from '../shared/edit-patch';
 import { buildDesignPrompt, buildDesignSystemPrompt, buildPatchPrompt } from '../shared/prompts';
@@ -407,6 +407,7 @@ function App() {
         <div className="button-row"><button className="primary-button" onClick={validateImport}>Validate specification</button><label className="secondary-button file-button">Choose JSON file<input type="file" accept="application/json,.json" onChange={e=>void fileText(e.target.files?.[0])}/></label><button className="secondary-button" onClick={()=>spec&&download(spec,'design-spec.json')} disabled={!spec}>Export valid spec</button><button className="secondary-button" onClick={()=>{setBusy(true);setError('');setNotice('Exporting selected Figma layers…');post({type:'export-selection'});}} disabled={busy||!selection}>Export selection</button></div>
         <div className="template-panel"><div className="preview-head"><strong>Prompt template</strong><button className="icon-button icon-only-button" aria-label="Copy prompt template" title="Copy prompt template" onClick={()=>void copyText(promptTemplate,'Compatible JSON prompt copied.') }><HeaderIcon kind="copy"/></button></div><p className="hint">Paste this into Claude, ChatGPT, or another assistant. External chat tools are not automatically connected.</p><pre>{promptTemplate}</pre></div>
         {spec&&<div className="result-panel"><div><strong>{spec.name}</strong><span>{spec.pages.length} page(s) · ready to insert</span></div><button className="primary-button small" onClick={insert} disabled={busy}>Insert into Figma</button></div>}
+        {spec&&auditDesignQuality(spec).length>0&&<div className="validation-list quality-findings"><strong>Design quality review · {auditDesignQuality(spec).length} suggestion(s)</strong>{auditDesignQuality(spec).slice(0,6).map((finding,index)=><p key={`${finding.path}-${index}`}><code>{finding.path}</code> {finding.message}</p>)}{auditDesignQuality(spec).length>6&&<p>Additional findings are available in the full specification review.</p>}</div>}
       </>}
       {tab==='AI Assets'&&<>
         <div className="section-heading"><div><p className="eyebrow">LOCAL ASSET WORKSPACE</p><h1>AI assets</h1><p className="muted">Import local images or sanitized SVG vectors. No image-generation service is required.</p></div></div>
@@ -430,42 +431,4 @@ function App() {
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
         <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
-        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the open Figma file once. After the connection is confirmed, the panel hides and the plugin keeps processing jobs in this file. Keep Figma Desktop and this document open.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={['connecting','connected','working'].includes(agentStatus.status)}>{agentStatus.status==='connecting'?'Connecting…':agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':'Connect & hide panel'}</button>{(agentStatus.status==='connected'||agentStatus.status==='working')&&<button className="secondary-button small" onClick={()=>post({type:'hide-ui'})}>Hide panel</button>}{bridgeToken&&<button className="secondary-button small" disabled={agentStatus.status==='working'} onClick={()=>{bridgeEpoch.current++;setBridgeToken('');save('adnf-bridge-token','');configureStoredAssetBridge(bridgeUrl,'');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:'',sessionId:bridgeSession.current||'disconnect-session'});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If Claude is installed but cannot connect, check that the AI Designer extension is enabled in Claude Desktop, then select Connect again.</p></details></div>
-        <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
-      </>}
-    </section>
-    {copyFallback&&<div className="template-panel copy-fallback"><label className="field-label" htmlFor="copy-fallback">Copy manually · press Ctrl+C</label><textarea id="copy-fallback" className="handoff-text" readOnly value={copyFallback} onFocus={e=>e.currentTarget.select()} onClick={e=>e.currentTarget.select()}/></div>}
-    <footer className="status-footer">{error?<p className="message error-message">{error}</p>:<p className="message">{notice||'Ready'} · No Figma AI credits or paid API required</p>}{issues.length>0&&<div className="validation-list"><strong>{issues.length} validation finding(s)</strong>{issues.slice(0,8).map((i,n)=><p key={`${i.path}-${n}`}><code>{i.path}</code> {i.message}</p>)}</div>}</footer>
-    <button className="resize-handle" aria-label="Resize plugin panel" title="Drag to resize panel" onPointerDown={startPanelResize}><HeaderIcon kind="resize"/></button>
-  </main>;
-}
-function showRuntimeFailure(reason: unknown) {
-  const container = document.getElementById('root');
-  if (!container) return;
-  const details = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason);
-  const panel = document.createElement('main');
-  panel.className = 'boot-error';
-  panel.setAttribute('role', 'alert');
-  const title = document.createElement('strong');
-  title.textContent = 'AI Designer UI stopped';
-  const message = document.createElement('p');
-  message.textContent = 'The plugin UI hit a browser runtime error. Copy this detail when reporting the problem.';
-  const detail = document.createElement('pre');
-  detail.textContent = details.slice(0, 1200);
-  const hint = document.createElement('small');
-  hint.textContent = 'Re-import the updated dist/manifest.json after replacing the plugin build.';
-  panel.append(title, message, detail, hint);
-  container.replaceChildren(panel);
-}
-
-window.addEventListener('error', event => showRuntimeFailure(event.error ?? event.message));
-window.addEventListener('unhandledrejection', event => showRuntimeFailure(event.reason));
-
-try {
-  const container = document.getElementById('root');
-  if (!container) throw new Error('Plugin UI root element is missing.');
-  createRoot(container, { onUncaughtError: error => showRuntimeFailure(error) })
-    .render(<React.StrictMode><App/></React.StrictMode>);
-} catch (error) {
-  showRuntimeFailure(error);
-}
+        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the open Figma file once. After the connection is confirmed, the panel hides and the plugin keeps processing jobs in this file. Keep Figma Desktop and this document open.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={['connecting','connected','working'].includes(agentStatus.status)}>{agentStatus.s
