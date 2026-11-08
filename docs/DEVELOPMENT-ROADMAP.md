@@ -1,16 +1,23 @@
 # Development roadmap
 
-| Order | Workstream | Status | Dependency / exit evidence |
-|---:|---|---|---|
-| 1 | Repository baseline and AI-readable project memory | IMPLEMENTED | Registry/source/link audits pass; generated source inventory included in release verify. |
-| 2 | Official MCP SDK stdio foundation and honest tool catalog | IMPLEMENTED · PARTIAL | Protocol initialization, tool listing, validation, status and capabilities are integration-tested; client setup is not. |
-| 3 | Authenticated loopback plugin bridge and queue | IMPLEMENTED · PARTIAL | Pairing/session handshake, correlation, payload/origin checks, session isolation and completion pass; live pairing and running-job cancellation remain. |
-| 4 | Universal design operations through plugin adapter | IMPLEMENTED · PARTIAL | MCP import/edit/inspect/export handlers are wired to plugin host and schemas; live Figma invocation remains untested. |
-| 5 | Real agent job lifecycle and plugin activity panel | IMPLEMENTED · PARTIAL | UI displays actual connection and operation status/events; live UI event proof remains. |
-| 6 | Design schema/render/export extensions | IN PROGRESS | Images/SVG/gradients, components/variables, complete export and tests |
-| 7 | Compatibility matrix and regression adapter | PARTIAL | Typings/package metadata and evidence limits are recorded; live compatibility review is not done. |
-| 8 | Client configuration guides | PARTIAL | Generic stdio example documented; client-specific configs await actual client version checks. |
-| 9 | Repository docs automation | IMPLEMENTED | Registry/link/source/test audits and clean report command pass. |
-| 10 | Live validation and release report | BLOCKED/PENDING | User Figma test for new edit/export; real Ollama/model and screenshot evidence |
+Bars estimate verified acceptance scope, not schedule. See [BACKLOG.md](BACKLOG.md) for evidence and open gates.
 
-Prioritize secure end-to-end vertical slices over registering a large number of nonfunctional tools. Preserve JSON import and existing optional Ollama workflows throughout.
+| Order | Workstream | Progress | Status | Dependency / exit evidence |
+|---:|---|---:|---|---|
+| 1 | Repository baseline and AI-readable project memory | `██████████` 100% | IMPLEMENTED | Registry/source/link audits pass; generated source inventory included in release verify. |
+| 2 | Official MCP SDK stdio foundation and honest tool catalog | `████████░░` 80% | IMPLEMENTED · PARTIAL | Protocol initialization, discovery, validation, capabilities and asset tools are integration-tested; client setup is not. |
+| 3 | Authenticated loopback plugin bridge and queue | `████████░░` 80% | IMPLEMENTED · PARTIAL | Pairing/session handshake, correlation, payload/origin checks, session isolation and completion pass; live pairing and cancellation remain. |
+| 4 | Universal design operations through plugin adapter | `███████░░░` 70% | IMPLEMENTED · PARTIAL | Design and asset import/edit/inspect/export handlers are wired; live Figma invocation remains untested. |
+| 5 | Real agent job lifecycle and plugin activity panel | `██████░░░░` 60% | IMPLEMENTED · PARTIAL | UI displays real connection and operation result events; full asset lifecycle and live UI event proof remain. |
+| 6 | Design schema/render/export extensions | `█████░░░░░` 50% | IN PROGRESS | Standalone SVG/image import implemented; schema-backed assets, gradients, components/variables, complete export and live checks remain. |
+| 7 | Compatibility matrix and regression adapter | `████░░░░░░` 40% | PARTIAL | Truthful asset capabilities are declared; client-specific probes and live compatibility review remain. |
+| 8 | Client configuration and asset capability guides | `████░░░░░░` 40% | IN PROGRESS | Existing client guides plus capability endpoint; asset transport and per-client evidence docs are being completed. |
+| 9 | Repository docs automation | `████████░░` 80% | IMPLEMENTED | Registry/link/source/test audits and clean report command pass; refresh and release audit pending. |
+| 10 | Live validation and release report | `█████░░░░░` 50% | PARTIAL | User-confirmed base UI; current asset build, live Figma render and client pairing need verification. |
+| 11 | Master Prompt 04 · repository audit | `██████████` 100% | PASS | Existing sources and limitations inspected. |
+| 12 | Master Prompt 04 · native SVG and raster asset paths | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Sanitization and image validation tests; visual/editable result in live Figma remains untested. |
+| 13 | Master Prompt 04 · capability routing and activity | `███░░░░░░░` 30% | PARTIAL | Explicit NOT_VERIFIED signals; no universal client routing or full job lifecycle. |
+| 14 | Master Prompt 04 · local asset intelligence and UI | `████░░░░░░` 40% | PARTIAL | Manual import UI and local metadata; content-addressed library and screenshot review remain. |
+| 15 | Master Prompt 04 · security, compatibility, tests and packaging | `████░░░░░░` 40% | IN PROGRESS | Focused tests pass; full release verification and package regeneration pending. |
+
+Prioritize secure end-to-end vertical slices over registering a large number of nonfunctional tools. Preserve JSON import and the optional Ollama workflow. Do not claim automatic access to an AI desktop app's generated files unless that integration has been exercised and verified.
