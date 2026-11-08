@@ -39,7 +39,8 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 - [x] Supported patch operations include text, fill, layer name, and bounded position/size changes; patch failures attempt rollback.
 - [x] Keep up to 20 plugin-session patch checkpoints and expose undo for the latest edit; failed patch application attempts immediate rollback.
 - [x] Apply bounded position/size changes to selected IDs through `set-bounds` patches.
-- [ ] Add Auto Layout operations, component replacement, frame-level target planning, and live preservation/revert verification.
+- [x] Add safe frame-targeted Auto Layout direction/gap/padding/alignment patches with preview and rollback snapshots.
+- [ ] Component replacement, broader frame-level target planning, and live preservation/revert verification.
 - [ ] Verify no unrelated layers change in Figma and preview with modified/preserved layer summaries.
 
 ## Design system
@@ -58,7 +59,7 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 
 ## Quality and release
 
-- [x] Typecheck, lint, unit tests, optional sidecar HTTP integration tests, zero-vulnerability npm audit, local privacy audit, source ZIP, SHA-256.
+- [x] Typecheck, lint, unit tests, optional sidecar HTTP integration tests, zero-vulnerability npm audit, local privacy audit, source ZIP, SHA-256 (previous release snapshot; current source needs final pass).
 - [ ] Test actual Ollama runtime/model, real Figma rendering, patch preservation and release installation.
 - [ ] Produce final requirement-by-requirement evidence report and disclose the official plugin ID registration step.
 
