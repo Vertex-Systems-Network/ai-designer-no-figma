@@ -47,6 +47,7 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 
 - [x] Local color tokens can be added, removed, imported, exported, and applied to a selection.
 - [x] User-managed typography and spacing scales persist locally, import/export, validate values, and are included in external/local AI design prompts.
+- [x] Save, load, duplicate and delete up to 20 named local design-system presets.
 - [ ] Radii/elevation/grid presets, reusable component library and variants.
 - [ ] Create and reuse Figma Variables, local styles, component presets, and reusable templates.
 
