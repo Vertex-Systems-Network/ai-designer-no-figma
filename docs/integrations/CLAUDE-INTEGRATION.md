@@ -1,5 +1,5 @@
 # Claude integration
 
-**Current status:** supported through user-operated prompt/JSON copy/paste only. No Anthropic API key, automated Claude Desktop control, MCP server or account scraping is implemented.
+Claude Desktop can connect to the project's custom local MCP server. No Anthropic API key or paid API is used. Follow the Windows config and Figma pairing steps in [MCP architecture](MCP-ARCHITECTURE.md). Claude Code can use the same stdio server with its client-specific MCP configuration.
 
-`CLAUDE.md` is the repository instruction adapter for Claude Code. A future local MCP setup must be tested against specific Claude Desktop/Code versions and remain optional. See [generic client workflow](GENERIC-CLIENT-INTEGRATION.md).
+This is a local development integration. The MCP process must remain running, the Figma plugin must remain open and paired, and live tools should be confirmed from Claude's connector list. It does not automate Claude's desktop interface or expose Claude web sessions.

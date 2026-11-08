@@ -101,4 +101,9 @@ async function main():Promise<void>{
   process.once('SIGTERM',()=>{void handle.close();void bridge.close();});
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) void main().catch((error)=>{console.error(error);process.exitCode=1;});
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) void main().catch((error)=>{
+  const code=error&&typeof error==='object'&&'code'in error?(error as NodeJS.ErrnoException).code:undefined;
+  if(code==='EADDRINUSE')console.error('[ai-designer] Bridge port 8788 is already in use. Close any older AI Designer MCP process, then restart Claude Desktop.');
+  else console.error(error);
+  process.exitCode=1;
+});

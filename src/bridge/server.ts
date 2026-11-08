@@ -28,7 +28,19 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   await new Promise<void>((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject);});
   const actual=server.address();
   if (!actual||typeof actual==='string') throw new Error('Bridge server did not expose a TCP address.');
-  return {server,broker,token,close:()=>new Promise((resolve,reject)=>server.close((error)=>error?reject(error):resolve())),address:()=>({host:actual.address,port:actual.port})};
+  let closePromise:Promise<void>|undefined;
+  const close=():Promise<void>=>{
+    if(closePromise)return closePromise;
+    closePromise=new Promise((resolve,reject)=>{
+      server.close((error)=>error?reject(error):resolve());
+      // MCP clients may restart their stdio process while HTTP keep-alive
+      // sockets from the Figma plugin are still open. Drain them so the next
+      // process can bind the same loopback port immediately.
+      server.closeAllConnections();
+    });
+    return closePromise;
+  };
+  return {server,broker,token,close,address:()=>({host:actual.address,port:actual.port})};
 }
 
 async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string):Promise<void>{

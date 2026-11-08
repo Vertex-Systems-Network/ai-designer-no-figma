@@ -452,6 +452,7 @@ figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
   if(message.type==='asset-library-request'){
     try{
+      if(!figma.pluginId)throw new Error('Figma client storage requires a Figma-assigned plugin ID. Register this development plugin in Figma, add its assigned ID to manifest.json, rebuild, and re-import. The design asset can still be inserted, but local save/reuse needs that ID.');
       let response:Extract<HostToUi,{type:'asset-library-response'}>;
       if(message.operation==='list')response={type:'asset-library-response',requestId:message.requestId,operation:'list',ok:true,assets:await assetLibrary.list()};
       else if(message.operation==='read'){if(!message.sha)throw new Error('Asset fingerprint is required.');const asset=await assetLibrary.read(message.sha);response={type:'asset-library-response',requestId:message.requestId,operation:'read',ok:true,...(asset?{asset}:{})};}
