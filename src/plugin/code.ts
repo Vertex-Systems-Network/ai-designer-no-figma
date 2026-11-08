@@ -8,7 +8,7 @@ let cancelActiveRender: (() => void) | undefined;
 // Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
 // for this plugin session and fall back to native Figma node IDs otherwise.
 const logicalIds = new Map<string, string>();
-type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined };
+type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined; layout?:{mode:FrameNode['layoutMode'];gap:number;paddingTop:number;paddingRight:number;paddingBottom:number;paddingLeft:number;alignment:FrameNode['primaryAxisAlignItems']} };
 const patchCheckpoints: PatchSnapshot[][] = [];
 let bridgeEndpoint = 'http://localhost:8788';
 let bridgeToken = '';
@@ -200,6 +200,10 @@ async function applyPatch(patch: EditPatch): Promise<void> {
       if (!('resize' in target) || !('x' in target) || !('y' in target)) throw new Error(`Target ${operation.targetId} does not support position and size edits.`);
       return { operation, target };
     }
+    if(operation.op==='set-auto-layout'){
+      if(target.type!=='FRAME')throw new Error(`Target ${operation.targetId} is not a frame and cannot receive Auto Layout.`);
+      return{operation,target};
+    }
     if (operation.op === 'set-fill') {
       if (!('fills' in target)) throw new Error(`Target ${operation.targetId} does not support fill.`);
       if (!/^#[0-9a-f]{6}$/i.test(operation.value)) throw new Error(`Invalid fill color for ${operation.targetId}.`);
@@ -215,11 +219,12 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     const font = text.fontName === figma.mixed ? { family: 'Inter', style: 'Regular' } : text.fontName;
     await figma.loadFontAsync(font as FontName);
   }
-  const snapshots: PatchSnapshot[] = resolved.map(({target}) => ({target, name: target.name, fills: 'fills' in target ? target.fills as readonly Paint[] | PluginAPI['mixed'] : undefined, text: target.type === 'TEXT' ? (target as TextNode).characters : undefined, x: 'x' in target ? target.x : undefined, y: 'y' in target ? target.y : undefined, width: 'width' in target ? target.width : undefined, height: 'height' in target ? target.height : undefined}));
+  const snapshots: PatchSnapshot[] = resolved.map(({target}) => ({target, name: target.name, fills: 'fills' in target ? target.fills as readonly Paint[] | PluginAPI['mixed'] : undefined, text: target.type === 'TEXT' ? (target as TextNode).characters : undefined, x: 'x' in target ? target.x : undefined, y: 'y' in target ? target.y : undefined, width: 'width' in target ? target.width : undefined, height: 'height' in target ? target.height : undefined,...(target.type==='FRAME'?{layout:{mode:target.layoutMode,gap:target.itemSpacing,paddingTop:target.paddingTop,paddingRight:target.paddingRight,paddingBottom:target.paddingBottom,paddingLeft:target.paddingLeft,alignment:target.primaryAxisAlignItems}}:{})}));
   try {
     for (const {operation,target} of resolved) {
       if (operation.op === 'rename') target.name = operation.value;
       else if (operation.op === 'set-bounds' && 'resize' in target && 'x' in target && 'y' in target) { target.resize(operation.value.width, operation.value.height); target.x = operation.value.x; target.y = operation.value.y; }
+      else if(operation.op==='set-auto-layout'&&target.type==='FRAME'){target.layoutMode=operation.value.mode;target.itemSpacing=operation.value.gap;target.paddingTop=target.paddingRight=target.paddingBottom=target.paddingLeft=operation.value.padding;target.primaryAxisAlignItems=operation.value.alignment;}
       else if (operation.op === 'set-fill' && 'fills' in target) target.fills = [paint(operation.value)];
       else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
     }
@@ -239,6 +244,7 @@ function restoreSnapshots(snapshots: PatchSnapshot[]): void {
     if (snapshot.fills !== undefined && 'fills' in target) target.fills = snapshot.fills as typeof target.fills;
     if (snapshot.text !== undefined && target.type === 'TEXT') (target as TextNode).characters = snapshot.text;
     if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
+    if(snapshot.layout&&target.type==='FRAME'){target.layoutMode=snapshot.layout.mode;target.itemSpacing=snapshot.layout.gap;target.paddingTop=snapshot.layout.paddingTop;target.paddingRight=snapshot.layout.paddingRight;target.paddingBottom=snapshot.layout.paddingBottom;target.paddingLeft=snapshot.layout.paddingLeft;target.primaryAxisAlignItems=snapshot.layout.alignment;}
   }
 }
 
