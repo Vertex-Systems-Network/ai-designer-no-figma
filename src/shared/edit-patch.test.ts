@@ -15,4 +15,14 @@ describe('parseEditPatch', () => {
     const result = parseEditPatch(JSON.stringify({operations:[{op:'set-bounds',targetId:'other',value:{x:0,y:0,width:100,height:100}}]}),new Set(['frame-1']));
     expect(result).toMatchObject({valid:false,message:'operations[0].targetId is not present in the current selection.'});
   });
+  it('accepts bounded Auto Layout settings and rejects unsafe or malformed values',()=>{
+    const valid={op:'set-auto-layout',targetId:'frame-1',value:{mode:'VERTICAL',gap:16,padding:24,alignment:'MIN'}};
+    expect(parseEditPatch(JSON.stringify({operations:[valid]}),new Set(['frame-1'])).valid).toBe(true);
+    for(const value of [{mode:'WRAP',gap:0,padding:0,alignment:'MIN'},{mode:'HORIZONTAL',gap:-1,padding:0,alignment:'MIN'},{mode:'HORIZONTAL',gap:0,padding:0,alignment:'UNKNOWN'},{mode:'NONE',gap:0,padding:0,alignment:'MIN',extra:true}])
+      expect(parseEditPatch(JSON.stringify({operations:[{...valid,value}]})).valid).toBe(false);
+  });
+  it('rejects Auto Layout edits targeting an ID outside the current selection',()=>{
+    const result=parseEditPatch(JSON.stringify({operations:[{op:'set-auto-layout',targetId:'other',value:{mode:'VERTICAL',gap:16,padding:16,alignment:'MIN'}}]}),new Set(['frame-1']));
+    expect(result).toMatchObject({valid:false,message:'operations[0].targetId is not present in the current selection.'});
+  });
 });
