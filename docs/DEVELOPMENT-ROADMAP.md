@@ -3,6 +3,7 @@
 Bars estimate verified acceptance scope, not schedule. See [BACKLOG.md](BACKLOG.md) for evidence and open gates.
 
 | Order | Workstream | Progress | Status | Dependency / exit evidence |
+| 0 | Design quality audit | `███████░░░` 70% | AUTOMATED · PARTIAL | Prompt guidance plus measurable contrast, naming, typography and Auto Layout findings are tested; screenshot QA and comparative evaluation remain. |
 |---:|---|---:|---|---|
 | 1 | Repository baseline and AI-readable project memory | `██████████` 100% | IMPLEMENTED | Registry/source/link audits pass; generated source inventory included in release verify. |
 | 2 | Official MCP SDK stdio foundation and honest tool catalog | `████████░░` 80% | IMPLEMENTED · PARTIAL | Protocol initialization, discovery, validation, capabilities and asset tools are integration-tested; client setup is not. |
