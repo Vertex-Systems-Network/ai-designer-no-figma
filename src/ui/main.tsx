@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { parseDesignSpec, type DesignSpec, type ValidationIssue } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import { parseEditPatch } from '../shared/edit-patch';
-import { buildDesignPrompt, buildPatchPrompt } from '../shared/prompts';
+import { buildDesignPrompt, buildDesignSystemPrompt, buildPatchPrompt } from '../shared/prompts';
 import { sanitizeSvg } from '../shared/assets';
 import { utf8ByteLength } from '../shared/utf8';
 import { clearStoredAssets, deleteStoredAsset, listStoredAssets, readStoredAsset, saveStoredAsset, type AssetPayload, type AssetSummary } from './asset-library';
@@ -15,6 +15,8 @@ type Tab = 'Generate' | 'Edit' | 'Design System' | 'Import' | 'AI Assets' | 'His
 type Model = { name: string; details?: { parameter_size?: string } };
 type HistoryItem = { id: string; prompt: string; model: string; createdAt: string; spec: DesignSpec };
 type Token = { id: string; name: string; color: string };
+type TypographyToken = {id:string;name:string;fontFamily:string;fontSize:number;fontWeight:number;lineHeight:number};
+type SpacingToken = {id:string;name:string;value:number};
 type GenerationMode = 'handoff' | 'ollama';
 type AssetRecord=AssetSummary;
 const defaultUrl = 'http://localhost:8787';
@@ -47,6 +49,7 @@ function HeaderIcon({kind}:{kind:'sun'|'moon'|'settings'|'resize'|'refresh'|'cop
 }
 function load<T>(key: string, fallback: T): T { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
 function save(key: string, value: unknown): void { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage; keep the current session usable. */ } }
+function ensureIds<T extends {id?:string}>(values:T[],prefix:string):(T&{id:string})[]{const used=new Set<string>();return values.map(value=>{let id=typeof value.id==='string'&&value.id.trim()?value.id: createLocalId(prefix);if(used.has(id))id=createLocalId(prefix);used.add(id);return{...value,id};});}
 function App() {
   const [tab, setTab] = useState<Tab>('Generate');
   const [loaderPhase, setLoaderPhase] = useState<'visible'|'leaving'|'hidden'>('visible');
@@ -88,6 +91,15 @@ function App() {
   ]));
   const [tokenName, setTokenName] = useState('');
   const [tokenColor, setTokenColor] = useState('#0D8A60');
+  const [typeTokens,setTypeTokens]=useState<TypographyToken[]>(()=>load('adnf-type-tokens',[
+    {id:'type-heading',name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34},
+    {id:'type-body',name:'Body',fontFamily:'Inter',fontSize:14,fontWeight:400,lineHeight:20},
+    {id:'type-label',name:'Label',fontFamily:'Inter',fontSize:12,fontWeight:500,lineHeight:16},
+  ]));
+  const [spacingTokens,setSpacingTokens]=useState<SpacingToken[]>(()=>load('adnf-spacing-tokens',[4,8,12,16,24,32].map(value=>({id:`space-${value}`,name:`Space ${value}`,value}))));
+  const [typeName,setTypeName]=useState('');
+  const [typeSize,setTypeSize]=useState(16);
+  const [spaceValue,setSpaceValue]=useState(20);
   const [fontFallback, setFontFallback] = useState(() => load('adnf-font-fallback','Inter'));
   const [assetSvg,setAssetSvg]=useState('');
   const [assetName,setAssetName]=useState('Imported asset');
@@ -118,6 +130,8 @@ function App() {
   },[]);
   useEffect(() => { save('adnf-history',history.slice(0,40)); },[history]);
   useEffect(() => { save('adnf-tokens',tokens); },[tokens]);
+  useEffect(()=>{save('adnf-type-tokens',typeTokens);},[typeTokens]);
+  useEffect(()=>{save('adnf-spacing-tokens',spacingTokens);},[spacingTokens]);
   useEffect(()=>{void listStoredAssets().then(setAssetRecords).catch(error=>setNotice(error instanceof Error?`Local asset library unavailable: ${error.message}`:'Local asset library unavailable.'));},[]);
   useEffect(()=>()=>{if(assetPreview?.url)URL.revokeObjectURL(assetPreview.url);},[assetPreview]);
   useEffect(() => {
@@ -180,13 +194,13 @@ function App() {
       if(!prompt.trim()){setError('Describe the interface you want to create.');return;}
       if(!/^#[0-9a-f]{6}$/i.test(brandColor)){setError('Brand color must be a six-digit hex value.');return;}
       historySource.current={prompt:prompt.trim(),model:'External AI handoff'};
-      setPreparedPrompt(buildDesignPrompt(prompt,{category,platform,canvasSize:canvasSize==='custom'?`${customWidth}x${customHeight}`:canvasSize,style,brandColor,density,typography,complexity}));
+      setPreparedPrompt(`${buildDesignPrompt(prompt,{category,platform,canvasSize:canvasSize==='custom'?`${customWidth}x${customHeight}`:canvasSize,style,brandColor,density,typography,complexity})}${designSystemBrief()}`);
       setError('');setNotice('Prompt is ready. Copy it to the AI desktop app or chat you already use, then paste its JSON response in Import.');return;
     }
     if(!prompt.trim()){setError('Describe the interface you want to create.');return;}
     if(!/^#[0-9a-f]{6}$/i.test(brandColor)){setError('Brand color must be a six-digit hex value.');return;}
     setBusy(true);setError('');setNotice('Asking the selected local model for structured design JSON…');setIssues([]);setSpec(null);
-    try {const output=await callModel({prompt});const result=parseDesignSpec(output);setIssues(result.issues);
+    try {const output=await callModel({prompt:`${prompt}${designSystemBrief()}`});const result=parseDesignSpec(output);setIssues(result.issues);
       if(!result.valid||!result.value)throw new Error(result.issues.map(i=>`${i.path}: ${i.message}`).join('\n')||'Model returned an invalid specification.');
       historySource.current={prompt:prompt.trim(),model};setSpec(result.value);setJsonInput(JSON.stringify(result.value,null,2));setNotice('Specification validated. Review it, then insert editable layers into Figma.');
     }catch(err){if(err instanceof DOMException&&err.name==='AbortError')setNotice('Generation cancelled.');else setError(err instanceof Error?err.message:'Generation failed.');}finally{setBusy(false);}
@@ -241,6 +255,11 @@ function App() {
   }
   function applyPatch(){if(!patch)return;setBusy(true);setError('');setNotice('Applying reviewed changes…');post({type:'apply-patch',patch});}
   function addToken(){if(!tokenName.trim()||!/^#[0-9a-f]{6}$/i.test(tokenColor)){setError('Enter a token name and valid six-digit hex color.');return;}setTokens(items=>[{id:createLocalId('token'),name:tokenName.trim(),color:tokenColor.toUpperCase()},...items]);setTokenName('');setError('');setNotice('Token saved locally.');}
+  function designSystemBrief(){return buildDesignSystemPrompt({colors:tokens,typography:typeTokens,spacing:spacingTokens});}
+  function addTypographyToken(){if(!typeName.trim()||!Number.isFinite(typeSize)||typeSize<8||typeSize>96){setError('Enter a name and font size from 8 to 96 px.');return;}const safeName=typeName.trim().slice(0,60);setTypeTokens(items=>[{id:createLocalId('type'),name:safeName,fontFamily:'Inter',fontSize:typeSize,fontWeight:400,lineHeight:Math.round(typeSize*1.45)},...items].slice(0,50));setTypeName('');setError('');setNotice('Typography token saved locally and included in design prompts.');}
+  function addSpacingToken(){if(!Number.isInteger(spaceValue)||spaceValue<0||spaceValue>256){setError('Spacing value must be a whole number from 0 to 256 px.');return;}if(spacingTokens.some(item=>item.value===spaceValue)){setError('That spacing value already exists.');return;}setSpacingTokens(items=>[{id:createLocalId('space'),name:`Space ${spaceValue}`,value:spaceValue},...items].slice(0,50));setError('');setNotice('Spacing token saved locally and included in design prompts.');}
+  function exportDesignTokens(){download({version:'1.1',colors:tokens,typography:typeTokens,spacing:spacingTokens},'design-system-tokens.json');}
+  async function importDesignTokens(file?:File){if(!file)return;if(file.size>256000){setError('Design-system token file exceeds 256 KB.');return;}try{const data=JSON.parse(await file.text()) as {version?:string;colors?:unknown;tokens?:unknown;typography?:unknown;spacing?:unknown};if(data.version!==undefined&&!['1.0','1.1'].includes(data.version))throw new Error('Unsupported design-system token version.');const colors=data.colors??data.tokens;if(!Array.isArray(colors)||colors.length>200||colors.some((item:unknown)=>!item||typeof item!=='object'||typeof(item as Token).name!=='string'||(item as Token).name.length>100||!/^#[0-9a-f]{6}$/i.test((item as Token).color)))throw new Error('File must contain up to 200 color tokens with names and #RRGGBB values.');let nextTypes=typeTokens,nextSpacing=spacingTokens;if(data.typography!==undefined){if(!Array.isArray(data.typography)||data.typography.length>50||data.typography.some((item:unknown)=>!item||typeof item!=='object'||typeof(item as TypographyToken).name!=='string'||(item as TypographyToken).name.length>60||typeof(item as TypographyToken).fontFamily!=='string'||(item as TypographyToken).fontFamily.length>80||!Number.isInteger((item as TypographyToken).fontSize)||(item as TypographyToken).fontSize<8||(item as TypographyToken).fontSize>96||!Number.isInteger((item as TypographyToken).fontWeight)||(item as TypographyToken).fontWeight<100||(item as TypographyToken).fontWeight>900||!Number.isInteger((item as TypographyToken).lineHeight)||(item as TypographyToken).lineHeight<8||(item as TypographyToken).lineHeight>160))throw new Error('Typography tokens must have a name, family and valid size, weight, and line height.');nextTypes=ensureIds(data.typography as TypographyToken[],'type');}if(data.spacing!==undefined){if(!Array.isArray(data.spacing)||data.spacing.length>50||data.spacing.some((item:unknown)=>!item||typeof item!=='object'||typeof(item as SpacingToken).name!=='string'||(item as SpacingToken).name.length>60||!Number.isInteger((item as SpacingToken).value)||(item as SpacingToken).value<0||(item as SpacingToken).value>256))throw new Error('Spacing tokens must have a name and whole-number value from 0 to 256.');nextSpacing=ensureIds(data.spacing as SpacingToken[],'space');}setTokens(ensureIds(colors as Token[],'color'));setTypeTokens(nextTypes);setSpacingTokens(nextSpacing);setError('');setNotice('Design-system tokens imported and saved locally.');}catch(error){setError(error instanceof Error?error.message:'Could not import token file.');}}
   function download(value:unknown,filename:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();URL.revokeObjectURL(url);}
   function startPanelResize(event:React.PointerEvent<HTMLButtonElement>){
     event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);
@@ -275,10 +294,12 @@ function App() {
         {patch&&<div className="preview-panel"><div className="preview-head"><strong>Proposed changes</strong><span>{patch.operations.length} operation(s)</span></div>{patch.operations.map((op,i)=><div key={`${op.targetId}-${i}`} className="preview-row"><code>{op.targetId}</code><span>{op.op} → {typeof op.value==='string'?op.value:JSON.stringify(op.value)}</span></div>)}<p className="hint">Only listed IDs are targeted. Review each operation before applying.</p><div className="button-row"><button className="primary-button small icon-only-button" aria-label="Apply reviewed changes" title="Apply reviewed changes" onClick={applyPatch} disabled={busy||patch.operations.length===0}><HeaderIcon kind="apply"/></button>{undoCount>0&&<button className="secondary-button small icon-only-button" aria-label="Undo latest plugin patch" title="Undo latest plugin patch" onClick={()=>{setBusy(true);post({type:'undo-patch'});}} disabled={busy}><HeaderIcon kind="undo"/></button>}</div></div>}
       </>}
       {tab==='Design System'&&<>
-        <div className="section-heading"><div><p className="eyebrow">LOCAL TOKENS</p><h1>Design system</h1><p className="muted">Manage reusable color tokens and apply fills to the selection.</p></div></div>
+        <div className="section-heading"><div><p className="eyebrow">LOCAL TOKENS</p><h1>Design system</h1><p className="muted">Manage color, typography and spacing tokens. They are included in generation prompts.</p></div></div>
         <div className="token-create"><label className="field-label">Token name<input value={tokenName} onChange={e=>setTokenName(e.target.value)} placeholder="e.g. Brand accent"/></label><label className="field-label">Hex color<div className="color-entry"><input type="color" value={tokenColor} onChange={e=>setTokenColor(e.target.value)}/><input value={tokenColor} onChange={e=>setTokenColor(e.target.value)} maxLength={7}/></div></label><button className="secondary-button" onClick={addToken}>Add token</button></div>
         <div className="token-list">{tokens.map(t=><div className="token-row" key={t.id}><span className="swatch" style={{backgroundColor:t.color}}/><div className="token-info"><strong>{t.name}</strong><code>{t.color}</code></div><button className="secondary-button small icon-only-button" aria-label={`Apply ${t.name} to selection`} title={`Apply ${t.name} to selection`} onClick={()=>post({type:'apply-color-selection',color:t.color})}><HeaderIcon kind="apply"/></button><button className="icon-button icon-only-button danger-text" aria-label={`Remove ${t.name}`} title={`Remove ${t.name}`} onClick={()=>setTokens(items=>items.filter(x=>x.id!==t.id))}><HeaderIcon kind="remove"/></button></div>)}</div>
-        <div className="button-row"><button className="secondary-button" onClick={()=>download({version:'1.0',tokens},'design-tokens.json')}>Export tokens</button><label className="secondary-button file-button">Import tokens<input type="file" accept="application/json" onChange={async e=>{try{const data=JSON.parse(await e.target.files?.[0]?.text()??'{}') as {tokens?:Token[]};if(!Array.isArray(data.tokens)||data.tokens.length>200||data.tokens.some(t=>!t.name||!/^#[0-9a-f]{6}$/i.test(t.color)))throw new Error('File must contain up to 200 name/color tokens.');setTokens(data.tokens);setNotice('Tokens imported.');}catch(err){setError(err instanceof Error?err.message:'Could not import tokens.');}}}/></label></div>
+        <div className="settings-card"><div className="preview-head"><strong>Typography scale</strong><span>{typeTokens.length}/50</span></div><div className="token-create scale-editor"><label className="field-label">Style name<input value={typeName} maxLength={60} onChange={e=>setTypeName(e.target.value)} placeholder="e.g. Caption"/></label><label className="field-label">Font size · px<input type="number" min={8} max={96} value={typeSize} onChange={e=>setTypeSize(Number(e.target.value))}/></label><button className="secondary-button" onClick={addTypographyToken} disabled={typeTokens.length>=50}>Add style</button></div><div className="token-list">{typeTokens.map(item=><div className="token-row" key={item.id}><div className="token-info"><strong>{item.name}</strong><code>{item.fontFamily} · {item.fontSize}px / {item.fontWeight} · {item.lineHeight}px</code></div><button className="icon-button icon-only-button danger-text" aria-label={`Remove typography style ${item.name}`} title="Remove style" onClick={()=>setTypeTokens(items=>items.filter(value=>value.id!==item.id))}><HeaderIcon kind="remove"/></button></div>)}</div></div>
+        <div className="settings-card"><div className="preview-head"><strong>Spacing scale</strong><span>{spacingTokens.length}/50</span></div><div className="token-create scale-editor"><label className="field-label">Spacing · px<input type="number" min={0} max={256} step={1} value={spaceValue} onChange={e=>setSpaceValue(Number(e.target.value))}/></label><button className="secondary-button" onClick={addSpacingToken} disabled={spacingTokens.length>=50}>Add spacing</button></div><div className="token-list">{spacingTokens.map(item=><div className="token-row" key={item.id}><div className="token-info"><strong>{item.name}</strong><code>{item.value}px</code></div><span className="spacing-sample" style={{width:`${Math.min(item.value,96)}px`}}/><button className="icon-button icon-only-button danger-text" aria-label={`Remove ${item.name}`} title="Remove spacing" onClick={()=>setSpacingTokens(items=>items.filter(value=>value.id!==item.id))}><HeaderIcon kind="remove"/></button></div>)}</div></div>
+        <div className="button-row"><button className="secondary-button" onClick={exportDesignTokens}>Export design system</button><label className="secondary-button file-button">Import design system<input type="file" accept="application/json,.json" onChange={e=>void importDesignTokens(e.target.files?.[0])}/></label></div>
       </>}
       {tab==='Import'&&<>
         <div className="section-heading"><div><p className="eyebrow">STRUCTURED SPECIFICATION</p><h1>Import or export</h1><p className="muted">Paste a spec from any assistant or choose a local JSON file.</p></div></div>
