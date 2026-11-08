@@ -63,6 +63,20 @@ describe('design specification validation', () => {
     frame.gradient = { direction: 'vertical', stops: [{ position: 0.8, color: '#FFFFFF' }, { position: 0.2, color: '#000000' }] };
     expect(validateDesignSpec(bad).issues.some((issue) => issue.path.endsWith('gradient.stops'))).toBe(true);
   });
+  it('validates embedded raster assets, design tokens, grid layouts, constraints and token references',()=>{
+    const extended:DesignSpec={schemaVersion:'1.0',name:'Extended',designSystem:{name:'Acme',colors:[{name:'Brand/Primary',color:'#087A55'}],typography:[{name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34}]},pages:[{id:'p-ext',name:'Desktop',children:[
+      {type:'frame',id:'frame-ext',name:'Responsive frame',width:1440,height:900,fillToken:'Brand/Primary',constraints:{horizontal:'STRETCH',vertical:'MIN'},layoutGrids:[{pattern:'COLUMNS',count:12,gutterSize:24,alignment:'STRETCH'},{pattern:'GRID',sectionSize:8}],children:[
+        {type:'text',id:'heading-ext',name:'Page heading',width:500,height:40,text:'Overview',textStyleToken:'Heading',fontSize:28,fillToken:'Brand/Primary'},
+        {type:'image',id:'image-ext',name:'Product image',width:1,height:1,mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'FIT'},
+      ]},
+    ]}]};
+    expect(validateDesignSpec(extended).valid).toBe(true);
+    const invalid=structuredClone(extended);const frame=invalid.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('expected fixture frame');
+    frame.children[0]={type:'text',id:'wrong-token',name:'Unknown token',width:10,height:10,text:'x',textStyleToken:'Missing'};
+    expect(validateDesignSpec(invalid).issues.some(issue=>issue.message.includes('Unknown text style token'))).toBe(true);
+    const mismatch=structuredClone(extended);const image=mismatch.pages[0]!.children[0]!.type==='frame'?mismatch.pages[0]!.children[0]!.children[1]:undefined;if(image?.type==='image')image.mimeType='image/jpeg';
+    expect(validateDesignSpec(mismatch).issues.some(issue=>issue.message.includes('MIME type mismatch'))).toBe(true);
+  });
   it('reports invalid JSON syntax', () => expect(parseDesignSpec('{broken').issues[0]?.message).toMatch(/syntax/i));
   it('accepts a JSON code block pasted from an external AI chat', () => {
     expect(parseDesignSpec(`\`\`\`json\n${JSON.stringify(valid)}\n\`\`\``).valid).toBe(true);
