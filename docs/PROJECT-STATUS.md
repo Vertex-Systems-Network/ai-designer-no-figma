@@ -9,7 +9,7 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 - VSN startup loader and plugin UI were confirmed working by the user in Figma.
 - Custom stdio MCP server and authenticated loopback bridge: protocol initialization, tested tool discovery, schema rejection, job correlation, session isolation and result return are covered by automated integration tests.
 - Settings now accepts the loopback pairing endpoint/token, and Agent Activity receives real bridge status and operation events. This is build-verified; live pairing is not yet tested.
-- `npm run release:verify` passed after the current changes: typecheck, lint, 30 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
+- `npm run release:verify` passed after the current changes: typecheck, lint, 31 unit tests, 15 integration tests, local security checks, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 verification.
 
 ## Partial
 
@@ -17,6 +17,7 @@ Last source audit: 2026-11-08. Implementation evidence is in [`FEATURE-REGISTRY.
 - Selection edits support text/fill/name/bounds plus session undo; geometry/undo live preservation is NOT TESTED.
 - Auto Layout direction, spacing, padding and primary-axis alignment can be proposed as a safe frame patch; final automated verification and live preservation checks remain.
 - The AI Assets view now persists sanitized SVG/raster source bytes locally with SHA-256 deduplication, size/item caps, preview, reuse, select and delete/clear actions. Live Figma insertion/editability remains NOT TESTED.
+- Design System now manages locally persisted typography and spacing scales alongside color tokens. Imported values are bounded, versioned JSON exports include all scales, and generated design prompts receive the user tokens. Native Variables, Figma text styles, and reusable components remain open.
 - Export serializes one supported selected layer tree; unsupported node/paint types fail explicitly. Export/import round-trip is NOT TESTED.
 - Optional Ollama integration has a fake-server integration suite; installed runtime/model behavior is NOT TESTED.
 - MCP client identity is a supplied label, not authenticated identity. The loopback pairing token authenticates local bridge access; it does not establish who authored a queued request.
