@@ -18,7 +18,7 @@
     {
       "id": "CORE-001",
       "name": "Versioned design specification validation",
-      "description": "Validate schema 1.0 documents, supported node fields, component references, bounded vector paths, paint properties, IDs and resource limits.",
+      "description": "Validate schema 1.0 documents, supported node fields, bounded image/vector assets, design tokens, constraints/grids, component references, paint properties, IDs and resource limits.",
       "module": "shared-schema",
       "sourceFiles": [
         "src/shared/spec.ts",
@@ -37,12 +37,12 @@
       "releaseTarget": "0.1.x",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
-      "nextAction": "Add schema-backed raster image nodes, migration policy and full-fidelity selected-tree export tests."
+      "nextAction": "Define forward schema migration policy and expand round-trip coverage for unsupported paint/effect combinations."
     },
     {
       "id": "FIGMA-001",
       "name": "Native Figma rendering and asset insertion",
-      "description": "Create editable native basic and advanced design nodes, including components/instances, constrained SVG path vectors, gradients and shadows; import sanitized SVG and validated raster fills.",
+      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, shadows, token-bound colors/text styles, responsive constraints and layout grids.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
@@ -60,13 +60,13 @@
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "Advanced native rendering and asset operations have automated coverage but are NOT TESTED in live Figma; raster/image nodes are not supported by the design-spec tree and export is not full fidelity."
+        "Native rendering and asset operations have automated coverage but are NOT TESTED in live Figma; selected export intentionally rejects unsupported paint/effect cases."
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
-      "nextAction": "Run a live import of components, instances, vector paths, gradient fills and drop shadows; verify node editability and record results."
+      "nextAction": "Run a live import covering image nodes, tokens, constraints/grids and advanced paint types; verify editability and record results."
     },
     {
       "id": "FIGMA-002",
@@ -99,7 +99,7 @@
     {
       "id": "EXPORT-001",
       "name": "Selected design export",
-      "description": "Export one selected supported layer tree to a schema-validated design specification.",
+      "description": "Export one selected supported layer tree to a validated design specification, preserving supported images, component references, vectors, gradients, effects, responsive layout and local token references.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
@@ -111,20 +111,23 @@
       ],
       "status": "PARTIAL",
       "testStatus": "NOT TESTED",
-      "tests": [],
+      "tests": [
+        "src/plugin/host-runtime.test.ts",
+        "src/shared/spec.test.ts"
+      ],
       "knownIssues": [
-        "Only one selection; advanced node/paint types do not yet round-trip and live export/import has not been tested."
+        "Live Figma round-trip is NOT TESTED. Export rejects multiple fills, non-drop-shadow effects, unresolved token modes and inaccessible component sources."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-08",
-      "nextAction": "Extend export to round-trip component references, vectors, gradients and effects; add adapter tests and verify in Figma."
+      "nextAction": "Verify selected export/import round-trip in Figma and extend supported paint/effect coverage where the Plugin API allows."
     },
     {
       "id": "AI-001",
       "name": "Provider-neutral AI handoff",
-      "description": "Prepare generation/edit prompts for user-controlled copy/paste, include local color/typography/spacing tokens, and validate returned JSON.",
+      "description": "Prepare provider-neutral generation/edit prompts with category-specific design recipes, schema 1.0 feature guidance, local design tokens and validated JSON output.",
       "module": "plugin-ui",
       "sourceFiles": [
         "src/shared/prompts.ts",
@@ -147,7 +150,7 @@
       "releaseTarget": "0.1.x",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
-      "nextAction": "Keep generation prompt capability guidance aligned with the versioned schema and renderer."
+      "nextAction": "Keep category recipes synchronized with schema and renderer capability changes."
     },
     {
       "id": "OLLAMA-001",
