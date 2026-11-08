@@ -50,3 +50,10 @@
 - **Current work complete:** canonical AGENTS/client rules, project docs/registry, source-aware docs audit, custom MCP stdio tools, authenticated loopback bridge, plugin pairing and agent activity UI, MCP integration tests, compatibility metadata report, build and release verification.
 - **Restrictions:** no Git CLI, no paid AI APIs, no official Figma MCP; report mocks and live checks distinctly.
 - **Next:** re-import the latest package in the user's Figma Desktop and verify pairing, agent status, selection inspect, schema import, selected patch/export and job result. This environment cannot operate the user's local Figma session.
+
+## 2026-11-09 — image nodes, design tokens and responsive layout
+
+- Added versioned schema support for bounded PNG/JPEG nodes, named color/text-style tokens, responsive constraints and row/column/grid definitions. Validation checks byte bounds, MIME signatures and token references.
+- Renderer creates native Figma image fills, color Variables and Text Styles, applies supported constraints/grids and binds token references. Selected-tree export now preserves supported image/paint/layout/token metadata and returns actionable failures for unsupported cases.
+- Added category-specific prompt recipes for website, dashboard, mobile, admin, WordPress admin, e-commerce, landing and custom interfaces.
+- `npm run release:verify` passed: 53 unit and 15 integration tests, typecheck/lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma rendering, token binding and export/import round-trip are NOT TESTED.
