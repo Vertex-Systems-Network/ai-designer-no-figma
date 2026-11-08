@@ -10,19 +10,21 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
+**Overall completion: 58%** — simple mean of the 11 phase estimates below; it is not a release-readiness claim.
+
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
 | 0 · Environment audit | `████████████████████` 100% | PASS | — |
 | 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
-| 2 · Figma plugin and renderer | `███████████░░░░░░░░░` 55% | IN PROGRESS | Live Figma editor test; broader native node support |
+| 2 · Figma plugin and renderer | `████████████░░░░░░░░` 60% | IN PROGRESS | Broader native node support and renderer coverage |
 | 3 · Specification and validation | `███████░░░░░░░░░░░░░` 35% | IN PROGRESS | Images, vectors, gradients, components, styles, variables |
 | 4 · AI integration | `█████████████░░░░░░░` 65% | IN PROGRESS | Direct desktop bridges and live local-model checks |
-| 5 · Selection editing | `███████████░░░░░░░░░` 55% | IN PROGRESS | Layout edits, revision checkpoints, live preservation test |
+| 5 · Selection editing | `██████████████░░░░░░` 70% | IN PROGRESS | Component replacement, Auto Layout operations, live preservation test |
 | 6 · Design system | `██████░░░░░░░░░░░░░░` 30% | IN PROGRESS | Typography/spacing scales and native reusable components |
-| 7 · Application UI | `████████████░░░░░░░░` 60% | IN PROGRESS | Complete controls and visual/accessibility QA |
-| 8 · Testing and hardening | `█████████████░░░░░░░` 65% | IN PROGRESS | Live Figma test, UI review, broader feature coverage |
+| 7 · Application UI | `██████████████░░░░░░` 70% | IN PROGRESS | Broader visual/accessibility QA and remaining feature controls |
+| 8 · Testing and hardening | `██████████████░░░░░░` 70% | IN PROGRESS | Broader renderer coverage and real local-model check |
 | 9 · Build and packaging | `████████████████████` 100% | PASS | — |
-| 10 · Final audit | `███████░░░░░░░░░░░░░` 35% | IN PROGRESS | Close open gates and publish final evidence report |
+| 10 · Final audit | `████████░░░░░░░░░░░░` 40% | IN PROGRESS | Close open gates and publish final evidence report |
 
 Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
 
@@ -33,6 +35,9 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 | VSN-branded startup loader | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
 | Workspace reveal and interface transitions | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
 | Live Figma verification of this update | PASS | User confirmed the current build is working. Broader UI and renderer gates remain open. |
+| Selection-aware layer bounds editing | IMPLEMENTED · AUTOMATED VERIFIED | `set-bounds` validates selected IDs and bounded dimensions; rollback snapshots preserve position and size. Live patch preservation still needs confirmation. |
+| Plugin-session patch checkpoints and undo | IMPLEMENTED · AUTOMATED VERIFIED | Successful edits store up to 20 pre-edit snapshots; Undo restores the latest patch. Live Figma undo behavior needs confirmation. |
+| Automated verification | PASS | Typecheck, lint, 16 unit tests, 8 integration tests, build, local audit, and ZIP packaging pass. |
 
 This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
 
@@ -72,3 +77,7 @@ Choose **Optional local Ollama model** in Generate/Edit, start the companion wit
 There is no telemetry or required paid API. Any external AI app is operated separately by the user under that app's own account and data policies. Prompt history and tokens are stored in the plugin's local browser storage. The plugin host alone creates Figma document nodes.
 
 Typecheck, lint, unit/integration tests, dependency audit, local security checks, build, and ZIP packaging are automated. Real Figma editor rendering and UI screenshot review must be recorded separately; automated tests are not evidence of a live Figma session. See [`docs/BACKLOG.md`](docs/BACKLOG.md) for current gates.
+
+Live browser check (2026-11-08): Figma Web sign-in succeeded and a blank `Untitled` test file was created under Drafts. The cloud editor did not open: Figma showed unsynced offline changes and the cloud Chromium renderer reported `gpuSystem->init failed`. No existing file was synced or modified, and plugin UI rendering remains **NOT TESTED** in Figma.
+
+Follow-up local Figma console evidence identified the blank panel cause: the build inlined Vite's entry script in `<head>` but stripped `type="module"`, so it ran before `#root` existed. The build now preserves module/deferred execution and checks for that attribute. The VSN startup loader and workspace options were re-imported and confirmed working by the user. Targeted bounds patches and plugin-session undo are automated-check verified; live edit preservation and undo still need a Figma check.

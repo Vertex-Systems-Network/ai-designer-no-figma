@@ -1,9 +1,9 @@
 import type { DesignSpec } from './spec';
 
 export type HostToUi =
-  | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;text?:string;fill?:string}> } | null }
+  | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> } | null }
   | { type: 'render-result'; ok: boolean; message: string; created?: number }
-  | { type: 'patch-result'; ok: boolean; message: string }
+  | { type: 'patch-result'; ok: boolean; message: string; undoCount?: number }
   | { type: 'error'; code: string; message: string };
 
 export type UiToHost =
@@ -12,6 +12,7 @@ export type UiToHost =
   | { type: 'render'; spec: DesignSpec; fontFallback?: string }
   | { type: 'cancel-render' }
   | { type: 'apply-patch'; patch: EditPatch }
+  | { type: 'undo-patch' }
   | { type: 'apply-color-selection'; color: string };
 
 export type EditPatch = {
@@ -19,5 +20,6 @@ export type EditPatch = {
     | { op: 'set-text'; targetId: string; value: string }
     | { op: 'set-fill'; targetId: string; value: string }
     | { op: 'rename'; targetId: string; value: string }
+    | { op: 'set-bounds'; targetId: string; value: { x:number; y:number; width:number; height:number } }
   >;
 };

@@ -28,7 +28,7 @@ function createLocalId(prefix='item'): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
 }
-function HeaderIcon({kind}:{kind:'sun'|'moon'|'settings'|'resize'|'refresh'|'copy'|'clear'|'remove'|'apply'}) {
+function HeaderIcon({kind}:{kind:'sun'|'moon'|'settings'|'resize'|'refresh'|'copy'|'clear'|'remove'|'apply'|'undo'}) {
   if(kind==='sun')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="10" cy="10" r="3.2"/><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4m8.8 8.8 1.4 1.4m0-11.6-1.4 1.4m-8.8 8.8-1.4 1.4"/></svg>;
   if(kind==='moon')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M16.7 12.7A7.2 7.2 0 0 1 7.3 3.3 7.3 7.3 0 1 0 16.7 12.7Z"/></svg>;
   if(kind==='settings')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="m8.4 2.5.4-1h2.4l.4 1a7.8 7.8 0 0 1 1.5.6l1-.5 1.7 1.7-.5 1a7.8 7.8 0 0 1 .6 1.5l1 .4v2.4l-1 .4a7.8 7.8 0 0 1-.6 1.5l.5 1-1.7 1.7-1-.5a7.8 7.8 0 0 1-1.5.6l-.4 1H8.8l-.4-1a7.8 7.8 0 0 1-1.5-.6l-1 .5-1.7-1.7.5-1a7.8 7.8 0 0 1-.6-1.5l-1-.4V7.2l1-.4a7.8 7.8 0 0 1 .6-1.5l-.5-1 1.7-1.7 1 .5a7.8 7.8 0 0 1 1.5-.6Z"/></svg>;
@@ -37,6 +37,7 @@ function HeaderIcon({kind}:{kind:'sun'|'moon'|'settings'|'resize'|'refresh'|'cop
   if(kind==='copy')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="6" width="10" height="11" rx="1.5"/><path d="M13 6V4.5A1.5 1.5 0 0 0 11.5 3h-7A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7"/></svg>;
   if(kind==='clear')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="m5 5 10 10M15 5 5 15"/></svg>;
   if(kind==='remove')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 5.5h13M8 5.5V3.7h4v1.8m3.2 0-.7 10.8H5.5L4.8 5.5M8 8.5v5m4-5v5"/></svg>;
+  if(kind==='undo')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h7a5 5 0 1 1-4.7 6.7M4 7l3-3M4 7l3 3"/></svg>;
   return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m4 10.5 4 4 8-9"/></svg>;
 }
 function load<T>(key: string, fallback: T): T { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
@@ -75,6 +76,7 @@ function App() {
   const [selection, setSelection] = useState<Extract<HostToUi,{type:'selection'}>['summary']>(null);
   const [editPrompt, setEditPrompt] = useState('');
   const [patch, setPatch] = useState<EditPatch|null>(null);
+  const [undoCount, setUndoCount] = useState(0);
   const [history, setHistory] = useState<HistoryItem[]>(() => load('adnf-history',[]));
   const [tokens, setTokens] = useState<Token[]>(() => load('adnf-tokens',[
     {id:'brand-primary',name:'Primary',color:'#0D8A60'}, {id:'ink',name:'Ink',color:'#171A1E'}, {id:'surface',name:'Surface',color:'#F6F7F8'},
@@ -108,7 +110,7 @@ function App() {
         const item=pendingRenderHistory.current;pendingRenderHistory.current=null;
         if(msg.ok&&item)setHistory(items=>[item,...items].slice(0,40));
       }
-      if(msg.type==='patch-result'){setBusy(false);setError('');setNotice(msg.message);}
+      if(msg.type==='patch-result'){setBusy(false);setError('');setNotice(msg.message);if(typeof msg.undoCount==='number')setUndoCount(msg.undoCount);}
       if(msg.type==='error'){pendingRenderHistory.current=null;setBusy(false);setError(`${msg.code}: ${msg.message}`);}
     };
     window.addEventListener('message',receive); return ()=>window.removeEventListener('message',receive);
@@ -223,7 +225,7 @@ function App() {
         <label className="field-label" htmlFor="edit-prompt">What should change?</label><textarea id="edit-prompt" className="prompt-input compact" value={editPrompt} onChange={e=>setEditPrompt(e.target.value)} placeholder="For example: rename layers or change the selected colors to a warmer palette."/><div className="quick-actions">{['Improve spacing','Improve typography','Change to dark theme','Update colors'].map(x=><button className="chip" key={x} onClick={()=>setEditPrompt(x)}>{x}</button>)}</div>
         <div className="button-row"><button className="primary-button" onClick={()=>void proposePatch()} disabled={busy||!selection||(generationMode==='ollama'&&!model)}>{busy?'Preparing…':generationMode==='handoff'?'Prepare edit prompt':'Propose with Ollama'}</button>{busy&&<button className="secondary-button" onClick={()=>activeController.current?.abort()}>Cancel</button>}</div>
         {preparedPatchPrompt&&<div className="template-panel"><div className="preview-head"><strong>Prompt for your AI app</strong><button className="icon-button icon-only-button" aria-label="Copy edit prompt" title="Copy edit prompt" onClick={()=>void copyText(preparedPatchPrompt,'Edit prompt copied. Paste it into your AI app.')}><HeaderIcon kind="copy"/></button></div><textarea className="handoff-text" aria-label="Prepared edit prompt" readOnly value={preparedPatchPrompt}/><label className="field-label" htmlFor="edit-json">Paste the AI patch JSON</label><textarea id="edit-json" className="json-input compact-json" spellCheck={false} value={externalPatchJson} onChange={e=>setExternalPatchJson(e.target.value)} placeholder='{"operations":[{"op":"set-text","targetId":"...","value":"..."}]}'/><button className="secondary-button" onClick={validateExternalPatch}>Validate patch</button></div>}
-        {patch&&<div className="preview-panel"><div className="preview-head"><strong>Proposed changes</strong><span>{patch.operations.length} operation(s)</span></div>{patch.operations.map((op,i)=><div key={`${op.targetId}-${i}`} className="preview-row"><code>{op.targetId}</code><span>{op.op} → {op.value}</span></div>)}<p className="hint">Only listed IDs are targeted. Review each operation before applying.</p><button className="primary-button small icon-only-button" aria-label="Apply reviewed changes" title="Apply reviewed changes" onClick={applyPatch} disabled={busy}><HeaderIcon kind="apply"/></button></div>}
+        {patch&&<div className="preview-panel"><div className="preview-head"><strong>Proposed changes</strong><span>{patch.operations.length} operation(s)</span></div>{patch.operations.map((op,i)=><div key={`${op.targetId}-${i}`} className="preview-row"><code>{op.targetId}</code><span>{op.op} → {typeof op.value==='string'?op.value:JSON.stringify(op.value)}</span></div>)}<p className="hint">Only listed IDs are targeted. Review each operation before applying.</p><div className="button-row"><button className="primary-button small icon-only-button" aria-label="Apply reviewed changes" title="Apply reviewed changes" onClick={applyPatch} disabled={busy||patch.operations.length===0}><HeaderIcon kind="apply"/></button>{undoCount>0&&<button className="secondary-button small icon-only-button" aria-label="Undo latest plugin patch" title="Undo latest plugin patch" onClick={()=>{setBusy(true);post({type:'undo-patch'});}} disabled={busy}><HeaderIcon kind="undo"/></button>}</div></div>}
       </>}
       {tab==='Design System'&&<>
         <div className="section-heading"><div><p className="eyebrow">LOCAL TOKENS</p><h1>Design system</h1><p className="muted">Manage reusable color tokens and apply fills to the selection.</p></div></div>

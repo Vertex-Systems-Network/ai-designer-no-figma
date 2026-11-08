@@ -35,8 +35,10 @@ This is the persistent acceptance ledger for the engineering and appearance brie
 ## Edit workflow
 
 - [x] Bounded selected-layer summary and stable IDs; edit prompt; explicit patch preview; apply button.
-- [x] Supported patch operations are limited to text, fill, and layer name; patch failures attempt rollback.
-- [ ] Add spacing/layout, component replacement, frame-level target planning, revision checkpoints and safe revert.
+- [x] Supported patch operations include text, fill, layer name, and bounded position/size changes; patch failures attempt rollback.
+- [x] Keep up to 20 plugin-session patch checkpoints and expose undo for the latest edit; failed patch application attempts immediate rollback.
+- [x] Apply bounded position/size changes to selected IDs through `set-bounds` patches.
+- [ ] Add Auto Layout operations, component replacement, frame-level target planning, and live preservation/revert verification.
 - [ ] Verify no unrelated layers change in Figma and preview with modified/preserved layer summaries.
 
 ## Design system

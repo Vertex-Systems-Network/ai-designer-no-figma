@@ -18,7 +18,7 @@ describe('provider-neutral AI handoff prompts', () => {
   it('builds an edit prompt with only the supplied selection context', () => {
     const prompt = buildPatchPrompt({
       name: 'Hero', type: 'FRAME', width: 1440, height: 900, layerCount: 1,
-      nodes: [{ id: 'node-1', name: 'Headline', type: 'TEXT', text: 'Hello' }],
+      nodes: [{ id: 'node-1', name: 'Headline', type: 'TEXT', x: 24, y: 32, width: 600, height: 72, text: 'Hello' }],
     }, 'Improve heading contrast');
     expect(prompt).toContain('Improve heading contrast');
     expect(prompt).toContain('node-1');

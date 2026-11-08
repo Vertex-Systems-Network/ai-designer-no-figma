@@ -6,6 +6,8 @@ let cancelActiveRender: (() => void) | undefined;
 // Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
 // for this plugin session and fall back to native Figma node IDs otherwise.
 const logicalIds = new Map<string, string>();
+type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined };
+const patchCheckpoints: PatchSnapshot[][] = [];
 
 function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
@@ -132,12 +134,12 @@ function inspectSelection(): void {
     figma.ui.postMessage({ type: 'selection', summary: null });
     return;
   }
-  const nodes: Array<{id:string;name:string;type:string;text?:string;fill?:string}> = [];
+  const nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> = [];
   const collect = (node: SceneNode, depth: number) => {
     if (nodes.length >= 100 || depth > 5) return;
     const logicalId = logicalIds.get(node.id) || node.id;
     {
-      const item: {id:string;name:string;type:string;text?:string;fill?:string} = { id: logicalId, name: node.name, type: node.type };
+      const item: {id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string} = { id: logicalId, name: node.name, type: node.type, x: Math.round(node.x), y: Math.round(node.y), width: Math.round(node.width), height: Math.round(node.height) };
       if (node.type === 'TEXT') item.text = node.characters.slice(0, 500);
       if ('fills' in node && Array.isArray(node.fills) && node.fills[0]?.type === 'SOLID') {
         const c = node.fills[0].color; item.fill = `#${[c.r,c.g,c.b].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('')}`;
@@ -162,6 +164,10 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     const target = targets.get(operation.targetId);
     if (!target) throw new Error(`Patch target not found in the current selection: ${operation.targetId}`);
     if (operation.op === 'rename') return { operation, target };
+    if (operation.op === 'set-bounds') {
+      if (!('resize' in target) || !('x' in target) || !('y' in target)) throw new Error(`Target ${operation.targetId} does not support position and size edits.`);
+      return { operation, target };
+    }
     if (operation.op === 'set-fill') {
       if (!('fills' in target)) throw new Error(`Target ${operation.targetId} does not support fill.`);
       if (!/^#[0-9a-f]{6}$/i.test(operation.value)) throw new Error(`Invalid fill color for ${operation.targetId}.`);
@@ -177,21 +183,39 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     const font = text.fontName === figma.mixed ? { family: 'Inter', style: 'Regular' } : text.fontName;
     await figma.loadFontAsync(font as FontName);
   }
-  const snapshots = resolved.map(({target}) => ({target, name: target.name, fills: 'fills' in target ? target.fills as readonly Paint[] | PluginAPI['mixed'] : undefined, text: target.type === 'TEXT' ? (target as TextNode).characters : undefined}));
+  const snapshots: PatchSnapshot[] = resolved.map(({target}) => ({target, name: target.name, fills: 'fills' in target ? target.fills as readonly Paint[] | PluginAPI['mixed'] : undefined, text: target.type === 'TEXT' ? (target as TextNode).characters : undefined, x: 'x' in target ? target.x : undefined, y: 'y' in target ? target.y : undefined, width: 'width' in target ? target.width : undefined, height: 'height' in target ? target.height : undefined}));
   try {
     for (const {operation,target} of resolved) {
       if (operation.op === 'rename') target.name = operation.value;
+      else if (operation.op === 'set-bounds' && 'resize' in target && 'x' in target && 'y' in target) { target.resize(operation.value.width, operation.value.height); target.x = operation.value.x; target.y = operation.value.y; }
       else if (operation.op === 'set-fill' && 'fills' in target) target.fills = [paint(operation.value)];
       else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
     }
   } catch (error) {
-    for (const snapshot of snapshots) {
-      snapshot.target.name = snapshot.name;
-      if (snapshot.fills !== undefined && 'fills' in snapshot.target) snapshot.target.fills = snapshot.fills as typeof snapshot.target.fills;
-      if (snapshot.text !== undefined && snapshot.target.type === 'TEXT') (snapshot.target as TextNode).characters = snapshot.text;
-    }
+    restoreSnapshots(snapshots);
     throw error;
   }
+  patchCheckpoints.push(snapshots);
+  if (patchCheckpoints.length > 20) patchCheckpoints.shift();
+}
+
+function restoreSnapshots(snapshots: PatchSnapshot[]): void {
+  for (const snapshot of [...snapshots].reverse()) {
+    const { target } = snapshot;
+    if (target.removed) continue;
+    target.name = snapshot.name;
+    if (snapshot.fills !== undefined && 'fills' in target) target.fills = snapshot.fills as typeof target.fills;
+    if (snapshot.text !== undefined && target.type === 'TEXT') (target as TextNode).characters = snapshot.text;
+    if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
+  }
+}
+
+function undoPatch(): void {
+  const snapshot = patchCheckpoints.pop();
+  if (!snapshot) throw new Error('There is no plugin patch checkpoint to revert in this session.');
+  try { restoreSnapshots(snapshot); }
+  catch (error) { patchCheckpoints.push(snapshot); throw error; }
+  figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'The latest plugin patch was reverted.', undoCount: patchCheckpoints.length });
 }
 
 function applyColorToSelection(color: string): void {
@@ -224,8 +248,9 @@ figma.ui.onmessage = async (message: UiToHost) => {
     }
     if (message.type === 'apply-patch') {
       await applyPatch(message.patch);
-      figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Patch applied to the selected frame.' });
+      figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Patch applied to the selected frame.', undoCount: patchCheckpoints.length });
     }
+    if (message.type === 'undo-patch') undoPatch();
     if (message.type === 'apply-color-selection') {
       applyColorToSelection(message.color);
       figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Color applied to the selected layers.' });

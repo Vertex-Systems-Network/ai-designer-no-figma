@@ -20,9 +20,16 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
     const op = item as Record<string, unknown>;
     const allowedKeys = ['op', 'targetId', 'value'];
     if (Object.keys(op).some((key) => !allowedKeys.includes(key)) || Object.keys(op).length !== 3) return { valid: false, message: `${path} must contain only op, targetId, and value.` };
-    if (!['set-text', 'set-fill', 'rename'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
+    if (!['set-text', 'set-fill', 'rename', 'set-bounds'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
     if (typeof op.targetId !== 'string' || !op.targetId || op.targetId.length > 200) return { valid: false, message: `${path}.targetId must be a non-empty string.` };
     if (allowedIds && !allowedIds.has(op.targetId)) return { valid: false, message: `${path}.targetId is not present in the current selection.` };
+    if (op.op === 'set-bounds') {
+      if (!op.value || typeof op.value !== 'object' || Array.isArray(op.value)) return { valid: false, message: `${path}.value must contain x, y, width, and height numbers.` };
+      const bounds = op.value as Record<string, unknown>;
+      if (Object.keys(bounds).length !== 4 || !['x','y','width','height'].every((key) => key in bounds)) return { valid: false, message: `${path}.value must contain only x, y, width, and height.` };
+      if (typeof bounds.x !== 'number' || !Number.isFinite(bounds.x) || Math.abs(bounds.x) > 100_000 || typeof bounds.y !== 'number' || !Number.isFinite(bounds.y) || Math.abs(bounds.y) > 100_000 || typeof bounds.width !== 'number' || !Number.isFinite(bounds.width) || bounds.width <= 0 || bounds.width > 100_000 || typeof bounds.height !== 'number' || !Number.isFinite(bounds.height) || bounds.height <= 0 || bounds.height > 100_000) return { valid: false, message: `${path}.value has invalid bounds; x/y must be within ±100,000 and width/height must be 1–100,000.` };
+      continue;
+    }
     if (typeof op.value !== 'string' || op.value.length > 20_000) return { valid: false, message: `${path}.value must be a string no longer than 20,000 characters.` };
     if (op.op === 'set-fill' && !/^#[0-9a-f]{6}$/i.test(op.value)) return { valid: false, message: `${path}.value must be a six-digit hex color for set-fill.` };
   }

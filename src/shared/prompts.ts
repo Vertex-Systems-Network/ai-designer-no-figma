@@ -31,7 +31,7 @@ export type PatchPromptSelection = {
   width: number;
   height: number;
   layerCount: number;
-  nodes: Array<{id:string;name:string;type:string;text?:string;fill?:string}>;
+  nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}>;
 };
 
 export function buildPatchPrompt(selection: PatchPromptSelection, request: string): string {
@@ -39,10 +39,11 @@ export function buildPatchPrompt(selection: PatchPromptSelection, request: strin
     { op: 'set-text', targetId: 'existing-logical-id', value: 'Updated text' },
     { op: 'set-fill', targetId: 'existing-logical-id', value: '#RRGGBB' },
     { op: 'rename', targetId: 'existing-logical-id', value: 'Clear layer name' },
+    { op: 'set-bounds', targetId: 'existing-logical-id', value: { x: 0, y: 0, width: 320, height: 180 } },
   ] };
   return `Propose a safe, targeted edit to the selected Figma frame.
 
-Return one JSON object only, with an operations array matching this shape. Use only the operation types shown and only IDs present in the selection summary. Do not invent IDs. Do not return markdown or commentary. Return an empty operations array if the requested change cannot be expressed safely with these operations. Never return executable code.
+Return one JSON object only, with an operations array matching this shape. Use only the operation types shown and only IDs present in the selection summary. For set-bounds, use positive width/height and bounded x/y. Do not invent IDs. Do not return markdown or commentary. Return an empty operations array if the requested change cannot be expressed safely with these operations. Never return executable code.
 ${JSON.stringify(patchShape, null, 2)}
 
 Requested change:
