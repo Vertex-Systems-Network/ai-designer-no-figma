@@ -37,8 +37,9 @@ describe('official MCP stdio server',()=>{
     const result=await client.callTool({name:'figma_get_capabilities',arguments:{}});
     expect(result.structuredContent).toMatchObject({designSchemaVersion:'1.0',operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'}});
     expect((result.structuredContent as {supportedDesignNodeTypes:string[]}).supportedDesignNodeTypes).toEqual(expect.arrayContaining(['component','instance','vector']));
-    expect((result.structuredContent as {supportedDesignPaints:string[]}).supportedDesignPaints).toEqual(expect.arrayContaining(['linear-gradient','drop-shadow']));
-    expect((result.structuredContent as {unsupported:string[]}).unsupported).toContain('Figma variables');
+    expect((result.structuredContent as {supportedDesignPaints:string[]}).supportedDesignPaints).toEqual(expect.arrayContaining(['linear-gradient','drop-shadow','image-fill']));
+    expect((result.structuredContent as {supportedDesignFeatures:string[]}).supportedDesignFeatures).toEqual(expect.arrayContaining(['local-color-variables','local-text-styles','responsive-constraints','layout-grids']));
+    expect((result.structuredContent as {exportLimitations:string[]}).exportLimitations).toContain('token binding metadata is not round-tripped');
   });
   it('reports file-transfer limits and validates actual vector/image payloads',async()=>{
     const caps=await client.callTool({name:'figma_get_asset_capabilities',arguments:{}});
