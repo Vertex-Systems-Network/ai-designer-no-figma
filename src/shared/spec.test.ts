@@ -18,6 +18,7 @@ describe('design specification validation', () => {
     frame.fill = '#FFFFFF';
     frame.children = [
       { type: 'text', id: 't1', name: 'Text 1', width: 200, height: 24, text: 'Low contrast', color: '#AAAAAA', fontSize: 14 },
+      { type: 'text', id: 't2', name: 'Text', width: 200, height: 24, text: 'Also low contrast', fill: '#AAAAAA', fontSize: 14 },
       { type: 'rectangle', id: 'r1', name: 'Rectangle 1', width: 40, height: 20 },
       { type: 'rectangle', id: 'r2', name: 'Rectangle 2', width: 40, height: 20 },
     ];
