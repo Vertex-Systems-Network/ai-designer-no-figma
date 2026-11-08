@@ -52,6 +52,7 @@ const validateSchema = ajv.compile(designSpecSchema);
 
 export type ValidationIssue = { path: string; message: string };
 export type ValidationResult = { valid: boolean; issues: ValidationIssue[]; value?: DesignSpec };
+export type DesignQualityFinding = { path: string; severity: 'warning' | 'suggestion'; message: string };
 const supportedNodeTypes = ['frame', 'group', 'text', 'rectangle', 'ellipse', 'line'] as const;
 
 function valueAtInstancePath(input: unknown, instancePath: string): unknown {
@@ -126,4 +127,33 @@ export function parseDesignSpec(json: string): ValidationResult {
   const source = json.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try { return validateDesignSpec(JSON.parse(source), utf8ByteLength(source)); }
   catch { return { valid: false, issues: [{ path: '$', message: 'Invalid JSON syntax. Check commas, quotes, and braces.' }] }; }
+}
+
+/** Deterministic, advisory checks for common visual-quality problems. Never blocks import. */
+export function auditDesignQuality(spec: DesignSpec): DesignQualityFinding[] {
+  const findings: DesignQualityFinding[] = [];
+  const genericName = /^(frame|group|rectangle|ellipse|text|layer|container)(\s*\d+)?$/i;
+  const luminance = (hex: string): number => {
+    const channels = hex.slice(1).match(/.{2}/g)!.map((part) => parseInt(part, 16) / 255)
+      .map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+    return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
+  };
+  const visit = (node: DesignNodeSpec, path: string, inheritedFill?: string) => {
+    const background = node.fill ?? inheritedFill;
+    if (genericName.test(node.name.trim())) findings.push({ path: `${path}.name`, severity: 'suggestion', message: 'Use a semantic layer name so the design is easier to edit in Figma.' });
+    if (node.type === 'text') {
+      if (!node.fontSize) findings.push({ path: `${path}.fontSize`, severity: 'suggestion', message: 'Set an explicit font size to preserve a consistent type hierarchy.' });
+      const foreground = node.color ?? node.fill;
+      if (foreground && background && /^#[\da-f]{6}$/i.test(foreground) && /^#[\da-f]{6}$/i.test(background)) {
+        const a = luminance(foreground); const b = luminance(background); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        if (ratio < 4.5) findings.push({ path: `${path}.color`, severity: 'warning', message: `Text contrast is approximately ${ratio.toFixed(1)}:1 against its nearest solid fill; check readability (WCAG AA normal-text target: 4.5:1).` });
+      }
+    }
+    if ((node.type === 'frame' || node.type === 'group') && node.children.length >= 3 && (!node.layout || node.layout.mode === 'none')) {
+      findings.push({ path: `${path}.layout`, severity: 'suggestion', message: 'This container has several children but no Auto Layout; consider using a consistent gap and padding.' });
+    }
+    if (node.type === 'frame' || node.type === 'group') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, background));
+  };
+  spec.pages.forEach((page, p) => page.children.forEach((node, n) => visit(node, `pages[${p}].children[${n}]`)));
+  return findings;
 }
