@@ -15,6 +15,14 @@ describe('provider-neutral AI handoff prompts', () => {
     expect(prompt).not.toContain('Ollama');
   });
 
+  it('adds category-specific structure rather than reusing one generic screen recipe',()=>{
+    const settings={category:'WordPress Admin',platform:'Desktop',canvasSize:'1440x900',style:'Professional',brandColor:'#087A55',density:'Balanced',typography:'System UI',complexity:'Standard'};
+    const prompt=buildDesignPrompt('Create a field builder',settings);
+    expect(prompt).toContain('WordPress admin conventions');
+    expect(prompt).toContain('repeatable fields');
+    expect(buildDesignPrompt('A phone app',{...settings,category:'Mobile Application'})).toContain('reachable actions');
+  });
+
   it('builds an edit prompt with only the supplied selection context', () => {
     const prompt = buildPatchPrompt({
       name: 'Hero', type: 'FRAME', width: 1440, height: 900, layerCount: 1,
