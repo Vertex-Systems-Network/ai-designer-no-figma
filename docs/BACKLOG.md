@@ -40,7 +40,7 @@ Status means evidence in this repository, not an estimate.
 | 9 · AI Assets UI | `███████░░░` 75% | Import, capability disclosure, local preview/reuse/select/remove and clear-all controls are connected; live screenshot review remains. |
 | 10 · Autonomous verification | `███░░░░░░░` 30% | Input validation and import result metadata; post-insert structural readback and repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | Bounds, allowlist, and no remote asset fetch; client checks/live security evidence remain. |
-| 12 · Testing/release | `██████████` 100% | `npm run release:verify` passed: 31 unit tests, 15 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma remains a separate compatibility gate. |
+| 12 · Testing/release | `██████████` 100% | `npm run release:verify` passed: 33 unit tests, 15 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma remains a separate compatibility gate. |
 | 13 · Repository intelligence | `██████████` 100% | README, backlog, roadmap, registry, status, known issues, changelog and handoff synchronized; strict documentation audit reported 0 findings. |
 
 ## Acceptance rule
