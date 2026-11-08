@@ -14,6 +14,11 @@
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; min-width: 0; min-height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); font-size: 13px; }
+.boot-state, .boot-error { min-height: 100vh; padding: 24px 20px; background: #111316; color: #f4f5f6; font: 13px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; overflow-wrap: anywhere; }
+.boot-state p, .boot-error p { margin: 8px 0; color: #a4abb3; }
+.boot-state small, .boot-error small { color: #a4abb3; }
+.boot-state code, .boot-error pre { color: #f4f5f6; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.boot-error pre { max-height: 45vh; padding: 10px; overflow: auto; white-space: pre-wrap; background: #24282d; border-radius: 6px; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
@@ -30,6 +35,10 @@ button { color: inherit; }
 .status-checking i { background: #d6a04c; }
 .icon-button, .secondary-button, .primary-button, .nav-tab, .chip { min-height: 32px; border: 1px solid var(--border); border-radius: 6px; background: transparent; cursor: pointer; }
 .icon-button { padding: 0 9px; color: var(--secondary); font-size: 11px; }
+.header-icon-button { display: grid; place-items: center; width: 32px; padding: 0; }
+.resize-handle { position: fixed; z-index: 5; right: 2px; bottom: 2px; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: var(--bg); color: var(--subtle); cursor: nwse-resize; touch-action: none; }
+.resize-handle:hover { color: var(--accent); background: var(--raised); }
+.resize-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .icon-button:hover, .secondary-button:hover, .chip:hover { background: var(--raised); color: var(--text); }
 .icon-button:focus-visible, .secondary-button:focus-visible, .primary-button:focus-visible, .nav-tab:focus-visible, .chip:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nav-tabs { display: flex; gap: 4px; padding: 8px 12px 0; overflow-x: auto; border-bottom: 1px solid var(--border); scrollbar-width: thin; }

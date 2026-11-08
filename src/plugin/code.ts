@@ -204,6 +204,12 @@ function applyColorToSelection(color: string): void {
 figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
   try {
+    if (message.type === 'resize-ui') {
+      const width = Math.max(360, Math.min(760, Math.round(message.width)));
+      const height = Math.max(520, Math.min(1000, Math.round(message.height)));
+      figma.ui.resize(width, height);
+      return;
+    }
     if (message.type === 'cancel-render') { cancelActiveRender?.(); return; }
     if (message.type === 'inspect-selection') inspectSelection();
     if (message.type === 'render') {

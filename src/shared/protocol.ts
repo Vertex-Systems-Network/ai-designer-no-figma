@@ -7,6 +7,7 @@ export type HostToUi =
   | { type: 'error'; code: string; message: string };
 
 export type UiToHost =
+  | { type: 'resize-ui'; width: number; height: number }
   | { type: 'inspect-selection' }
   | { type: 'render'; spec: DesignSpec; fontFallback?: string }
   | { type: 'cancel-render' }

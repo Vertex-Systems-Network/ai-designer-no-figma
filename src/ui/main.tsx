@@ -26,6 +26,12 @@ function createLocalId(prefix='item'): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
 }
+function HeaderIcon({kind}:{kind:'sun'|'moon'|'settings'|'resize'}) {
+  if(kind==='sun')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="10" cy="10" r="3.2"/><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4m8.8 8.8 1.4 1.4m0-11.6-1.4 1.4m-8.8 8.8-1.4 1.4"/></svg>;
+  if(kind==='moon')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M16.7 12.7A7.2 7.2 0 0 1 7.3 3.3 7.3 7.3 0 1 0 16.7 12.7Z"/></svg>;
+  if(kind==='settings')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="m8.4 2.5.4-1h2.4l.4 1a7.8 7.8 0 0 1 1.5.6l1-.5 1.7 1.7-.5 1a7.8 7.8 0 0 1 .6 1.5l1 .4v2.4l-1 .4a7.8 7.8 0 0 1-.6 1.5l.5 1-1.7 1.7-1-.5a7.8 7.8 0 0 1-1.5.6l-.4 1H8.8l-.4-1a7.8 7.8 0 0 1-1.5-.6l-1 .5-1.7-1.7.5-1a7.8 7.8 0 0 1-.6-1.5l-1-.4V7.2l1-.4a7.8 7.8 0 0 1 .6-1.5l-.5-1 1.7-1.7 1 .5a7.8 7.8 0 0 1 1.5-.6Z"/></svg>;
+  return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 13v4h4M17 7V3h-4M3 17l5-5M17 3l-5 5"/></svg>;
+}
 function load<T>(key: string, fallback: T): T { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
 function save(key: string, value: unknown): void { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage; keep the current session usable. */ } }
 function App() {
@@ -73,6 +79,11 @@ function App() {
   const pendingRenderHistory = useRef<HistoryItem|null>(null);
 
   useEffect(() => { document.documentElement.dataset.theme=theme; save('adnf-theme',theme); },[theme]);
+  useEffect(() => {
+    const width=Math.max(360,Math.min(760,load<number>('adnf-panel-width',440)));
+    const height=Math.max(520,Math.min(1000,load<number>('adnf-panel-height',720)));
+    post({type:'resize-ui',width,height});
+  },[]);
   useEffect(() => { save('adnf-history',history.slice(0,40)); },[history]);
   useEffect(() => { save('adnf-tokens',tokens); },[tokens]);
   useEffect(() => {
@@ -169,10 +180,18 @@ function App() {
   function applyPatch(){if(!patch)return;setBusy(true);setError('');setNotice('Applying reviewed changes…');post({type:'apply-patch',patch});}
   function addToken(){if(!tokenName.trim()||!/^#[0-9a-f]{6}$/i.test(tokenColor)){setError('Enter a token name and valid six-digit hex color.');return;}setTokens(items=>[{id:createLocalId('token'),name:tokenName.trim(),color:tokenColor.toUpperCase()},...items]);setTokenName('');setError('');setNotice('Token saved locally.');}
   function download(value:unknown,filename:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();URL.revokeObjectURL(url);}
+  function startPanelResize(event:React.PointerEvent<HTMLButtonElement>){
+    event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);
+    const startX=event.clientX,startY=event.clientY,startWidth=window.innerWidth,startHeight=window.innerHeight;
+    let width=startWidth,height=startHeight;
+    const move=(pointer:PointerEvent)=>{width=Math.max(360,Math.min(760,Math.round(startWidth+pointer.clientX-startX)));height=Math.max(520,Math.min(1000,Math.round(startHeight+pointer.clientY-startY)));post({type:'resize-ui',width,height});};
+    const finish=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',finish);save('adnf-panel-width',width);save('adnf-panel-height',height);};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',finish,{once:true});
+  }
   const modelSize=useMemo(()=>models.find(m=>m.name===model)?.details?.parameter_size??'', [models,model]);
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><div className="brand-mark">AD</div><div><strong>AI Designer</strong><small>Figma design studio</small></div></div><div className="top-actions"><span className={`status status-${generationMode==='handoff'?'connected':runtime}`}><i/>{generationMode==='handoff'?'AI handoff ready':runtime==='connected'?(models.length?'Ollama ready':'Runtime connected'):runtime==='checking'?'Checking':'Local model offline'}</span><button className="icon-button" aria-label="Toggle appearance" onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?'Light':'Dark'}</button><button className="icon-button" onClick={()=>setTab('Settings')}>Settings</button></div></header>
+    <header className="topbar"><div className="brand"><div className="brand-mark">AD</div><div><strong>AI Designer</strong><small>Figma design studio</small></div></div><div className="top-actions"><span className={`status status-${generationMode==='handoff'?'connected':runtime}`}><i/>{generationMode==='handoff'?'AI handoff ready':runtime==='connected'?(models.length?'Ollama ready':'Runtime connected'):runtime==='checking'?'Checking':'Local model offline'}</span><button className="icon-button header-icon-button" aria-label={`Switch to ${theme==='dark'?'light':'dark'} theme`} title={`Switch to ${theme==='dark'?'light':'dark'} theme`} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><HeaderIcon kind={theme==='dark'?'sun':'moon'}/></button><button className="icon-button header-icon-button" aria-label="Settings" title="Settings" onClick={()=>setTab('Settings')}><HeaderIcon kind="settings"/></button></div></header>
     <nav className="nav-tabs" aria-label="Main navigation">{navTabs.map(item=><button key={item} className={tab===item?'nav-tab active':'nav-tab'} onClick={()=>{setTab(item);setError('');}}>{item}</button>)}</nav>
     <section className="workspace" key={tab}>
       {tab==='Generate'&&<>
@@ -218,6 +237,7 @@ function App() {
     </section>
     {copyFallback&&<div className="template-panel copy-fallback"><label className="field-label" htmlFor="copy-fallback">Copy manually · press Ctrl+C</label><textarea id="copy-fallback" className="handoff-text" readOnly value={copyFallback} onFocus={e=>e.currentTarget.select()} onClick={e=>e.currentTarget.select()}/></div>}
     <footer className="status-footer">{error?<p className="message error-message">{error}</p>:<p className="message">{notice||'Ready'} · No Figma AI credits or paid API required</p>}{issues.length>0&&<div className="validation-list"><strong>{issues.length} validation finding(s)</strong>{issues.slice(0,8).map((i,n)=><p key={`${i.path}-${n}`}><code>{i.path}</code> {i.message}</p>)}</div>}</footer>
+    <button className="resize-handle" aria-label="Resize plugin panel" title="Drag to resize panel" onPointerDown={startPanelResize}><HeaderIcon kind="resize"/></button>
   </main>;
 }
 function showRuntimeFailure(reason: unknown) {
