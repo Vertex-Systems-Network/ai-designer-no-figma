@@ -10,7 +10,8 @@ Updated: 2026-11-08. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 - Custom MCP stdio server, authenticated loopback bridge, job broker, pairing settings, and Agent Activity timeline are implemented. Protocol, security, session isolation, and job-result behavior pass automated tests. Live Figma pairing and client-specific setup are still NOT TESTED.
 - Manual SVG and PNG/JPEG/GIF imports are implemented with shared input bounds, a 192 KiB MCP decoded-byte limit, a 5 MiB local-file limit, and a bounded IndexedDB library keyed by SHA-256 for persistent bytes, preview, reuse and deletion. The full automated release verification passes. AI-client native file generation/access/automatic transfer and live native Figma asset rendering remain NOT VERIFIED.
 - Selection patches now include reviewed frame-only Auto Layout mode/gap/padding/alignment changes and include layout state in rollback snapshots; live Figma preservation remains NOT TESTED.
-- Final `npm run release:verify` result: 30 unit tests, 15 integration tests, typecheck/lint, production build, local audit, strict docs audit (0 findings), ZIP integrity and SHA-256 all pass.
+- Design-system color, typography and spacing tokens are locally persisted and included in both manual AI handoff and optional Ollama generation. Native Figma text styles/Variables are still not created.
+- Final `npm run release:verify` result: 31 unit tests, 15 integration tests, typecheck/lint, production build, local audit, strict docs audit (0 findings), ZIP integrity and SHA-256 all pass.
 
 ## Exact next tasks
 
