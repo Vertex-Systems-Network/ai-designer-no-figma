@@ -29,27 +29,31 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
 
-## Current task tracker
+## Remaining task tracker
 
-| Task | Progress | Status | Evidence / next step |
-|---|---:|---|---|
-| Design-spec renderer: components, instances, vectors, gradients, shadows | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED · LIVE RENDER NOT TESTED | Versioned JSON Schema and bounded validator create native component/instance/vector nodes and linear gradients/drop shadows; live Figma rendering and export round-trip remain open. |
-| Manual SVG and raster asset import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Strict SVG sanitization and PNG/JPEG/GIF validation feed native Figma nodes; re-import and inspect in live Figma. |
-| MCP asset validation and transfer | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED · LIVE TRANSFER PENDING | Supports 5 MiB raster imports, sends files over 192 KiB as 64 KiB SHA-256 checked chunks, and reserves the bridge queue batch atomically; paired Figma transfer remains unverified. |
-| Asset registry and client capability discovery | `█████████░` 90% | LOCAL BRIDGE PERSISTENCE IMPLEMENTED · LIVE REUSE CHECK PENDING | SVG and raster assets save to a bounded, private local library through the paired loopback service, independent of browser storage and Figma plugin registration. Pair Claude, then confirm save, refresh, preview, and reuse in Figma. |
-| VSN-branded startup loader | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the re-imported plugin works in Figma. |
-| Workspace reveal and interface transitions | `██████████` 100% | PASS · LIVE VERIFIED | User confirmed the plugin works after the loader; reduced-motion preferences are respected. |
-| Selection patches, Auto Layout, and session undo | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Safe frame-only Auto Layout mode/gap/padding/alignment edits are previewed before apply and included in rollback snapshots; targeted preservation and undo need a fresh live Figma check. |
-| Design-system typography, spacing and presets | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | Local scales and up to 20 named presets save/load/duplicate/delete; scales validate, import/export and enter AI prompts. Native Figma text styles remain open. |
-| Selected Figma design export | `████████░░` 80% | IMPLEMENTED · BUILD VERIFIED | Exports one selection to validated schema; unsupported layers fail explicitly. Live export/import round-trip remains untested. |
-| Custom MCP stdio server | `█████████░` 90% | CLAUDE DESKTOP EXTENSION BUILT · LIVE INSTALL PENDING | `.mcpb` installer removes manual JSON and Node command setup. Shutdown now drains keep-alive connections; live extension installation and Claude tool use remain to verify. |
-| Local Figma bridge | `█████████░` 95% | UI-IFRAME POLLING · LIVE CHECK PENDING | Browser HTTP polling runs in the plugin iframe; the Figma JSVM only executes validated canvas operations. The panel hides after pairing while the document session remains open. |
-| Agent pairing, background jobs and Figma operator identity | `█████████░` 95% | IMPLEMENTED · AUTOMATED VERIFIED · LIVE CHECK PENDING | Loopback polling now runs in the browser UI iframe, document commands execute through the Figma host, the signed-in Figma user is shown, and Connect hides the panel while its iframe stays alive. Closing Figma/document still stops the session. |
-| AI design quality audit | `███████░░░` 70% | AUTOMATED VERIFIED · VISUAL QA OPEN | Advisory text contrast, semantic naming, explicit font-size and Auto Layout checks; no screenshot or Figma Agent superiority test yet. |
-| Figma visual feedback loop | `█████░░░░░` 50% | IMPLEMENTED · LIVE FIGMA CHECK OPEN | Claude MCP can request a bounded preview image, inspect it, and send a targeted patch; re-capture after patch. Actual desktop rendering and a multi-round live repair remain to verify. |
-| Automated verification | `██████████` 100% | PASS · AUTOMATED | 49 unit tests, 15 integration tests, typecheck, lint, local audit, production build, strict docs audit, ZIP integrity and SHA-256; live hidden-session check remains pending. |
+Completed rows have been removed. The first table lists engineering tasks that can move forward without your live Figma session; automated tests/build checks will still be run. The second table contains tasks that cannot be marked complete without live Figma/Claude verification.
 
-This tracker records implementation evidence separately from live Figma verification. Update it alongside each task change; do not mark a live check complete from a local build alone.
+### Can progress without your live test
+
+| Remaining task | Current progress | Planned completion work |
+|---|---:|---|
+| Design-spec image nodes | `░░░░░░░░░░` 0% | Add bounded, validated image data/reference support to schema and native renderer, with negative and positive fixtures. |
+| Advanced selected-design export round-trip | `████░░░░░░` 40% | Serialize components, instances, vectors, gradients and shadows; test export → validate → render against deterministic fixtures. |
+| Native Variables and text styles | `██░░░░░░░░` 20% | Add bounded token-to-Figma Variable/style creation and application, with API-mock tests and safe fallbacks. |
+| Responsive/layout specification | `██░░░░░░░░` 20% | Add validated grids/constraints and deterministic mappings to supported Figma layout properties. |
+| Category-specific design templates | `████░░░░░░` 40% | Improve website/dashboard/mobile/admin structure and component recipes; add fixture-based hierarchy and quality checks. |
+
+### Requires live Figma or Claude verification
+
+| Verification task | Status | What must be observed |
+|---|---|---|
+| Render components, instances, vectors, gradients and shadows | NOT TESTED | Confirm native editable nodes/paints appear correctly in Figma. |
+| Pair Claude and run a hidden-panel job | NOT TESTED | Confirm background bridge response and Agent Activity in the signed-in desktop session. |
+| Save, reload and reuse SVG/raster assets | NOT TESTED | Confirm local library persistence and native asset insertion in Figma. |
+| Patch, Auto Layout, undo and sibling preservation | NOT TESTED | Confirm only intended layers change and rollback restores the selection. |
+| Preview → AI review → patch → recapture | NOT TESTED | Confirm actual preview image reaches Claude and a repair cycle works. |
+
+Progress estimates apply to implementation scope. Automated test results and live Figma observations are reported separately; passing a local build does not close a live-verification task.
 
 ## Master Prompt 04 · AI assets progress
 
