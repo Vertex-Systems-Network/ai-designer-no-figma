@@ -40,10 +40,11 @@ export function buildPatchPrompt(selection: PatchPromptSelection, request: strin
     { op: 'set-fill', targetId: 'existing-logical-id', value: '#RRGGBB' },
     { op: 'rename', targetId: 'existing-logical-id', value: 'Clear layer name' },
     { op: 'set-bounds', targetId: 'existing-logical-id', value: { x: 0, y: 0, width: 320, height: 180 } },
+    { op: 'set-auto-layout', targetId: 'existing-frame-id', value: { mode: 'VERTICAL', gap: 16, padding: 16, alignment: 'MIN' } },
   ] };
   return `Propose a safe, targeted edit to the selected Figma frame.
 
-Return one JSON object only, with an operations array matching this shape. Use only the operation types shown and only IDs present in the selection summary. For set-bounds, use positive width/height and bounded x/y. Do not invent IDs. Do not return markdown or commentary. Return an empty operations array if the requested change cannot be expressed safely with these operations. Never return executable code.
+Return one JSON object only, with an operations array matching this shape. Use only the operation types shown and only IDs present in the selection summary. For set-bounds, use positive width/height and bounded x/y. For set-auto-layout, target a frame and set mode, gap, padding, and alignment explicitly. Do not invent IDs. Do not return markdown or commentary. Return an empty operations array if the requested change cannot be expressed safely with these operations. Never return executable code.
 ${JSON.stringify(patchShape, null, 2)}
 
 Requested change:
