@@ -1,14 +1,18 @@
 # MCP tool registry
 
-No MCP tools are registered in the current code. This document is the proposed capability inventory, not a claim that these endpoints work.
+This list mirrors `createMcpServer` in [`src/mcp/server.ts`](../../src/mcp/server.ts). Tool discovery and basic validation behavior are covered by the MCP SDK stdio integration test. Live Figma execution has not been verified in the current session.
 
-| Capability family | Proposed tools | Status |
+| Tool | Behavior | Guard / known limit |
 |---|---|---|
-| Connection | `figma_get_connection_status`, `figma_get_capabilities`, `figma_get_active_document` | PLANNED — bridge required |
-| Inspection | `figma_get_pages`, `figma_get_selection`, `figma_get_nodes`, `figma_get_styles`, `figma_get_variables` | PLANNED — plugin inspection protocol required |
-| Creation | `figma_import_design_schema`, `figma_create_nodes`, `figma_apply_auto_layout` | PLANNED — schema subset and explicit plugin result required |
-| Editing | `figma_apply_patch`, `figma_update_text`, `figma_update_fills`, `figma_update_layout` | PLANNED — selected ID validation and preview/undo required |
-| Verification | `figma_validate_document`, `figma_detect_overflow`, `figma_get_validation_report` | PLANNED — deterministic checks before optional vision |
-| Jobs | `figma_create_job`, `figma_get_job_status`, `figma_cancel_job`, `figma_create_checkpoint` | PLANNED — actual queue/event/checkpoint storage required |
+| `figma_get_connection_status` | Return bridge-connected plugin sessions. | Requires bridge token for plugin; no connection is reported as disconnected. |
+| `figma_get_agent_sessions` | List active sessions. | Specify a session ID for mutations when multiple sessions are connected. |
+| `figma_get_capabilities` | Report schema, node and patch capabilities. | Unsupported nodes and features are explicitly listed. |
+| `figma_get_selection` | Queue inspection of current selection. | Poll job status/result for actual plugin response. |
+| `figma_import_design_schema` | Validate schema 1.0 and queue an editable design insertion. | JSON size limit 512 KB; imported nodes land on a new page. |
+| `figma_apply_patch` | Validate and queue text/fill/name/bounds operations. | Plugin validates every target against its current selection. |
+| `figma_export_selection` | Export one selected supported layer tree. | Unsupported layers or paints fail instead of being silently dropped. |
+| `figma_get_job_status` | Report queued/running/completed/failed/cancelled. | Results expire after the bridge retention period. |
+| `figma_get_job_result` | Return the real operation result or current state. | Does not invent success while still running. |
+| `figma_cancel_job` | Cancel a queued job. | Running Figma API operations are not interruptible yet. |
 
-Tool names and schemas are not advertised until implementation and tests exist. Destructive delete/replace tools require a user confirmation path.
+No node delete tool is exposed. Agent labels are caller-provided and are not verified identities. The custom server does not depend on official Figma MCP, paid provider APIs, or model inference.
