@@ -38,4 +38,14 @@ describe('local Figma job broker',()=>{
     expect(broker.getSessions()).toEqual([]);
     expect(()=>broker.enqueue({type:'inspect-selection'})).toThrowError(/No paired Figma/);
   });
+
+  it('reserves a chunk transfer batch atomically and preserves its order',()=>{
+    const broker=new JobBroker({maxJobs:3});broker.connect('figma-session-1','0.2.0');
+    const operations=[{type:'begin-image-transfer' as const,transferId:'01234567-89ab-cdef-0123-456789abcdef',name:'large.png',mimeType:'image/png' as const,totalBytes:9,sha256:'a'.repeat(64),chunkCount:1},{type:'image-transfer-chunk' as const,transferId:'01234567-89ab-cdef-0123-456789abcdef',index:0,bytes:[1,2,3]},{type:'finish-image-transfer' as const,transferId:'01234567-89ab-cdef-0123-456789abcdef'}];
+    const jobs=broker.enqueueBatch(operations,{operationId:'large-image'});expect(jobs).toHaveLength(3);
+    expect(jobs.map(job=>job.operation.type)).toEqual(['begin-image-transfer','image-transfer-chunk','finish-image-transfer']);
+    expect(broker.takeNext('figma-session-1')?.jobId).toBe(jobs[0]?.jobId);
+    expect(()=>broker.enqueueBatch(operations,{operationId:'another-transfer'})).toThrowError(/batch needs 3/);
+    expect(broker.getSessions()).toHaveLength(1);
+  });
 });
