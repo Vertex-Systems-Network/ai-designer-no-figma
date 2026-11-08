@@ -1,5 +1,15 @@
 import type { EditPatch } from './protocol';
 
+export type DesignSystemPromptTokens = {
+  colors:Array<{name:string;color:string}>;
+  typography:Array<{name:string;fontFamily:string;fontSize:number;fontWeight:number;lineHeight:number}>;
+  spacing:Array<{name:string;value:number}>;
+};
+
+export function buildDesignSystemPrompt(tokens:DesignSystemPromptTokens):string {
+  return `\n\nApply these user-managed design-system tokens consistently. Keep layer text editable and use supported properties only.\n${JSON.stringify(tokens,null,2)}`;
+}
+
 export type DesignPromptSettings = {
   category: string;
   platform: string;
