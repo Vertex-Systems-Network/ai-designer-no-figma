@@ -87,6 +87,12 @@ describe('design specification validation', () => {
     frame.gradient = { direction: 'vertical', stops: [{ position: 0.8, color: '#FFFFFF' }, { position: 0.2, color: '#000000' }] };
     expect(validateDesignSpec(bad).issues.some((issue) => issue.path.endsWith('gradient.stops'))).toBe(true);
   });
+  it('accepts bounded affine transforms and rejects out-of-range gradient matrices',()=>{
+    const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.gradient={direction:'horizontal',transform:[[.7,-.4,.2],[.3,.8,-.1]],stops:[{position:0,color:'#000000'},{position:1,color:'#FFFFFF'}]};
+    expect(validateDesignSpec(spec).valid).toBe(true);
+    const unsafe=structuredClone(spec);const target=unsafe.pages[0]!.children[0]!;if(target.type!=='frame'||!target.gradient)throw new Error('gradient fixture expected');target.gradient.transform=[[101,0,0],[0,1,0]];
+    expect(validateDesignSpec(unsafe).valid).toBe(false);
+  });
   it('validates embedded raster assets, design tokens, grid layouts, constraints and token references',()=>{
     const extended:DesignSpec={schemaVersion:'1.0',name:'Extended',designSystem:{name:'Acme',colors:[{name:'Brand/Primary',color:'#087A55'}],typography:[{name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34}]},pages:[{id:'p-ext',name:'Desktop',children:[
       {type:'frame',id:'frame-ext',name:'Responsive frame',width:1440,height:900,fillToken:'Brand/Primary',constraints:{horizontal:'STRETCH',vertical:'MIN'},layoutGrids:[{pattern:'COLUMNS',count:12,gutterSize:24,alignment:'STRETCH'},{pattern:'GRID',sectionSize:8}],children:[
