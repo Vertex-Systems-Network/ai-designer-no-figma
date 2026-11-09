@@ -1,4 +1,4 @@
-import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type ShadowSpec } from '../shared/spec';
+import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type EffectSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
@@ -6,7 +6,7 @@ import { verifyAssetReadback } from '../shared/asset-readback';
 import { sha256 } from '../shared/sha256';
 import { decodeBase64, encodeBase64 } from '../shared/base64';
 import { fromFigmaLayoutMode, fromFigmaPrimaryAxisAlignment, toFigmaLayoutMode, toFigmaPrimaryAxisAlignment } from './compatibility';
-import { buildPaintStack, buildShadowStack } from './paint';
+import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -30,9 +30,9 @@ function gradientPaint(spec:GradientSpec,opacity=1):GradientPaint {
   const transform:Transform = spec.direction==='horizontal' ? [[1,0,0],[0,1,0]] : [[0,-1,1],[1,0,0]];
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
 }
-function applyNodePaint(node:SceneNode,fill?:string,gradient?:GradientSpec,shadow?:ShadowSpec,paints?:PaintStackItemSpec[],shadows?:ShadowSpec[]):void {
+function applyNodePaint(node:SceneNode,fill?:string,gradient?:GradientSpec,shadow?:ShadowSpec,paints?:PaintStackItemSpec[],shadows?:ShadowSpec[],effects?:EffectSpec[]):void {
   if('fills' in node){if(paints?.length)node.fills=buildPaintStack(paints,item=>figma.createImage(decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES)).hash);else if(gradient)node.fills=[gradientPaint(gradient)];else if(fill)node.fills=[paint(fill)];}
-  if('effects' in node){const effectSpecs=shadows?.length?shadows:shadow?[shadow]:[];if(effectSpecs.length)node.effects=buildShadowStack(effectSpecs);}
+  if('effects' in node){const effectSpecs=effects?.length?buildEffectStack(effects):buildShadowStack(shadows?.length?shadows:shadow?[shadow]:[]);if(effectSpecs.length)node.effects=effectSpecs;}
 }
 function applyLayout(frame:FrameNode,layout:LayoutSpec|undefined):void {
   if(!layout||layout.mode==='none')return;
@@ -98,16 +98,16 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     text.fontSize = spec.fontSize ?? 16;
     text.textAlignHorizontal = spec.align ?? 'LEFT';
     if(spec.textStyleToken){const style=control.textStyles.get(spec.textStyleToken);if(!style)throw new Error(`TEXT_STYLE_NOT_FOUND: Unknown text style token "${spec.textStyleToken}".`);await text.setTextStyleIdAsync(style.id);}
-    if (spec.color || spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows) applyNodePaint(text,spec.color??spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows);
+    if (spec.color || spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(text,spec.color??spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if (spec.lineHeight) text.lineHeight = { value: spec.lineHeight, unit: 'PIXELS' };
     node = text;
   } else if (spec.type === 'rectangle') {
     node = figma.createRectangle();
-    if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows);
+    if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if (spec.radius !== undefined) node.cornerRadius = spec.radius;
   } else if (spec.type === 'ellipse') {
     node = figma.createEllipse();
-    if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows);
+    if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
   } else if (spec.type === 'line') {
     const line = figma.createLine();
     line.strokes = [paint(spec.stroke ?? spec.fill ?? '#333333')];
@@ -116,7 +116,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   } else if(spec.type==='vector') {
     const vector=figma.createVector();
     vector.vectorPaths=[{windingRule:'NONZERO',data:spec.path}];
-    if(spec.fill||spec.gradient||spec.paints||spec.shadow||spec.shadows)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows);
+    if(spec.fill||spec.gradient||spec.paints||spec.shadow||spec.shadows||spec.effects)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     node=vector;
   } else if(spec.type==='image') {
     const bytes=decodeBase64(spec.data,MAX_EMBEDDED_IMAGE_BYTES);const image=figma.createImage(bytes);const rectangle=figma.createRectangle();rectangle.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:spec.scaleMode??'FIT'}];node=rectangle;
@@ -142,7 +142,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   applyConstraints(node,spec.constraints);
   if(spec.fillToken)bindToken(node,spec.fillToken,control);
   if (spec.type==='frame'||spec.type==='group'||spec.type==='component') {
-    applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows);
+    applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if(spec.radius!==undefined)(node as FrameNode).cornerRadius=spec.radius;
     if(spec.type==='component')control.components.set(spec.id,node as ComponentNode);
   }
@@ -433,10 +433,22 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         else if(paintItem)throw new Error(`Layer "${node.name}" uses unsupported ${paintItem.type.toLowerCase()} paint.`);
       }
     }
-    let shadow:ShadowSpec|undefined;let shadows:ShadowSpec[]|undefined;if('effects' in node){const effects=node.effects.filter(effect=>effect.visible!==false);if(effects.some(effect=>effect.type!=='DROP_SHADOW'))throw new Error(`Layer "${node.name}" has effects other than a drop shadow which cannot be exported losslessly.`);if(effects.length>4)throw new Error(`Layer "${node.name}" has more than four drop shadows; schema 1.0 limits the stack to four.`);const exported=effects.flatMap(effect=>effect.type==='DROP_SHADOW'?[{color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})}]:[]);if(exported.length===1)shadow=exported[0];else if(exported.length>1)shadows=exported;}
+    let shadow:ShadowSpec|undefined;let shadows:ShadowSpec[]|undefined;let designEffects:EffectSpec[]|undefined;
+    if('effects' in node){
+      const visibleEffects=node.effects.filter(effect=>effect.visible!==false);
+      if(visibleEffects.length>4)throw new Error(`Layer "${node.name}" has more than four effects; schema 1.0 limits the stack to four.`);
+      const allDropShadows=visibleEffects.every(effect=>effect.type==='DROP_SHADOW');
+      if(allDropShadows){const exported=visibleEffects.flatMap(effect=>effect.type==='DROP_SHADOW'?[{color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})}]:[]);if(exported.length===1)shadow=exported[0];else if(exported.length>1)shadows=exported;}
+      else designEffects=visibleEffects.map(effect=>{
+        if(effect.type==='DROP_SHADOW'||effect.type==='INNER_SHADOW')return {type:effect.type==='INNER_SHADOW'?'inner-shadow':'drop-shadow',color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})};
+        if(effect.type==='LAYER_BLUR'){if(effect.blurType!=='NORMAL')throw new Error(`Layer "${node.name}" uses progressive blur, which schema 1.0 cannot preserve losslessly.`);return {type:'layer-blur',blur:effect.radius};}
+        if(effect.type==='BACKGROUND_BLUR'){if(effect.blurType!=='NORMAL')throw new Error(`Layer "${node.name}" uses progressive blur, which schema 1.0 cannot preserve losslessly.`);return {type:'background-blur',blur:effect.radius};}
+        throw new Error(`Layer "${node.name}" has an unsupported effect type that cannot be exported losslessly.`);
+      });
+    }
     const constraints='constraints' in node?node.constraints:undefined;
     const fillToken=await readColorToken(node);
-    const base = { id, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(fill?{fill}:{}),...(gradient?{gradient}:{}),...(paints?{paints}:{}),...(shadow?{shadow}:{}),...(shadows?{shadows}:{}),...(constraints?{constraints}:{}),...(fillToken?{fillToken}:{}) };
+    const base = { id, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(fill?{fill}:{}),...(gradient?{gradient}:{}),...(paints?{paints}:{}),...(shadow?{shadow}:{}),...(shadows?{shadows}:{}),...(designEffects?.length?{effects:designEffects}:{}),...(constraints?{constraints}:{}),...(fillToken?{fillToken}:{}) };
     if(imageData)return {...base,type:'image',...imageData};
     if (node.type === 'TEXT') {
       const font = node.fontName === figma.mixed ? undefined : node.fontName;
