@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildPaintStack, buildShadowStack } from './paint';
+import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
 describe('native Figma paint stack mapping',()=>{
   it('preserves paint order, solid opacity, gradient direction and stop alpha',()=>{
@@ -16,6 +16,17 @@ describe('native Figma paint stack mapping',()=>{
     expect(shadows).toHaveLength(2);
     expect(shadows[0]).toMatchObject({type:'DROP_SHADOW',color:{r:0,g:0,b:0,a:.16},offset:{x:0,y:4},radius:12,spread:1});
     expect(shadows[1]).toMatchObject({type:'DROP_SHADOW',color:{r:13/255,g:138/255,b:96/255,a:.2},offset:{x:2,y:1},radius:3});
+  });
+  it('maps inner shadows and both native blur effects in order',()=>{
+    const effects=buildEffectStack([
+      {type:'inner-shadow',color:'#101010',opacity:.24,offsetX:1,offsetY:2,blur:5,spread:1},
+      {type:'layer-blur',blur:8},
+      {type:'background-blur',blur:12},
+    ]);
+    expect(effects).toHaveLength(3);
+    expect(effects[0]).toMatchObject({type:'INNER_SHADOW',color:{r:16/255,g:16/255,b:16/255,a:.24},offset:{x:1,y:2},radius:5,spread:1});
+    expect(effects[1]).toMatchObject({type:'LAYER_BLUR',radius:8});
+    expect(effects[2]).toMatchObject({type:'BACKGROUND_BLUR',radius:12});
   });
   it('resolves embedded image paints and keeps them in the declared order',()=>{
     const resolve=vi.fn(()=> 'image-hash-1');
