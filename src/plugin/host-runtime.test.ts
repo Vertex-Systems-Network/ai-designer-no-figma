@@ -61,11 +61,17 @@ describe('Figma plugin host compatibility', () => {
 
   it('imports and exports text case, decoration and letter spacing',()=>{
     expect(hostSource).toContain('text.letterSpacing=spec.letterSpacing');
+    expect(hostSource).toContain('text.textAlignVertical=spec.textAlignVertical');
+    expect(hostSource).toContain('text.textAutoResize=spec.textAutoResize');
+    expect(hostSource).toContain('text.paragraphSpacing=spec.paragraphSpacing');
     expect(hostSource).toContain('text.textDecoration=spec.textDecoration');
     expect(hostSource).toContain('text.textCase=spec.textCase');
     expect(hostSource).toContain('style.letterSpacing=token.letterSpacing');
     expect(hostSource).toContain('style.textDecoration=token.textDecoration');
     expect(hostSource).toContain('style.textCase=token.textCase');
+    expect(hostSource).toContain('style.paragraphSpacing=token.paragraphSpacing');
+    expect(hostSource).toContain('textAlignVertical:node.textAlignVertical');
+    expect(hostSource).toContain('textAutoResize:node.textAutoResize');
     expect(hostSource).toContain('has mixed character styling');
     expect(hostSource).toContain('letterSpacing:{unit:node.letterSpacing.unit,value:node.letterSpacing.value}');
   });
