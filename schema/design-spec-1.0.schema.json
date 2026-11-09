@@ -725,6 +725,44 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 120
+                },
+                "letterSpacing": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "unit",
+                    "value"
+                  ],
+                  "properties": {
+                    "unit": {
+                      "enum": [
+                        "PIXELS",
+                        "PERCENT"
+                      ]
+                    },
+                    "value": {
+                      "type": "number",
+                      "minimum": -1000,
+                      "maximum": 1000
+                    }
+                  }
+                },
+                "textDecoration": {
+                  "enum": [
+                    "NONE",
+                    "UNDERLINE",
+                    "STRIKETHROUGH"
+                  ]
+                },
+                "textCase": {
+                  "enum": [
+                    "ORIGINAL",
+                    "UPPER",
+                    "LOWER",
+                    "TITLE",
+                    "SMALL_CAPS",
+                    "SMALL_CAPS_FORCED"
+                  ]
                 }
               }
             }
@@ -977,6 +1015,44 @@
                 "type": "number",
                 "minimum": 0,
                 "maximum": 1000
+              },
+              "letterSpacing": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "unit",
+                  "value"
+                ],
+                "properties": {
+                  "unit": {
+                    "enum": [
+                      "PIXELS",
+                      "PERCENT"
+                    ]
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  }
+                }
+              },
+              "textDecoration": {
+                "enum": [
+                  "NONE",
+                  "UNDERLINE",
+                  "STRIKETHROUGH"
+                ]
+              },
+              "textCase": {
+                "enum": [
+                  "ORIGINAL",
+                  "UPPER",
+                  "LOWER",
+                  "TITLE",
+                  "SMALL_CAPS",
+                  "SMALL_CAPS_FORCED"
+                ]
               }
             }
           }
