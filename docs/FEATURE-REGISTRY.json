@@ -24,7 +24,9 @@
         "src/shared/spec.ts",
         "schema/design-spec-1.0.schema.json",
         "src/shared/prompts.ts",
-        "src/shared/spec.test.ts"
+        "src/shared/spec.test.ts",
+        "src/plugin/paint.ts",
+        "src/plugin/paint.test.ts"
       ],
       "dependencies": [],
       "status": "IMPLEMENTED",
@@ -37,7 +39,7 @@
       "releaseTarget": "0.1.x",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
-      "nextAction": "Define forward schema migration policy and expand round-trip coverage for unsupported paint/effect combinations."
+      "nextAction": "Define forward schema migration policy and expand round-trip coverage for unsupported image paint/effect combinations."
     },
     {
       "id": "FIGMA-001",
@@ -46,6 +48,7 @@
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
+        "src/plugin/paint.ts",
         "src/shared/spec.ts",
         "src/shared/assets.ts"
       ],
@@ -57,6 +60,7 @@
       "tests": [
         "src/shared/assets.test.ts",
         "src/plugin/host-runtime.test.ts",
+        "src/plugin/paint.test.ts",
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
@@ -116,13 +120,13 @@
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "Live Figma round-trip is NOT TESTED. Export rejects multiple fills, non-drop-shadow effects, unresolved token modes and inaccessible component sources."
+        "Live Figma round-trip is NOT TESTED. Export preserves solid and linear-gradient stacks up to eight layers; it rejects mixed image paint stacks, non-drop-shadow effects, unresolved token modes and inaccessible component sources."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-08",
-      "nextAction": "Verify selected export/import round-trip in Figma and extend supported paint/effect coverage where the Plugin API allows."
+      "nextAction": "Verify selected export/import paint-stack round-trip in Figma and extend image/effect coverage where the Plugin API allows."
     },
     {
       "id": "AI-001",
