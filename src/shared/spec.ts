@@ -33,6 +33,7 @@ type BaseNode = {
   gradient?: GradientSpec;
   paints?: PaintStackItemSpec[];
   shadow?: ShadowSpec;
+  shadows?: ShadowSpec[];
   constraints?: ConstraintsSpec;
   fillToken?: string;
 };
@@ -118,15 +119,15 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','children','layout','layoutGrids','constraints','fillToken'],
-    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','children','layout','constraints','fillToken'],
-    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','children','layout','layoutGrids','constraints','fillToken'],
+    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','children','layout','layoutGrids','constraints','fillToken'],
+    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','children','layout','constraints','fillToken'],
+    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','children','layout','layoutGrids','constraints','fillToken'],
     instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
-    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','paints','path','constraints'],
+    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','shadows','paints','path','constraints'],
     image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','constraints'],
-    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','text','fontFamily','fontSize','fontWeight','lineHeight','color','align','textStyleToken','constraints','fillToken'],
-    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','constraints','fillToken'],
-    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','constraints','fillToken'],
+    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','text','fontFamily','fontSize','fontWeight','lineHeight','color','align','textStyleToken','constraints','fillToken'],
+    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','constraints','fillToken'],
+    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','constraints','fillToken'],
     line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth','constraints'],
   };
   const colors = new Set((spec.designSystem?.colors ?? []).map((token) => token.name));
@@ -139,6 +140,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
     if (node.fillToken && !colors.has(node.fillToken)) issues.push({ path: `${path}.fillToken`, message: `Unknown color token: ${node.fillToken}` });
     if (node.paints && (node.fill !== undefined || node.gradient !== undefined)) issues.push({ path: `${path}.paints`, message: 'Use either paints or the legacy fill/gradient fields, not both.' });
+    if (node.shadows && node.shadow !== undefined) issues.push({ path: `${path}.shadows`, message: 'Use either shadows or the legacy shadow field, not both.' });
     if (node.type === 'text' && node.textStyleToken && !typography.has(node.textStyleToken)) issues.push({ path: `${path}.textStyleToken`, message: `Unknown text style token: ${node.textStyleToken}` });
     if(node.type==='group'&&'layoutGrids' in node)issues.push({path:`${path}.layoutGrids`,message:'Layout grids can only be attached to frames or components.'});
     if (node.type === 'image') {
