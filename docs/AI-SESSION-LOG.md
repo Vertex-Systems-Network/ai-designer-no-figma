@@ -1,3 +1,8 @@
+## 2026-11-09 — text layout controls
+
+- Added paragraph spacing to nodes and typography tokens, plus text vertical alignment and resize mode to individual text nodes. Export preserves node-level settings and refuses mixed paragraph spacing rather than flattening it.
+- Release verification passes with 78 unit and 17 integration tests, typecheck, lint, local security audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 recorded in artifacts/SHA256SUMS.txt. Live Figma text overflow/alignment rendering remains NOT TESTED.
+
 ## 2026-11-09 — text style fidelity
 
 - Added validated letter spacing in pixel/percent units, text case and text decoration to schema 1.0. Import applies native Figma typography properties; selected export preserves uniform values and rejects mixed per-character styling it cannot represent.
