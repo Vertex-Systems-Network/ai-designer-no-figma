@@ -64,7 +64,7 @@ export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: stri
 export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
 export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number };
 export type ShapeNodeSpec = BaseNode & { type: 'rectangle' | 'ellipse'; stroke?: string; strokeOpacity?: number; strokeWidth?: number; strokeAlign?: 'INSIDE'|'CENTER'|'OUTSIDE' };
-export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeWidth?: number };
+export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeOpacity?:number; strokeWidth?: number };
 export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ImageNodeSpec | ShapeNodeSpec | LineNodeSpec;
 export type DesignSystemSpec = { name?: string; colors?: ColorTokenSpec[]; typography?: TextStyleTokenSpec[] };
 export type PageSpec = { id: string; name: string; children: DesignNodeSpec[] };
@@ -138,7 +138,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
     rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
-    line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth','constraints'],
+    line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
   };
   const colors = new Set((spec.designSystem?.colors ?? []).map((token) => token.name));
   const typography = new Set((spec.designSystem?.typography ?? []).map((token) => token.name));
@@ -148,7 +148,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (depth > MAX_DEPTH) { issues.push({ path, message: `Layer depth exceeds ${MAX_DEPTH}.` }); return; }
     addId(node.id, `${path}.id`);
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
-    if ((node.type==='rectangle'||node.type==='ellipse') && node.strokeOpacity!==undefined && !node.stroke) issues.push({path:`${path}.strokeOpacity`,message:'strokeOpacity requires a stroke color.'});
+    if ((node.type==='rectangle'||node.type==='ellipse'||node.type==='line') && node.strokeOpacity!==undefined && !node.stroke) issues.push({path:`${path}.strokeOpacity`,message:'strokeOpacity requires a stroke color.'});
     if (node.fillToken && !colors.has(node.fillToken)) issues.push({ path: `${path}.fillToken`, message: `Unknown color token: ${node.fillToken}` });
     if (node.paints && (node.fill !== undefined || node.gradient !== undefined)) issues.push({ path: `${path}.paints`, message: 'Use either paints or the legacy fill/gradient fields, not both.' });
     if (node.shadows && node.shadow !== undefined) issues.push({ path: `${path}.shadows`, message: 'Use either shadows or the legacy shadow field, not both.' });
