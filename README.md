@@ -51,7 +51,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 | Task | Status | Remaining work |
 |---|---|---|
 | Create/open a new Draft file and work after Figma/plugin closure | BLOCKED · NOT IMPLEMENTED | Current plugin sessions end when Figma or the open document closes. A supported desktop automation runner and a Windows Figma session are required. |
-| Export unsupported gradient/effect variants | OPEN | Solid, linear-gradient, radial-gradient and embedded PNG/JPEG paints (up to 8 ordered fills), four-entry drop/inner-shadow and normal blur effect stacks, and component swaps are implemented. Progressive blur, angular/diamond gradients and other unsupported effects still fail explicitly. |
+| Export unsupported gradient/effect variants | OPEN | Solid, linear, radial, angular and diamond gradients plus embedded PNG/JPEG paints (up to 8 ordered fills), four-entry drop/inner-shadow and normal blur effect stacks, and component swaps are implemented. Progressive blur and other unsupported effects still fail explicitly. |
 | Verify generation with a real local Ollama model | NOT TESTED | No Ollama endpoint or installed model is available in this executor; the fake-server suite only verifies the stream contract. |
 | Run screenshot-based responsive/accessibility review | NOT TESTED | Needs a live Figma renderer or a browser build with realistic Figma host mocks; no rendered screenshot is claimed. |
 | Verify per-client MCP and generated-file access | NOT VERIFIED | Client-specific local MCP launch, file discovery, and tool use need separate tests in Claude/Codex/Cursor/Gemini. |
@@ -71,7 +71,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 70 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 72 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
