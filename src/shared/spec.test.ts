@@ -93,6 +93,12 @@ describe('design specification validation', () => {
     const unsafe=structuredClone(spec);const target=unsafe.pages[0]!.children[0]!;if(target.type!=='frame'||!target.gradient)throw new Error('gradient fixture expected');target.gradient.transform=[[101,0,0],[0,1,0]];
     expect(validateDesignSpec(unsafe).valid).toBe(false);
   });
+  it('accepts radial gradient paint stacks and rejects singular transforms',()=>{
+    const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.children=[{type:'rectangle',id:'radial',name:'Radial highlight',width:120,height:80,paints:[{type:'radial-gradient',opacity:.8,gradient:{transform:[[.8,0,.1],[0,.9,.05]],stops:[{position:0,color:'#FFFFFF',opacity:.8},{position:1,color:'#087A55'}]}}]}];
+    expect(validateDesignSpec(spec).valid).toBe(true);
+    const singular=structuredClone(spec);const rect=singular.pages[0]!.children[0]!.type==='frame'?singular.pages[0]!.children[0]!.children[0]:undefined;if(rect?.type!=='rectangle'||rect.paints?.[0]?.type!=='radial-gradient')throw new Error('radial fixture expected');rect.paints[0].gradient.transform=[[1,0,0],[2,0,0]];
+    expect(validateDesignSpec(singular).valid).toBe(false);
+  });
   it('validates embedded raster assets, design tokens, grid layouts, constraints and token references',()=>{
     const extended:DesignSpec={schemaVersion:'1.0',name:'Extended',designSystem:{name:'Acme',colors:[{name:'Brand/Primary',color:'#087A55'}],typography:[{name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34}]},pages:[{id:'p-ext',name:'Desktop',children:[
       {type:'frame',id:'frame-ext',name:'Responsive frame',width:1440,height:900,fillToken:'Brand/Primary',constraints:{horizontal:'STRETCH',vertical:'MIN'},layoutGrids:[{pattern:'COLUMNS',count:12,gutterSize:24,alignment:'STRETCH'},{pattern:'GRID',sectionSize:8}],children:[
