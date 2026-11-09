@@ -69,6 +69,12 @@ describe('design specification validation', () => {
     const conflicted=structuredClone(spec);const target=conflicted.pages[0]!.children[0]!.type==='frame'?conflicted.pages[0]!.children[0]!.children[0]:undefined;if(target?.type!=='rectangle')throw new Error('fixture rectangle expected');target.shadow={color:'#000000',opacity:.2,offsetX:0,offsetY:2,blur:6};
     expect(validateDesignSpec(conflicted).issues.some(issue=>issue.path.endsWith('.effects'))).toBe(true);
   });
+  it('validates progressive blur radius and normalized endpoint bounds',()=>{
+    const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.children=[{type:'rectangle',id:'progressive-blur',name:'Progressive blur',width:120,height:80,effects:[{type:'progressive-layer-blur',startRadius:2,endRadius:18,startOffset:{x:.1,y:.2},endOffset:{x:.9,y:.8}}]}];
+    expect(validateDesignSpec(spec).valid).toBe(true);
+    const invalid=structuredClone(spec);const rect=invalid.pages[0]!.children[0]!.type==='frame'?invalid.pages[0]!.children[0]!.children[0]:undefined;if(rect?.type!=='rectangle'||!rect.effects?.[0]||rect.effects[0].type!=='progressive-layer-blur')throw new Error('progressive blur fixture expected');rect.effects[0].endOffset.x=1.1;
+    expect(validateDesignSpec(invalid).valid).toBe(false);
+  });
   it('rejects unknown component references and unsafe vector path content', () => {
     const bad = structuredClone(valid);
     bad.pages[0]!.children = [
