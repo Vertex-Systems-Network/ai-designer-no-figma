@@ -13,7 +13,7 @@ Status means evidence in this repository, not an estimate.
 | 5 | Selection-aware editing and rollback | 95% | IN PROGRESS | Geometry-aware selection summary, safe bounds/text/fill/name/Auto Layout patches, selected image-fill replacement, Fill/Fit and bounded affine image crop/reposition patches, selected instance-to-component swaps, preview, rollback snapshots, and up to 20 plugin-session undo checkpoints implemented; live preservation/undo test remains. |
 | 6 | Design system engine | 93% | IN PROGRESS | Native color Variables and Text Styles, including letter/paragraph spacing, text case and decoration, are created/reused and applied through spec token references; prompt-linked local scales and up to 20 presets remain. Live mode/style behavior and broader token round-trip remain. |
 | 7 | Complete premium UI | 90% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, signed-in Figma operator display and hide-after-connect exist; broader visual/accessibility QA remains. |
-| 8 | Testing and hardening | 99% | IN PROGRESS | Schema, paint, patch and host regressions cover bounded fill/shadow stacks, image crop/reposition import/export, selected instance swaps, and image/token/grid/import-export paths; current unit suite is 85 tests. Live rendering/capture and repair remain unverified. |
+| 8 | Testing and hardening | 99% | IN PROGRESS | Schema, paint, patch and host regressions cover bounded fill/shadow stacks, image crop/reposition and tiled-image scaling import/export, selected instance swaps, and image/token/grid/import-export paths; current unit suite is 87 tests. Live rendering/capture and repair remain unverified. |
 | 9 | Build and release packaging | 100% | PASS | Plugin/runtime bundles, source ZIP, SHA-256 manifest, ZIP integrity, and reproducible archive hash verified. |
 | 10 | Final audit and evidence report | 74% | IN PROGRESS | Native schema/render/export scope expanded and capability disclosure updated. Live Figma render, agent critique, pairing, compatibility and registration evidence remain. |
 
@@ -41,7 +41,7 @@ Status means evidence in this repository, not an estimate.
 | 9 · AI Assets UI | `███████░░░` 75% | Import, capability disclosure, local preview/reuse/select/remove and clear-all controls are connected; live screenshot review remains. |
 | 10 · Autonomous verification | `████░░░░░░` 40% | SVG/image insertions now query the Figma host for the created node and verify dimensions, vector children or image fill; helper has positive/negative unit cases. Live-editor verification remains. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | Bounds, allowlist, and no remote asset fetch; client checks/live security evidence remain. |
-| 12 · Testing/release | `██████████` 100% | Latest `npm run release:verify` passed: 85 unit tests, 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma remains a separate compatibility gate. |
+| 12 · Testing/release | `██████████` 100% | Latest `npm run release:verify` passed: 87 unit tests, 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma remains a separate compatibility gate. |
 | 13 · Repository intelligence | `██████████` 100% | README, backlog, roadmap, registry, status, known issues, changelog and handoff synchronized; strict documentation audit reported 0 findings. |
 
 ## Acceptance rule
