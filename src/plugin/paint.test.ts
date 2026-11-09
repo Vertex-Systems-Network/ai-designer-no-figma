@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildPaintStack, buildShadowStack } from './paint';
 
 describe('native Figma paint stack mapping',()=>{
@@ -16,5 +16,16 @@ describe('native Figma paint stack mapping',()=>{
     expect(shadows).toHaveLength(2);
     expect(shadows[0]).toMatchObject({type:'DROP_SHADOW',color:{r:0,g:0,b:0,a:.16},offset:{x:0,y:4},radius:12,spread:1});
     expect(shadows[1]).toMatchObject({type:'DROP_SHADOW',color:{r:13/255,g:138/255,b:96/255,a:.2},offset:{x:2,y:1},radius:3});
+  });
+  it('resolves embedded image paints and keeps them in the declared order',()=>{
+    const resolve=vi.fn(()=> 'image-hash-1');
+    const result=buildPaintStack([
+      {type:'solid',color:'#FFFFFF'},
+      {type:'image',mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'CROP',opacity:.7},
+      {type:'linear-gradient',gradient:{direction:'horizontal',stops:[{position:0,color:'#000000'},{position:1,color:'#FFFFFF'}]}},
+    ],resolve);
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(result.map(paint=>paint.type)).toEqual(['SOLID','IMAGE','GRADIENT_LINEAR']);
+    expect(result[1]).toMatchObject({type:'IMAGE',imageHash:'image-hash-1',scaleMode:'CROP',opacity:.7});
   });
 });
