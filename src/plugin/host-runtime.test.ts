@@ -69,6 +69,8 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("effect.type==='INNER_SHADOW'?'inner-shadow':'drop-shadow'");
     expect(hostSource).toContain("effect.type==='BACKGROUND_BLUR'");
     expect(hostSource).toContain('more than four effects');
+    expect(hostSource).toContain("effect.blurType==='PROGRESSIVE'");
+    expect(hostSource).toContain("type:'progressive-background-blur'");
   });
 
   it('supports embedded images, responsive grids, native tokens/styles, and advanced export paths',()=>{
