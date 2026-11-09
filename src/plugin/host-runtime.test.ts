@@ -59,6 +59,13 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
+  it('renders solid rectangle/ellipse strokes and exports losslessly supported outline metadata',()=>{
+    expect(hostSource).toContain('node.strokes=[paint(spec.stroke,spec.strokeOpacity??1)]');
+    expect(hostSource).toContain("node.strokeAlign=spec.strokeAlign??'CENTER'");
+    expect(hostSource).toContain('uses multiple strokes which schema 1.0 cannot preserve');
+    expect(hostSource).toContain('strokeAlign:node.strokeAlign');
+  });
+
   it('renders and exports bounded native drop-shadow stacks',()=>{
     expect(hostSource).toContain('buildShadowStack(shadows?.length?shadows:shadow?[shadow]:[])');
     expect(hostSource).toContain('else if(exported.length>1)shadows=exported');
