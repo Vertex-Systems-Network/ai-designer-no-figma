@@ -1,8 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Exposed image Fill/Fit/Tile/custom crop patching in Edit with a bounded TILE scale-factor control. Automated release verification passes; live image appearance remains NOT TESTED.
 - Preserved native image crop/reposition transforms in the versioned design spec for standalone image nodes and image paint stacks; the renderer restores them and selected export emits them. Schema checks require CROP mode and an invertible bounded affine transform.
 - Added schema-backed TILE image fills with a bounded `scalingFactor` for standalone image nodes and layered paints; native image repetition now renders and round-trips through selected export.
+- Edit now proposes and previews a TILE scale-factor patch alongside FILL/FIT/CROP changes. The operation preserves image data and other paint settings and participates in existing rollback.
 - Added reviewed FILL/FIT/CROP mode and affine image reposition patches for one selected image fill. Crop matrices are finite, invertible 2×3 transforms bounded to ±10; paint opacity, blend and source bytes are preserved, and patch undo restores the original paint. The Edit UI exposes a mode selector and transform editor when an image fill is selected.
 - Added reviewed replacement of exactly one existing selected image fill from a validated PNG/JPEG (128 KiB cap), preserving its scale/opacity and enabling patch undo. Live Figma crop appearance and rollback remain NOT TESTED.
 
