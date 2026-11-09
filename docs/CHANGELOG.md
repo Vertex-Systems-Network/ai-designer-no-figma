@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added bounded native effect stacks for inner/drop shadows and normal layer/background blur. Import/export retains order and supported settings; progressive blur and unsupported effects are rejected explicitly.
 - Added schema-validated embedded PNG/JPEG image paints in ordered fill stacks, including opacity and FIT/FILL/CROP scale modes. Figma export re-embeds bounded raster bytes; unsupported effects and transformed gradients remain explicitly rejected.
 
 ## Unreleased
