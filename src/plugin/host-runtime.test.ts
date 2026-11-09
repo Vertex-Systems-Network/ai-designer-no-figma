@@ -150,7 +150,7 @@ async function loadHostWithSelection(selection:MockHostNode[],overrides:Record<s
   vi.resetModules();
   const ui:{postMessage:ReturnType<typeof vi.fn>;onmessage?:((message:unknown)=>Promise<void>);resize:ReturnType<typeof vi.fn>;hide:ReturnType<typeof vi.fn>}={postMessage:vi.fn(),resize:vi.fn(),hide:vi.fn()};
   const fakeFigma={
-    showUI:vi.fn(),currentPage:{selection},currentUser:{name:'Test Operator',photoUrl:null},mixed:Symbol('mixed'),
+    showUI:vi.fn(),currentPage:{name:'Page 1',selection},currentUser:{name:'Test Operator',photoUrl:null},mixed:Symbol('mixed'),
     ui,on:vi.fn(),notify:vi.fn(),loadFontAsync:vi.fn().mockResolvedValue(undefined),
   };
   Object.assign(fakeFigma,overrides);
@@ -207,6 +207,113 @@ describe('Figma host patch behavior',()=>{
     expect(exported?.spec?.designSystem?.typography).toEqual([expect.objectContaining({name:'Heading'})]);
     expect(root).toEqual(expect.objectContaining({x:4,y:8,rotation:15,clipsContent:true,layout:{mode:'horizontal',gap:12,padding:16,alignment:'CENTER',primaryAxisSizing:'AUTO',counterAxisSizing:'FIXED'}}));
     expect(root?.children?.[0]).toEqual(expect.objectContaining({x:12,y:16,width:220,height:40,fillToken:'Ink/Primary',textStyleToken:'Heading',fontSize:24,lineHeight:30,constraints:{horizontal:'MIN',vertical:'MIN'}}));
+
+    const lightText={id:'light-weight',name:'Light text',type:'TEXT',x:0,y:0,width:80,height:24,rotation:0,opacity:1,characters:'Light',fontName:{family:'Inter',style:'Light'},fontSize:16,
+      lineHeight:{unit:'AUTO'},paragraphSpacing:0,letterSpacing:{unit:'PIXELS',value:0},textDecoration:'NONE',textCase:'ORIGINAL',textAlignVertical:'TOP',textAutoResize:'HEIGHT',textAlignHorizontal:'LEFT',fills:[],effects:[],getRangeTextStyleId:()=>null} as unknown as MockHostNode;
+    const lightHost=await loadHostWithSelection([lightText]);
+    await lightHost.ui.onmessage?.({type:'export-selection'});
+    const lightSpec=lightHost.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{fontWeight?:number}>}>}}|undefined;
+    expect(lightSpec?.spec?.pages[0]?.children[0]?.fontWeight).toBe(300);
+  });
+
+  it('exports editable vector paths without flattening them into images',async()=>{
+    const vector={id:'vector-1',name:'Arrow mark',type:'VECTOR',x:3,y:4,width:24,height:18,rotation:0,opacity:1,vectorPaths:[{data:'M0 0 L24 9 L0 18 Z'}]} as unknown as MockHostNode;
+    const {ui}=await loadHostWithSelection([vector]);
+    await ui.onmessage?.({type:'export-selection'});
+    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;path?:string}>}>}}|undefined;
+    expect(exported?.spec?.pages[0]?.children[0]).toMatchObject({type:'vector',path:'M0 0 L24 9 L0 18 Z'});
+  });
+
+  it('rejects text formatting and token combinations that schema 1.0 cannot represent',async()=>{
+    const mixed=Symbol('mixed');
+    const mixedFont=mockTextNode('mixed-font','Mixed font','Text');
+    mixedFont.fontName=mixed as unknown as {family:string;style:string};
+    const fontHost=await loadHostWithSelection([mixedFont],{mixed});
+    await fontHost.ui.onmessage?.({type:'export-selection'});
+    expect(fontHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/mixed font or line-height formatting/)}));
+
+    const mixedLine=mockTextNode('mixed-line','Mixed line height','Text') as MockHostNode&{lineHeight?:unknown};
+    mixedLine.lineHeight=mixed;
+    const lineHost=await loadHostWithSelection([mixedLine],{mixed});
+    await lineHost.ui.onmessage?.({type:'export-selection'});
+    expect(lineHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/mixed font or line-height formatting/)}));
+
+    const mixedTokens=mockTextNode('mixed-token','Mixed token colors','Text') as MockHostNode&{boundVariables?:unknown};
+    mixedTokens.boundVariables={textRangeFills:[[{id:'color-one'}],[{id:'color-two'}]]};
+    const tokenHost=await loadHostWithSelection([mixedTokens]);
+    await tokenHost.ui.onmessage?.({type:'export-selection'});
+    expect(tokenHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/multiple bound color variables/)}));
+  });
+
+  it('exports an instance with its detached main component definition and stable reference',async()=>{
+    const component={id:'component-1',name:'Button / Primary',type:'COMPONENT',x:0,y:0,width:120,height:40,rotation:0,opacity:1,fills:[],effects:[],layoutMode:'NONE',layoutGrids:[],clipsContent:false,children:[]} as unknown as MockHostNode;
+    const instance={id:'instance-1',name:'Submit button',type:'INSTANCE',x:20,y:30,width:120,height:40,rotation:0,opacity:1,fills:[],effects:[],async getMainComponentAsync(){return component;}} as unknown as MockHostNode;
+    const {ui}=await loadHostWithSelection([instance]);
+    await ui.onmessage?.({type:'export-selection'});
+    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;id:string;componentRef?:string}>}>}}|undefined;
+    expect(exported?.spec?.pages[0]?.children).toEqual([
+      expect.objectContaining({type:'component',id:'figma-component-1',name:'Button / Primary'}),
+      expect.objectContaining({type:'instance',id:'figma-instance-1',componentRef:'figma-component-1'}),
+    ]);
+  });
+
+  it('exports embedded raster paint bytes and crop metadata, and rejects unsupported effects',async()=>{
+    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==','base64');
+    const imageNode={id:'image-1',name:'Avatar',type:'RECTANGLE',x:0,y:0,width:80,height:80,rotation:0,opacity:1,
+      fills:[{type:'IMAGE',imageHash:'image-hash',scaleMode:'CROP',imageTransform:[[0.8,0,0.1],[0,0.8,-0.1]],opacity:1,visible:true,blendMode:'NORMAL'}],
+      strokes:[],strokeWeight:0,strokeAlign:'CENTER',topLeftRadius:0,topRightRadius:0,bottomRightRadius:0,bottomLeftRadius:0,cornerSmoothing:0} as unknown as MockHostNode;
+    const {figma,ui}=await loadHostWithSelection([imageNode],{getImageByHash:vi.fn(()=>({getBytesAsync:async()=>new Uint8Array(png)}))});
+    await ui.onmessage?.({type:'export-selection'});
+    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;mimeType?:string;data?:string;scaleMode?:string;imageTransform?:number[][]}>}>}}|undefined;
+    expect(exported?.spec?.pages[0]?.children[0]).toMatchObject({type:'image',mimeType:'image/png',data:png.toString('base64'),scaleMode:'CROP',imageTransform:[[0.8,0,0.1],[0,0.8,-0.1]]});
+    expect((figma as unknown as {getImageByHash:ReturnType<typeof vi.fn>}).getImageByHash).toHaveBeenCalledWith('image-hash');
+
+    const decoratedImage={...imageNode,id:'decorated-image',topLeftRadius:12,topRightRadius:12,bottomRightRadius:12,bottomLeftRadius:12,
+      strokes:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3},opacity:1,visible:true,blendMode:'NORMAL'}],strokeWeight:2,strokeAlign:'INSIDE'} as unknown as MockHostNode;
+    const decorated=await loadHostWithSelection([decoratedImage],{getImageByHash:vi.fn(()=>({getBytesAsync:async()=>new Uint8Array(png)}))});
+    await decorated.ui.onmessage?.({type:'export-selection'});
+    const decoratedSpec=decorated.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;radius?:number;stroke?:string;strokeWidth?:number;paints?:Array<{type:string;mimeType?:string}>}>}>}}|undefined;
+    expect(decoratedSpec?.spec?.pages[0]?.children[0]).toMatchObject({type:'rectangle',radius:12,stroke:'#1a334d',strokeWidth:2,paints:[{type:'image',mimeType:'image/png'}]});
+
+    const paintNode={...imageNode,id:'painted-card',fills:[{type:'GRADIENT_LINEAR',gradientTransform:[[1,0,0],[0,1,0]],gradientStops:[
+      {position:0,color:{r:0,g:0,b:0,a:1}},{position:1,color:{r:0.05,g:0.5,b:0.3,a:0.6}},
+    ],opacity:0.8,visible:true,blendMode:'NORMAL'}],effects:[{type:'DROP_SHADOW',color:{r:0,g:0,b:0,a:0.25},offset:{x:0,y:4},radius:8,spread:1,visible:true,blendMode:'NORMAL'}]} as unknown as MockHostNode;
+    const painted=await loadHostWithSelection([paintNode]);
+    await painted.ui.onmessage?.({type:'export-selection'});
+    const paintedSpec=painted.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{paints?:Array<{type:string;opacity?:number}>;shadow?:{blur:number;spread:number;offsetY:number}}>}>}}|undefined;
+    expect(paintedSpec?.spec?.pages[0]?.children[0]).toMatchObject({paints:[{type:'linear-gradient',opacity:0.8}],shadow:{blur:8,spread:1,offsetY:4}});
+
+    const shiftedTransform:[[number,number,number],[number,number,number]]=[[1,0,0.2],[0,1,0.1]];
+    const shiftedGradient={...imageNode,id:'shifted-gradient',fills:[{type:'GRADIENT_LINEAR',gradientTransform:shiftedTransform,gradientStops:[
+      {position:0,color:{r:0,g:0,b:0,a:1}},{position:1,color:{r:1,g:1,b:1,a:1}},
+    ],opacity:1,visible:true,blendMode:'NORMAL'}],effects:[]} as unknown as MockHostNode;
+    const shifted=await loadHostWithSelection([shiftedGradient]);
+    await shifted.ui.onmessage?.({type:'export-selection'});
+    const shiftedSpec=shifted.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{gradient?:{direction:string;transform:number[][]}}>}>}}|undefined;
+    expect(shiftedSpec?.spec?.pages[0]?.children[0]?.gradient).toMatchObject({direction:'horizontal',transform:shiftedTransform});
+
+    const unsupported={...imageNode,id:'unsupported-effects',fills:[],effects:[{type:'NOISE',visible:true}]} as unknown as MockHostNode;
+    const second=await loadHostWithSelection([unsupported]);
+    await second.ui.onmessage?.({type:'export-selection'});
+    expect(second.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/unsupported effect type.*cannot be exported losslessly/)}));
+
+    const invalidLayer=await loadHostWithSelection([{...imageNode,id:'star-layer',type:'STAR',fills:[],strokes:[]} as unknown as MockHostNode]);
+    await invalidLayer.ui.onmessage?.({type:'export-selection'});
+    expect(invalidLayer.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/STAR.*cannot be represented in schema 1.0/)}));
+
+    const multiStroke={...imageNode,id:'multi-stroke',fills:[],strokes:[
+      {type:'SOLID',color:{r:0,g:0,b:0},opacity:1,visible:true,blendMode:'NORMAL'},
+      {type:'SOLID',color:{r:1,g:1,b:1},opacity:1,visible:true,blendMode:'NORMAL'},
+    ]} as unknown as MockHostNode;
+    const multi=await loadHostWithSelection([multiStroke]);
+    await multi.ui.onmessage?.({type:'export-selection'});
+    expect(multi.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/multiple strokes which schema 1.0 cannot preserve/)}));
+
+    const framedWithStroke={id:'frame-stroke',name:'Outlined frame',type:'FRAME',x:0,y:0,width:100,height:100,rotation:0,opacity:1,
+      fills:[],effects:[],layoutMode:'NONE',layoutGrids:[],clipsContent:false,children:[],strokes:[{type:'SOLID',color:{r:0,g:0,b:0},opacity:1,visible:true,blendMode:'NORMAL'}]} as unknown as MockHostNode;
+    const frameHost=await loadHostWithSelection([framedWithStroke]);
+    await frameHost.ui.onmessage?.({type:'export-selection'});
+    expect(frameHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/visible strokes.*cannot preserve for frame layers/)}));
   });
 
   it('rolls back every selected target after a mid-patch Figma mutation fails',async()=>{

@@ -437,6 +437,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
   const exportedTypography=new Map<string,import('../shared/spec').TextStyleTokenSpec>();
   const readColorToken=async(node:SceneNode):Promise<string|undefined>=>{
     const bound=('boundVariables' in node?node.boundVariables:undefined) as {fills?:VariableAlias[];textRangeFills?:VariableAlias[][]}|undefined;
+    if(node.type==='TEXT'&&bound?.textRangeFills){const rangeAliases=bound.textRangeFills.flat();if(new Set(rangeAliases.map(alias=>alias.id)).size>1)throw new Error(`Text layer "${node.name}" uses multiple bound color variables; schema 1.0 supports one text color token per layer.`);}
     const alias=bound?.fills?.[0]??bound?.textRangeFills?.flat()[0];if(!alias)return undefined;
     const variable=await figma.variables.getVariableByIdAsync(alias.id);if(!variable||variable.resolvedType!=='COLOR')return undefined;
     let value:unknown;try{value=variable.resolveForConsumer(node).value;}catch{const collection=await figma.variables.getVariableCollectionByIdAsync(variable.variableCollectionId);value=collection?variable.valuesByMode[collection.defaultModeId]:undefined;}
@@ -451,13 +452,15 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number; rotation:number };
     const nativeBlendMode=(node as SceneNode & {blendMode?:string}).blendMode;
     if(nativeBlendMode)assertPortableBlendMode(node.name,'node',nativeBlendMode,['FRAME','GROUP','COMPONENT','INSTANCE'].includes(node.type));
+    if(!['RECTANGLE','ELLIPSE','LINE'].includes(node.type)&&'strokes' in node){const strokeValue:unknown=node.strokes;if(strokeValue===figma.mixed||(Array.isArray(strokeValue)&&strokeValue.some(stroke=>stroke.visible!==false&&(stroke.opacity??1)>0)))throw new Error(`Layer "${node.name}" has visible strokes that schema 1.0 cannot preserve for ${node.type.toLowerCase()} layers.`);}
+    if(['RECTANGLE','ELLIPSE','LINE'].includes(node.type)&&'strokes' in node){const strokeValue:unknown=node.strokes;if(strokeValue===figma.mixed)throw new Error(`Layer "${node.name}" has mixed strokes which selected export cannot preserve losslessly.`);}
     const id=logicalIds.get(node.id)||`figma-${node.id}`;
     let fill:string|undefined;let gradient:GradientSpec|undefined;let paints:PaintStackItemSpec[]|undefined;let imageData:{mimeType:'image/png'|'image/jpeg';data:string;scaleMode:'FIT'|'FILL'|'CROP'|'TILE';imageTransform?:Transform;scalingFactor?:number}|undefined;
     if('fills' in node){
       const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);
       const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);
       for(const item of visible)assertPortableBlendMode(node.name,'paint',item.blendMode??'NORMAL');
-      const toGradient=(item:GradientPaint):GradientSpec=>{const transform=item.gradientTransform;const horizontal=Math.abs(transform[0][0])>0.99&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1])>0.99;const vertical=Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1])>0.99&&Math.abs(transform[1][0])>0.99&&Math.abs(transform[1][1])<0.01;return {direction:vertical?'vertical':'horizontal',...(!horizontal&&!vertical?{transform:[[transform[0][0],transform[0][1],transform[0][2]],[transform[1][0],transform[1][1],transform[1][2]]]}:{}),stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};};
+      const toGradient=(item:GradientPaint):GradientSpec=>{const transform=item.gradientTransform;const horizontal=Math.abs(transform[0][0])>0.99&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1])>0.99;const vertical=Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1])>0.99&&Math.abs(transform[1][0])>0.99&&Math.abs(transform[1][1])<0.01;const defaultHorizontal=horizontal&&Math.abs(transform[0][0]-1)<0.01&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[0][2])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1]-1)<0.01&&Math.abs(transform[1][2])<0.01;const defaultVertical=vertical&&Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1]+1)<0.01&&Math.abs(transform[0][2]-1)<0.01&&Math.abs(transform[1][0]-1)<0.01&&Math.abs(transform[1][1])<0.01&&Math.abs(transform[1][2])<0.01;return {direction:vertical?'vertical':'horizontal',...(!defaultHorizontal&&!defaultVertical?{transform:[[transform[0][0],transform[0][1],transform[0][2]],[transform[1][0],transform[1][1],transform[1][2]]]}:{}),stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};};
       const toRadial=(item:GradientPaint):RadialGradientSpec=>({transform:[[item.gradientTransform[0][0],item.gradientTransform[0][1],item.gradientTransform[0][2]],[item.gradientTransform[1][0],item.gradientTransform[1][1],item.gradientTransform[1][2]]],stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))});
       const toStackItem=async(item:SolidPaint|GradientPaint|ImagePaint):Promise<PaintStackItemSpec>=>{
         if(item.type==='SOLID')return {type:'solid',color:hexColor(item.color),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
@@ -483,7 +486,9 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         else if(paintItem?.type==='GRADIENT_RADIAL'||paintItem?.type==='GRADIENT_ANGULAR'||paintItem?.type==='GRADIENT_DIAMOND')paints=[await toStackItem(paintItem)];
         else if(paintItem?.type==='IMAGE'){
           if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1){
-            const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT',...(encoded.imageTransform?{imageTransform:encoded.imageTransform}:{}),...(encoded.scalingFactor!==undefined?{scalingFactor:encoded.scalingFactor}:{})};
+            const visibleStrokes='strokes' in node?node.strokes.filter(stroke=>stroke.visible!==false&&(stroke.opacity??1)>0):[];const cornerStyle=exportCornerStyle(node);const hasShapeDecoration=visibleStrokes.length>0||Boolean(cornerStyle.cornerSmoothing)||Boolean(cornerStyle.radius)||Boolean(cornerStyle.cornerRadii&&Object.values(cornerStyle.cornerRadii).some(value=>value>0));
+            const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');
+            if(hasShapeDecoration)paints=[encoded];else imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT',...(encoded.imageTransform?{imageTransform:encoded.imageTransform}:{}),...(encoded.scalingFactor!==undefined?{scalingFactor:encoded.scalingFactor}:{})};
           }else paints=[await toStackItem(paintItem)];
         }
         else if(paintItem)throw new Error(`Layer "${node.name}" uses unsupported ${paintItem.type.toLowerCase()} paint.`);
@@ -508,6 +513,8 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     const base = { id, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(supported.rotation!==0?{rotation:supported.rotation}:{}), ...(fill?{fill}:{}),...(gradient?{gradient}:{}),...(paints?{paints}:{}),...(shadow?{shadow}:{}),...(shadows?{shadows}:{}),...(designEffects?.length?{effects:designEffects}:{}),...(constraints?{constraints}:{}),...(fillToken?{fillToken}:{}) };
     if(imageData)return {...base,type:'image',...imageData};
     if (node.type === 'TEXT') {
+      const fontNameValue:unknown=node.fontName;const fontSizeValue:unknown=node.fontSize;const lineHeightValue:unknown=node.lineHeight;
+      if(fontNameValue===figma.mixed||fontSizeValue===figma.mixed||lineHeightValue===figma.mixed)throw new Error(`Text layer "${node.name}" has mixed font or line-height formatting that schema 1.0 cannot preserve losslessly.`);
       const font = node.fontName === figma.mixed ? undefined : node.fontName;
       const lineHeight = typeof node.lineHeight === 'object' && node.lineHeight.unit === 'PIXELS' ? node.lineHeight.value : undefined;
       const rawStyle=node.characters.length?node.getRangeTextStyleId(0,node.characters.length):null;let textStyleToken:string|undefined;
@@ -572,7 +579,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
   return spec;
 }
 
-function fontStyleToWeight(style:string):number{return /bold/i.test(style)?700:/semi.?bold/i.test(style)?600:/medium/i.test(style)?500:400;}
+function fontStyleToWeight(style:string):number{const normalized=style.toLowerCase().replace(/[\s_-]+/g,'');if(/^(thin|hairline|ultrathin)$/.test(normalized))return 100;if(/^(extralight|ultralight)$/.test(normalized))return 200;if(/^light/.test(normalized))return 300;if(/^(book|regular|normal|roman)$/.test(normalized))return 400;if(/medium/.test(normalized))return 500;if(/(semibold|demibold)/.test(normalized))return 600;if(/(extrabold|ultrabold)/.test(normalized))return 800;if(/(black|heavy)/.test(normalized))return 900;if(/bold/.test(normalized))return 700;return 400;}
 
 function bridgeStatus(status:Extract<HostToUi,{type:'agent-status'}>['status'],details:Partial<Extract<HostToUi,{type:'agent-status'}>>={}):void{
   figma.ui.postMessage({type:'agent-status',status,...(bridgeSessionId?{sessionId:bridgeSessionId}:{}),...details});

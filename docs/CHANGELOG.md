@@ -3,6 +3,8 @@
 ## Unreleased
 - Fixed selected-tree export dropping bound color variable and text-style definitions because async traversal was snapshotted too early; added host behavior regression coverage. Release verification passed with 101 unit and 17 integration tests, strict docs audit (0 findings), ZIP integrity and SHA-256.
 - Expanded selected-export behavior coverage for geometry, rotation, clipping, Auto Layout, typography and constraints alongside tokens.
+- Added actual plugin-host export fixtures for editable vectors, detached component/instance references, embedded raster crop metadata, gradients, shadows, and explicit rejection of unsupported effects/node types/multiple strokes. Mixed font/line-height styles and multiple text color tokens now fail safely instead of being silently dropped.
+- Corrected native font-weight mapping across light, regular, medium, semibold, bold, extrabold and black styles. Preserve rounded corners/strokes when exporting image-filled rectangles; fail explicitly for visible strokes on layer types whose schema has no stroke fields.
 - Added behavior-level Figma host tests for selected patch/undo, sibling preservation, rollback after a partially mutating failure, and cleanup of pages created before a later render failure.
 - Published the exact-source ZIP and SHA-256 manifest with the plan/prompt corrections on GitHub `main`; verified its Git blob against the local archive bytes.
 - Replaced conflicting roadmap percentages and stale acceptance checklists with one evidence-driven execution plan and engineering master prompt; agent rules now resume the first unblocked task and explicitly separate live Figma/client gates from plugin-only capabilities.
