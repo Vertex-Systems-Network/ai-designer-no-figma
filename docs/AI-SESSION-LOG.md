@@ -4,7 +4,7 @@
 
 - Added bounded PNG/JPEG image paints to schema 1.0 paint stacks, including validation of decoded size, image signature/MIME match, scale mode, and opacity.
 - Renderer now creates native Figma image paints in the declared stack order. Selected-tree export embeds supported PNG/JPEG fill bytes and preserves scale mode and opacity; legacy single rectangle image export remains supported.
-- Unit coverage passes for valid/invalid embedded paint bytes and paint order. Full release verification is running; live Figma image-fill round-trip remains NOT TESTED.
+- Unit and integration coverage passes: 63 unit and 17 integration tests. `npm run release:verify` also passes typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 (`d9a23ff4e91be71569e5cae67754eabcb5acba52be191e2ebeec14dcd6de2437`). Live Figma image-fill round-trip remains NOT TESTED.
 
 ## 2026-11-09 — bounded paint-stack import/export
 
