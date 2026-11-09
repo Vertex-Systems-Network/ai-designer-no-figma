@@ -56,6 +56,12 @@ describe('design specification validation', () => {
     const outOfRange=structuredClone(custom);const bad=outOfRange.pages[0]!.children[0]!;if(bad.type!=='frame')throw new Error('fixture frame expected');bad.cornerSmoothing=1.5;
     expect(validateDesignSpec(outOfRange).issues.some(issue=>issue.path.endsWith('cornerSmoothing'))).toBe(true);
   });
+  it('accepts bounded native layer rotations and rejects out-of-range degrees',()=>{
+    const rotated=structuredClone(valid);const frame=rotated.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.rotation=-37.5;
+    expect(validateDesignSpec(rotated).valid).toBe(true);
+    frame.rotation=181;
+    expect(validateDesignSpec(rotated).issues.some(issue=>issue.path.endsWith('/rotation')||issue.path.endsWith('.rotation'))).toBe(true);
+  });
   it('accepts gradients, shadows, editable vectors, and instances of earlier components', () => {
     const advanced: DesignSpec = { schemaVersion: '1.0', name: 'Advanced', pages: [{ id: 'p-advanced', name: 'Components', children: [
       { type: 'component', id: 'button-component', name: 'Primary button', width: 120, height: 40, fill: '#087A55', children: [
