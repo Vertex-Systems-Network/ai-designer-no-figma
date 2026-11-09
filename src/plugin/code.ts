@@ -31,7 +31,7 @@ function gradientPaint(spec:GradientSpec,opacity=1):GradientPaint {
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
 }
 function applyNodePaint(node:SceneNode,fill?:string,gradient?:GradientSpec,shadow?:ShadowSpec,paints?:PaintStackItemSpec[],shadows?:ShadowSpec[]):void {
-  if('fills' in node){if(paints?.length)node.fills=buildPaintStack(paints);else if(gradient)node.fills=[gradientPaint(gradient)];else if(fill)node.fills=[paint(fill)];}
+  if('fills' in node){if(paints?.length)node.fills=buildPaintStack(paints,item=>figma.createImage(decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES)).hash);else if(gradient)node.fills=[gradientPaint(gradient)];else if(fill)node.fills=[paint(fill)];}
   if('effects' in node){const effectSpecs=shadows?.length?shadows:shadow?[shadow]:[];if(effectSpecs.length)node.effects=buildShadowStack(effectSpecs);}
 }
 function applyLayout(frame:FrameNode,layout:LayoutSpec|undefined):void {
@@ -406,15 +406,30 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);
       const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);
       const toGradient=(item:GradientPaint):GradientSpec=>{const transform=item.gradientTransform;const horizontal=Math.abs(transform[0][0])>0.99&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1])>0.99;const vertical=Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1])>0.99&&Math.abs(transform[1][0])>0.99&&Math.abs(transform[1][1])<0.01;if(!horizontal&&!vertical)throw new Error(`Layer "${node.name}" uses a diagonal or transformed linear gradient that schema 1.0 cannot preserve losslessly.`);return {direction:vertical?'vertical':'horizontal',stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};};
-      const toStackItem=(item:SolidPaint|GradientPaint):PaintStackItemSpec=>item.type==='SOLID'?{type:'solid',color:hexColor(item.color),...((item.opacity??1)<1?{opacity:item.opacity}:{})}:{type:'linear-gradient',gradient:toGradient(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+      const toStackItem=async(item:SolidPaint|GradientPaint|ImagePaint):Promise<PaintStackItemSpec>=>{
+        if(item.type==='SOLID')return {type:'solid',color:hexColor(item.color),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+        if(item.type==='GRADIENT_LINEAR')return {type:'linear-gradient',gradient:toGradient(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+        if(item.type!=='IMAGE')throw new Error(`Layer "${node.name}" uses unsupported ${item.type.toLowerCase()} paint.`);
+        if(item.scaleMode==='TILE')throw new Error(`Image "${node.name}" uses TILE scale mode, which is not supported for portable export.`);
+        if(!item.imageHash)throw new Error(`Image hash for "${node.name}" is unavailable.`);
+        const image=figma.getImageByHash(item.imageHash);if(!image)throw new Error(`Image bytes for "${node.name}" are unavailable.`);
+        const bytes=await image.getBytesAsync();if(bytes.length>MAX_EMBEDDED_IMAGE_BYTES)throw new Error(`Image "${node.name}" exceeds the embedded export size limit.`);
+        const mimeType=bytes[0]===137?'image/png':'image/jpeg';const info=validateRasterAsset(bytes,mimeType);
+        if(info.mimeType!==mimeType)throw new Error(`Image "${node.name}" must be PNG or JPEG for portable export.`);
+        return {type:'image',mimeType,data:encodeBase64(bytes),scaleMode:item.scaleMode==='FILL'||item.scaleMode==='CROP'?item.scaleMode:'FIT',...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+      };
       if(visible.length>1){
-        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'))throw new Error(`Layer "${node.name}" combines an image or unsupported paint with other fills; portable export supports only solid and linear-gradient stacks.`);
-        paints=visible.map(item=>toStackItem(item as SolidPaint|GradientPaint));
+        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
+        paints=await Promise.all(visible.map(item=>toStackItem(item as SolidPaint|GradientPaint|ImagePaint)));
       }else {
         const paintItem=visible[0];
-        if(paintItem?.type==='SOLID'){if((paintItem.opacity??1)<1)paints=[toStackItem(paintItem)];else fill=hexColor(paintItem.color);}
-        else if(paintItem?.type==='GRADIENT_LINEAR'){if((paintItem.opacity??1)<1)paints=[toStackItem(paintItem)];else gradient=toGradient(paintItem);}
-        else if(paintItem?.type==='IMAGE'&&node.type==='RECTANGLE'){if((paintItem.opacity??1)<1)throw new Error(`Image fill opacity on "${node.name}" cannot be represented losslessly in schema 1.0 yet.`);if(paintItem.scaleMode==='TILE')throw new Error(`Image "${node.name}" uses TILE scale mode, which is not supported for portable export.`);if(!paintItem.imageHash)throw new Error(`Image hash for "${node.name}" is unavailable.`);const image=figma.getImageByHash(paintItem.imageHash);if(!image)throw new Error(`Image bytes for "${node.name}" are unavailable.`);const bytes=await image.getBytesAsync();const mimeType=bytes[0]===137?'image/png':'image/jpeg';if(bytes.length>MAX_EMBEDDED_IMAGE_BYTES)throw new Error(`Image "${node.name}" exceeds the embedded export size limit.`);imageData={mimeType,data:encodeBase64(bytes),scaleMode:paintItem.scaleMode};}
+        if(paintItem?.type==='SOLID'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else fill=hexColor(paintItem.color);}
+        else if(paintItem?.type==='GRADIENT_LINEAR'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else gradient=toGradient(paintItem);}
+        else if(paintItem?.type==='IMAGE'){
+          if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1&&paintItem.scaleMode!=='TILE'){
+            const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT'};
+          }else paints=[await toStackItem(paintItem)];
+        }
         else if(paintItem)throw new Error(`Layer "${node.name}" uses unsupported ${paintItem.type.toLowerCase()} paint.`);
       }
     }
