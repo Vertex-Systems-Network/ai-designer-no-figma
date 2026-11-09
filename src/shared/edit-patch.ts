@@ -53,14 +53,14 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
     if(op.op==='set-image-crop'){
       if(!op.value||typeof op.value!=='object'||Array.isArray(op.value))return{valid:false,message:`${path}.value must contain a scaleMode and, for CROP, an imageTransform.`};
       const crop=op.value as Record<string,unknown>;
-      if(!['FILL','FIT','CROP'].includes(String(crop.scaleMode)))return{valid:false,message:`${path}.value.scaleMode must be FILL, FIT, or CROP.`};
-      if(crop.scaleMode!=='CROP'){
-        if(Object.keys(crop).length!==1)return{valid:false,message:`${path}.value may contain only scaleMode for FILL or FIT.`};
-      }else{
+      if(!['FILL','FIT','CROP','TILE'].includes(String(crop.scaleMode)))return{valid:false,message:`${path}.value.scaleMode must be FILL, FIT, CROP, or TILE.`};
+      if(crop.scaleMode==='CROP'){
         if(Object.keys(crop).length!==2||!Array.isArray(crop.imageTransform)||crop.imageTransform.length!==2||!crop.imageTransform.every(row=>Array.isArray(row)&&row.length===3&&row.every(value=>typeof value==='number'&&Number.isFinite(value)&&Math.abs(value)<=10)))return{valid:false,message:`${path}.value.imageTransform must be a finite 2×3 matrix with values within ±10.`};
         const matrix=crop.imageTransform as [[number,number,number],[number,number,number]];const determinant=matrix[0][0]*matrix[1][1]-matrix[0][1]*matrix[1][0];
         if(Math.abs(determinant)<0.0001||Math.abs(determinant)>100)return{valid:false,message:`${path}.value.imageTransform must be invertible with a bounded scale.`};
-      }
+      }else if(crop.scaleMode==='TILE'){
+        if(Object.keys(crop).some(key=>!['scaleMode','scalingFactor'].includes(key))||(crop.scalingFactor!==undefined&&(typeof crop.scalingFactor!=='number'||!Number.isFinite(crop.scalingFactor)||crop.scalingFactor<=0||crop.scalingFactor>10)))return{valid:false,message:`${path}.value for TILE must contain only a scalingFactor greater than 0 and at most 10.`};
+      }else if(Object.keys(crop).length!==1)return{valid:false,message:`${path}.value may contain only scaleMode for FILL or FIT.`};
       continue;
     }
     if(op.op==='swap-component'){
