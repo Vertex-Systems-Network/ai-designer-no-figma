@@ -51,4 +51,11 @@
 - Added native color Variable and Text Style creation/binding, responsive constraints, and row/column/grid layout definitions in the Figma renderer.
 - Extended supported selected-tree export for images, token references, grids, constraints, component definitions, gradients, vectors and shadows; unsupported data now fails explicitly.
 - Added category-specific generation recipes for website, dashboard, mobile app, admin, WordPress admin, e-commerce, landing page and custom interfaces.
-- Automated release verification is pending. Live Figma rendering and export/import round-trip remain NOT TESTED.
+- Automated release verification passed with 55 unit and 17 integration tests, typecheck/lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma rendering and export/import round-trip remain NOT TESTED.
+
+
+## 2026-11-09 — compatibility mappings and local model streaming
+
+- Added a typings-backed compatibility module for schema Auto Layout modes and primary-axis alignment, with deterministic mapping round-trip tests.
+- Local Ollama generation now receives the complete provider-neutral schema/category instructions, streams bounded NDJSON to the UI, reports actual output received, and propagates cancellation upstream. Patch prompts now include the supported Auto Layout operation.
+- Release verification passed: 55 unit and 17 integration tests, typecheck/lint, local audit, build/package and strict docs audit (0 findings). No local Ollama service or live Figma editor was available for verification.
