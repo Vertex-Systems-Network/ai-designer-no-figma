@@ -281,7 +281,13 @@ function App() {
     try {
       const resolvedCanvas=canvasSize==='custom'?`${customWidth}x${customHeight}`:canvasSize;
       const response=await fetch(`${baseUrl}/api/generate`,{method:'POST',headers:{'Content-Type':'application/json','X-AI-Designer-Local':'1'},body:JSON.stringify({model,prompt:input.prompt,category,style,mode:input.mode??'design',platform,canvasSize:resolvedCanvas,brandColor,density,typography,complexity}),signal:controller.signal});
-      const data=await response.json() as {response?:string;error?:{message?:string}}; if(!response.ok)throw new Error(data.error?.message??`Generation failed (${response.status}).`); return data.response??'';
+      if(!response.ok){const data=await response.json() as {error?:{message?:string}};throw new Error(data.error?.message??`Generation failed (${response.status}).`);}
+      if(response.headers.get('content-type')?.includes('application/json')){const data=await response.json() as {response?:string;error?:{message?:string}};if(data.error)throw new Error(data.error.message??'Local model request failed.');return data.response??'';}
+      if(!response.body)throw new Error('The local model did not return a response stream.');
+      const reader=response.body.getReader();const decoder=new TextDecoder();let pending='';let output='';let chunks=0;let lastProgress=0;
+      const consume=(line:string)=>{if(!line.trim())return;const item=JSON.parse(line) as {response?:unknown;error?:{message?:string};done?:boolean};if(item.error)throw new Error(item.error.message??'Local model stream failed.');if(typeof item.response==='string'){output+=item.response;chunks++;if(output.length>512_000)throw new Error('Local model response exceeded the 500 KB limit.');const now=Date.now();if(chunks===1||now-lastProgress>350){setNotice(`Receiving local model output (${output.length.toLocaleString()} characters)…`);lastProgress=now;}}};
+      try{while(true){const {value,done}=await reader.read();if(done)break;pending+=decoder.decode(value,{stream:true});const lines=pending.split('\n');pending=lines.pop()??'';for(const line of lines)consume(line);}pending+=decoder.decode();if(pending.trim())consume(pending);}finally{reader.releaseLock();}
+      return output;
     } finally {clearTimeout(timeout);activeController.current=null;}
   }
   async function generate() {
@@ -431,4 +437,42 @@ function App() {
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
         <div className="settings-card"><div className="preview-head"><strong>Optional Ollama service</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed if you choose Ollama. Use http://localhost:8787; the service itself binds only to loopback.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test Ollama</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
-        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the open Figma file once. After the connection is confirmed, the panel hides and the plugin keeps processing jobs in this file. Keep Figma Desktop and this document open.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={['connecting','connected','working'].includes(agentStatus.status)}>{agentStatus.s
+        <div className="settings-card"><div className="preview-head"><strong>Claude connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect Claude Desktop to the open Figma file once. After the connection is confirmed, the panel hides and the plugin keeps processing jobs in this file. Keep Figma Desktop and this document open.</p><div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={['connecting','connected','working'].includes(agentStatus.status)}>{agentStatus.status==='connecting'?'Connecting…':agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':'Connect & hide panel'}</button>{(agentStatus.status==='connected'||agentStatus.status==='working')&&<button className="secondary-button small" onClick={()=>post({type:'hide-ui'})}>Hide panel</button>}{bridgeToken&&<button className="secondary-button small" disabled={agentStatus.status==='working'} onClick={()=>{bridgeEpoch.current++;setBridgeToken('');save('adnf-bridge-token','');configureStoredAssetBridge(bridgeUrl,'');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:'',sessionId:bridgeSession.current||'disconnect-session'});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If Claude is installed but cannot connect, check that the AI Designer extension is enabled in Claude Desktop, then select Connect again.</p></details></div>
+        <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>
+      </>}
+    </section>
+    {copyFallback&&<div className="template-panel copy-fallback"><label className="field-label" htmlFor="copy-fallback">Copy manually · press Ctrl+C</label><textarea id="copy-fallback" className="handoff-text" readOnly value={copyFallback} onFocus={e=>e.currentTarget.select()} onClick={e=>e.currentTarget.select()}/></div>}
+    <footer className="status-footer">{error?<p className="message error-message">{error}</p>:<p className="message">{notice||'Ready'} · No Figma AI credits or paid API required</p>}{issues.length>0&&<div className="validation-list"><strong>{issues.length} validation finding(s)</strong>{issues.slice(0,8).map((i,n)=><p key={`${i.path}-${n}`}><code>{i.path}</code> {i.message}</p>)}</div>}</footer>
+    <button className="resize-handle" aria-label="Resize plugin panel" title="Drag to resize panel" onPointerDown={startPanelResize}><HeaderIcon kind="resize"/></button>
+  </main>;
+}
+function showRuntimeFailure(reason: unknown) {
+  const container = document.getElementById('root');
+  if (!container) return;
+  const details = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason);
+  const panel = document.createElement('main');
+  panel.className = 'boot-error';
+  panel.setAttribute('role', 'alert');
+  const title = document.createElement('strong');
+  title.textContent = 'AI Designer UI stopped';
+  const message = document.createElement('p');
+  message.textContent = 'The plugin UI hit a browser runtime error. Copy this detail when reporting the problem.';
+  const detail = document.createElement('pre');
+  detail.textContent = details.slice(0, 1200);
+  const hint = document.createElement('small');
+  hint.textContent = 'Re-import the updated dist/manifest.json after replacing the plugin build.';
+  panel.append(title, message, detail, hint);
+  container.replaceChildren(panel);
+}
+
+window.addEventListener('error', event => showRuntimeFailure(event.error ?? event.message));
+window.addEventListener('unhandledrejection', event => showRuntimeFailure(event.reason));
+
+try {
+  const container = document.getElementById('root');
+  if (!container) throw new Error('Plugin UI root element is missing.');
+  createRoot(container, { onUncaughtError: error => showRuntimeFailure(error) })
+    .render(<React.StrictMode><App/></React.StrictMode>);
+} catch (error) {
+  showRuntimeFailure(error);
+}
