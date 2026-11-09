@@ -20,7 +20,7 @@ export type EffectSpec = { type: 'drop-shadow'|'inner-shadow'; color: string; op
 export type ConstraintsSpec = { horizontal: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE'; vertical: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE' };
 export type GridSpec = { pattern: 'GRID'; sectionSize: number; visible?: boolean } | { pattern: 'COLUMNS'|'ROWS'; sectionSize?: number; gutterSize: number; count: number; offset?: number; alignment?: 'MIN'|'CENTER'|'MAX'|'STRETCH'; visible?: boolean };
 export type ColorTokenSpec = { name: string; color: string };
-export type TextStyleTokenSpec = { name: string; fontFamily: string; fontSize: number; fontWeight: number; lineHeight?: number };
+export type TextStyleTokenSpec = { name: string; fontFamily: string; fontSize: number; fontWeight: number; lineHeight?: number; letterSpacing?: LetterSpacingSpec; textDecoration?: 'NONE'|'UNDERLINE'|'STRIKETHROUGH'; textCase?: 'ORIGINAL'|'UPPER'|'LOWER'|'TITLE'|'SMALL_CAPS'|'SMALL_CAPS_FORCED' };
 
 type BaseNode = {
   id: string;
@@ -40,6 +40,7 @@ type BaseNode = {
   constraints?: ConstraintsSpec;
   fillToken?: string;
 };
+export type LetterSpacingSpec = { unit: 'PIXELS'|'PERCENT'; value: number };
 export type TextNodeSpec = BaseNode & {
   type: 'text';
   text: string;
@@ -47,6 +48,9 @@ export type TextNodeSpec = BaseNode & {
   fontSize?: number;
   fontWeight?: number;
   lineHeight?: number;
+  letterSpacing?: LetterSpacingSpec;
+  textDecoration?: 'NONE'|'UNDERLINE'|'STRIKETHROUGH';
+  textCase?: 'ORIGINAL'|'UPPER'|'LOWER'|'TITLE'|'SMALL_CAPS'|'SMALL_CAPS_FORCED';
   color?: string;
   align?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
   textStyleToken?: string;
@@ -128,7 +132,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
     vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
     image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','constraints'],
-    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','color','align','textStyleToken','constraints','fillToken'],
+    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
     rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth','constraints'],
