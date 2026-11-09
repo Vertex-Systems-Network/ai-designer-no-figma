@@ -1,7 +1,8 @@
 # Changelog
 
 ## Unreleased
-- Added bounded affine 2×3 transforms for linear gradients. Diagonal and rotated linear gradients now preserve their Figma transform through import/export; radial gradients remain unsupported.
+- Added native radial-gradient paint stacks with bounded affine transforms, editable Figma paint rendering, validation against singular matrices, and selected-tree export round-trip.
+- Added bounded affine 2×3 transforms for linear gradients. Diagonal and rotated linear gradients now preserve their Figma transform through import/export; radial gradients are now supported with bounded transforms; angular/diamond gradients remain unsupported.
 - Added bounded native effect stacks for inner/drop shadows and normal layer/background blur. Import/export retains order and supported settings; progressive blur and unsupported effects are rejected explicitly.
 - Added schema-validated embedded PNG/JPEG image paints in ordered fill stacks, including opacity and FIT/FILL/CROP scale modes. Figma export re-embeds bounded raster bytes; unsupported effects and transformed gradients remain explicitly rejected.
 
