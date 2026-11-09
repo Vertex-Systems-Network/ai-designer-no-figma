@@ -1,4 +1,4 @@
-import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type EffectSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type ShadowSpec } from '../shared/spec';
+import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type EffectSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type RadialGradientSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
@@ -406,9 +406,11 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);
       const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);
       const toGradient=(item:GradientPaint):GradientSpec=>{const transform=item.gradientTransform;const horizontal=Math.abs(transform[0][0])>0.99&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1])>0.99;const vertical=Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1])>0.99&&Math.abs(transform[1][0])>0.99&&Math.abs(transform[1][1])<0.01;return {direction:vertical?'vertical':'horizontal',...(!horizontal&&!vertical?{transform:[[transform[0][0],transform[0][1],transform[0][2]],[transform[1][0],transform[1][1],transform[1][2]]]}:{}),stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};};
+      const toRadial=(item:GradientPaint):RadialGradientSpec=>({transform:[[item.gradientTransform[0][0],item.gradientTransform[0][1],item.gradientTransform[0][2]],[item.gradientTransform[1][0],item.gradientTransform[1][1],item.gradientTransform[1][2]]],stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))});
       const toStackItem=async(item:SolidPaint|GradientPaint|ImagePaint):Promise<PaintStackItemSpec>=>{
         if(item.type==='SOLID')return {type:'solid',color:hexColor(item.color),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
         if(item.type==='GRADIENT_LINEAR')return {type:'linear-gradient',gradient:toGradient(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+        if(item.type==='GRADIENT_RADIAL')return {type:'radial-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
         if(item.type!=='IMAGE')throw new Error(`Layer "${node.name}" uses unsupported ${item.type.toLowerCase()} paint.`);
         if(item.scaleMode==='TILE')throw new Error(`Image "${node.name}" uses TILE scale mode, which is not supported for portable export.`);
         if(!item.imageHash)throw new Error(`Image hash for "${node.name}" is unavailable.`);
@@ -419,12 +421,13 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         return {type:'image',mimeType,data:encodeBase64(bytes),scaleMode:item.scaleMode==='FILL'||item.scaleMode==='CROP'?item.scaleMode:'FIT',...((item.opacity??1)<1?{opacity:item.opacity}:{})};
       };
       if(visible.length>1){
-        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
+        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='GRADIENT_RADIAL'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
         paints=await Promise.all(visible.map(item=>toStackItem(item as SolidPaint|GradientPaint|ImagePaint)));
       }else {
         const paintItem=visible[0];
         if(paintItem?.type==='SOLID'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else fill=hexColor(paintItem.color);}
         else if(paintItem?.type==='GRADIENT_LINEAR'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else gradient=toGradient(paintItem);}
+        else if(paintItem?.type==='GRADIENT_RADIAL')paints=[await toStackItem(paintItem)];
         else if(paintItem?.type==='IMAGE'){
           if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1&&paintItem.scaleMode!=='TILE'){
             const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT'};
