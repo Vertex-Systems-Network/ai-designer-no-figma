@@ -1,7 +1,8 @@
 # Changelog
 
 ## Unreleased
-- Added reviewed replacement of exactly one existing selected image fill from a validated PNG/JPEG (128 KiB cap), preserving its Figma scale/opacity and enabling patch undo. The UI exposes a file picker only when the selection summary contains an image fill; crop/reposition remains unsupported.
+- Added reviewed FILL/FIT/CROP mode and affine image reposition patches for one selected image fill. Crop matrices are finite, invertible 2×3 transforms bounded to ±10; paint opacity, blend and source bytes are preserved, and patch undo restores the original paint. The Edit UI exposes a mode selector and transform editor when an image fill is selected.
+- Added reviewed replacement of exactly one existing selected image fill from a validated PNG/JPEG (128 KiB cap), preserving its scale/opacity and enabling patch undo. Live Figma crop appearance and rollback remain NOT TESTED.
 
 - Text nodes and reusable typography tokens now support paragraph spacing; text nodes additionally import/export vertical alignment and fixed/height/auto resize behavior.
 
