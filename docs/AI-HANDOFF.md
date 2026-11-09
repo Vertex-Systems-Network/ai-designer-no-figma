@@ -27,7 +27,7 @@ Updated: 2026-11-10. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 
 ## Exact next tasks
 
-Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` is AUTOMATED VERIFIED. `CODE-02` is active, criterion 1/4 complete: fixed async token discovery loss and tested exported color/text-style token definitions and bindings in the actual host mock. Next audit geometry/text/layout, assets/components/paint, and explicit unsupported-field rejection. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED: the uploaded archive blob matches local bytes and the SHA-256 manifest.
+Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` is AUTOMATED VERIFIED. `CODE-02` is active, criterion 2/4 complete: fixed async token discovery loss; behavior fixtures verify token definitions/bindings, geometry, rotation, clipping, Auto Layout, typography and responsive constraints in the actual host mock. Next audit assets/components/paint and explicit unsupported-field rejection. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED: the uploaded archive blob matches local bytes and the SHA-256 manifest.
 
 ## Constraints
 

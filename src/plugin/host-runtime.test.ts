@@ -189,8 +189,9 @@ describe('Figma host patch behavior',()=>{
       fills:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3},opacity:1}],effects:[],constraints:{horizontal:'MIN',vertical:'MIN'},
       boundVariables:{fills:[{id:'color-variable'}]},getRangeTextStyleId:()=> 'text-style',
     } as unknown as MockHostNode;
-    const frame={id:'styled-frame',name:'Finance',type:'FRAME',x:0,y:0,width:800,height:600,rotation:0,opacity:1,
-      fills:[],effects:[],layoutMode:'NONE',layoutGrids:[],clipsContent:false,children:[styledText]} as unknown as MockHostNode;
+    const frame={id:'styled-frame',name:'Finance',type:'FRAME',x:4,y:8,width:800,height:600,rotation:15,opacity:1,
+      fills:[],effects:[],layoutMode:'HORIZONTAL',itemSpacing:12,paddingTop:16,paddingRight:16,paddingBottom:16,paddingLeft:16,
+      primaryAxisAlignItems:'CENTER',primaryAxisSizingMode:'AUTO',counterAxisSizingMode:'FIXED',layoutGrids:[],clipsContent:true,children:[styledText]} as unknown as MockHostNode;
     const {ui}=await loadHostWithSelection([frame],{
       variables:{
         getVariableByIdAsync:vi.fn().mockResolvedValue({name:'Ink/Primary',resolvedType:'COLOR',variableCollectionId:'collection',resolveForConsumer:()=>({value:{r:0.1,g:0.2,b:0.3}})}),
@@ -200,10 +201,12 @@ describe('Figma host patch behavior',()=>{
       currentPage:{name:'Page 1',selection:[frame]},
     });
     await ui.onmessage?.({type:'export-selection'});
-    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{designSystem?:{colors?:Array<{name:string}>;typography?:Array<{name:string}>};pages?:Array<{children?:Array<{children?:Array<{fillToken?:string;textStyleToken?:string}>}>}>}}|undefined;
+    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{designSystem?:{colors?:Array<{name:string}>;typography?:Array<{name:string}>};pages?:Array<{children?:Array<{x:number;y:number;rotation:number;clipsContent:boolean;layout:{mode:string;gap:number;padding:number;alignment:string};children?:Array<{x:number;y:number;width:number;height:number;fillToken?:string;textStyleToken?:string;fontSize:number;lineHeight:number;constraints:{horizontal:string;vertical:string}}>}>}>}}|undefined;
+    const root=exported?.spec?.pages?.[0]?.children?.[0];
     expect(exported?.spec?.designSystem?.colors).toEqual([expect.objectContaining({name:'Ink/Primary',color:'#1a334d'})]);
     expect(exported?.spec?.designSystem?.typography).toEqual([expect.objectContaining({name:'Heading'})]);
-    expect(exported?.spec?.pages?.[0]?.children?.[0]?.children?.[0]).toEqual(expect.objectContaining({fillToken:'Ink/Primary',textStyleToken:'Heading'}));
+    expect(root).toEqual(expect.objectContaining({x:4,y:8,rotation:15,clipsContent:true,layout:{mode:'horizontal',gap:12,padding:16,alignment:'CENTER',primaryAxisSizing:'AUTO',counterAxisSizing:'FIXED'}}));
+    expect(root?.children?.[0]).toEqual(expect.objectContaining({x:12,y:16,width:220,height:40,fillToken:'Ink/Primary',textStyleToken:'Heading',fontSize:24,lineHeight:30,constraints:{horizontal:'MIN',vertical:'MIN'}}));
   });
 
   it('rolls back every selected target after a mid-patch Figma mutation fails',async()=>{

@@ -5,7 +5,7 @@
 | Group | Task IDs | Current state |
 |---|---|---|
 | Plan/prompt coherence | `PLAN-01` | AUTOMATED VERIFIED; canonical plan/prompt, synchronized agent rules and acceptance docs; strict docs audit passed with 0 findings. |
-| Local code work | `CODE-01`–`CODE-03` | `CODE-01` AUTOMATED VERIFIED; `CODE-02` IN PROGRESS (1/4 criteria: token export); `CODE-03` follows after export fidelity. |
+| Local code work | `CODE-01`–`CODE-03` | `CODE-01` AUTOMATED VERIFIED; `CODE-02` IN PROGRESS (2/4: token and geometry/text/layout export fixtures); `CODE-03` follows after export fidelity. |
 | Live acceptance | `LIVE-01`–`LIVE-04` | BLOCKED on the user's Figma/client/model environment; run each only on the current package and record exact evidence. |
 | Publication | `PUB-01` | LIVE VERIFIED; uploaded ZIP blob matches local archive bytes and SHA-256 manifest. |
 | External desktop boundary | `BLOCK-01`–`BLOCK-02` | Outside plugin-only scope; requires a supported app-specific desktop/client capability. |
