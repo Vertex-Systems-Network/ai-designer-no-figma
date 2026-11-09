@@ -40,7 +40,7 @@ describe('design specification validation', () => {
         { type: 'text', id: 'button-label', name: 'Button label', width: 100, height: 24, text: 'Continue', fontSize: 14, color: '#FFFFFF' },
       ] },
       { type: 'instance', id: 'button-instance', name: 'Continue button', width: 120, height: 40, componentRef: 'button-component' },
-      { type: 'rectangle', id: 'gradient-card', name: 'Gradient card', width: 240, height: 120, gradient: { direction: 'horizontal', stops: [{ position: 0, color: '#087A55' }, { position: 1, color: '#54B99A' }] }, shadow: { color: '#000000', opacity: 0.16, offsetX: 0, offsetY: 4, blur: 12 } },
+      { type: 'rectangle', id: 'gradient-card', name: 'Gradient card', width: 240, height: 120, gradient: { direction: 'horizontal', stops: [{ position: 0, color: '#087A55' }, { position: 1, color: '#54B99A' }] }, shadows: [{ color: '#000000', opacity: 0.16, offsetX: 0, offsetY: 4, blur: 12 }, {color:'#000000',opacity:.08,offsetX:0,offsetY:1,blur:3}] },
       { type: 'vector', id: 'check-icon', name: 'Check icon', width: 24, height: 24, path: 'M2 12 L9 19 L22 4 Z', fill: '#FFFFFF' },
     ] }] };
     expect(validateDesignSpec(advanced).valid).toBe(true);
