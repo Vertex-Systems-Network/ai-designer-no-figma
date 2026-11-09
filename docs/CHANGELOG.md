@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Text nodes and reusable typography tokens now support paragraph spacing; text nodes additionally import/export vertical alignment and fixed/height/auto resize behavior.
+
 - Added schema-backed text letter spacing (pixels/percent), case transforms, and underline/strikethrough with native import and selected-layer export; mixed per-character formatting fails explicitly instead of being flattened.
 
 - Added schema-validated solid outlines for rectangle and ellipse nodes, including opacity, width and alignment. Import renders native strokes; selected-layer export preserves single normal solid strokes and clearly rejects unsupported multi-stroke or blended outlines.
