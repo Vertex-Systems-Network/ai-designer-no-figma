@@ -11,7 +11,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 93%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, bounded solid/linear-gradient/radial-gradient/image paints, native shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
+**Overall completion: 93%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, bounded solid/linear-gradient/radial-gradient/image paints, native shape strokes, shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -37,7 +37,7 @@ Completed engineering rows have been removed. Remaining work is split between li
 
 | Verification task | Status | What must be observed |
 |---|---|---|
-| Render images, components, instances, vectors, gradients, shadows, grids, constraints and Variables/styles | NOT TESTED | Confirm schema features appear as editable Figma nodes, variable bindings, text styles and responsive layout. |
+| Render images, components, instances, vectors, gradients, strokes, shadows, grids, constraints and Variables/styles | NOT TESTED | Confirm schema features appear as editable Figma nodes, variable bindings, text styles and responsive layout. |
 | Pair Claude and run a hidden-panel job | NOT TESTED | Confirm background bridge response and Agent Activity in the signed-in desktop session. |
 | Export selected design and re-import it | NOT TESTED | Confirm supported node, paint, token and layout data round-trips in live Figma. |
 | Save, reload and reuse SVG/raster assets | NOT TESTED | Confirm local library persistence and native asset insertion in Figma. |
@@ -71,7 +71,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 74 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 76 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
