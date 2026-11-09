@@ -4,6 +4,7 @@
 
 - Added a schema-validated `paints` stack for solid and linear-gradient fills, preserving Figma paint order and independent opacity on import/export.
 - Schema, renderer, export and host regression tests pass; live Figma visual round-trip remains NOT TESTED.
+- Extended schema 1.0 and the native renderer/exporter for up to four ordered drop shadows. Unsupported effect types and larger stacks fail with actionable errors; live Figma verification remains NOT TESTED.
 
 ## 2026-11-09 — advanced native design nodes
 
