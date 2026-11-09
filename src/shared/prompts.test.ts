@@ -31,6 +31,8 @@ describe('provider-neutral AI handoff prompts', () => {
     expect(prompt).toContain('Improve heading contrast');
     expect(prompt).toContain('node-1');
     expect(prompt).toContain('Return an empty operations array');
+    expect(prompt).toContain('swap-component');
+    expect(prompt).toContain('existing COMPONENT');
   });
 
   it('includes color, typography and spacing tokens in the AI design handoff',()=>{
