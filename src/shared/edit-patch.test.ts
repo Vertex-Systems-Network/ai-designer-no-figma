@@ -25,4 +25,10 @@ describe('parseEditPatch', () => {
     const result=parseEditPatch(JSON.stringify({operations:[{op:'set-auto-layout',targetId:'other',value:{mode:'VERTICAL',gap:16,padding:16,alignment:'MIN'}}]}),new Set(['frame-1']));
     expect(result).toMatchObject({valid:false,message:'operations[0].targetId is not present in the current selection.'});
   });
+  it('accepts instance replacement only when both instance and component IDs are in the selected tree',()=>{
+    const operation={op:'swap-component',targetId:'instance-1',value:'component-1'};
+    expect(parseEditPatch(JSON.stringify({operations:[operation]}),new Set(['instance-1','component-1'])).valid).toBe(true);
+    expect(parseEditPatch(JSON.stringify({operations:[operation]}),new Set(['instance-1']))).toMatchObject({valid:false,message:'operations[0].value is not present in the current selection.'});
+    for(const value of ['',{},'x'.repeat(201)])expect(parseEditPatch(JSON.stringify({operations:[{...operation,value}]})).valid).toBe(false);
+  });
 });
