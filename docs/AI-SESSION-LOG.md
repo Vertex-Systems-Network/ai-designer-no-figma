@@ -1,5 +1,10 @@
 # AI session log
 
+## 2026-11-09 — affine linear-gradient round-trip
+
+- Added bounded 2×3 affine transforms to linear-gradient specifications, preserving diagonal and rotated Figma linear gradients in paint stacks and legacy single-gradient fields. Renderer applies the supplied transform and exporter serializes it instead of rejecting transformed linear gradients.
+- `npm run release:verify` passes with 68 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 (`ca7e5148b4259997f821b2847b447ca73fb72add59bf5b5e5327883299941f6f`). Radial gradients remain unsupported; live Figma visual round-trip is NOT TESTED.
+
 ## 2026-11-09 — native blur and inner-shadow stacks
 
 - Added schema-validated ordered effects for inner/drop shadow and normal layer/background blur, capped at four per node. Renderer and selected-tree exporter preserve the supported effect type, order, color, opacity, offsets, spread and blur radius. Progressive blur and unsupported Figma effect variants fail with explicit messages.
