@@ -5,7 +5,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 ## Current release
 
 - Public repository: [Vertex-Systems-Network/ai-designer-no-figma](https://github.com/Vertex-Systems-Network/ai-designer-no-figma)
-- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (older snapshot; `PUB-01` tracks republishing and verifying the latest source-matched archive.)
+- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (source-matched archive; `PUB-01` verifies source and binary publication.)
 - Claude Desktop installer: [AI Designer No Figma `.mcpb`](artifacts/ai-designer-no-figma-claude.mcpb) (`npm run package:claude`)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
@@ -19,7 +19,7 @@ There is no aggregate completion percentage: it hid the distinction between code
 | Feature registry fully implemented | `█████░░░░░` 8/17 | Eight features are `IMPLEMENTED`; nine remain `PARTIAL`. Counts are registry entries, not product completion. |
 | Live Figma/client acceptance | `░░░░░░░░░░` 0/4 | Four named live checks are in [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md); current executor cannot drive the user's desktop session. |
 | Remaining local engineering tasks | `░░░░░░░░░░` 0/3 | Three ordered code tasks are open in the execution plan. |
-| Published binary matches verified source | `░░░░░░░░░░` 0/1 | `PUB-01` remains open: publish the current verified ZIP/checksum alongside source and verify the remote hash. The GitHub ZIP link below is an older snapshot until this gate closes. |
+| Published binary matches verified source | `██████████` 1/1 | `PUB-01` LIVE VERIFIED: source/docs and ZIP are on `main`; uploaded blob equals the local archive bytes and the SHA-256 manifest passes. |
 
 The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages are not used for overall project completion; each task closes against its own evidence.
 
@@ -29,7 +29,7 @@ The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages
 |---|---|---|
 | Local code | OPEN | Start `CODE-01`: replace source-string-only host assertions with behavior tests for patch apply, sibling preservation, and rollback. |
 | Live Figma and AI clients | BLOCKED · USER DESKTOP | Run `LIVE-01` through `LIVE-04` against the exact built package; record app, build hash, and observed result. |
-| Repository publication | OPEN | Finish `PUB-01`; source is synced, but the current binary ZIP still needs remote hash verification. |
+| Repository publication | LIVE VERIFIED | `PUB-01`: source and exact verified ZIP/checksum are synced on `main`. |
 | Plugin-only closed-file/background operation | OUT OF SCOPE | `BLOCK-01`: requires a separate supported desktop runner; the current plugin session ends when its document closes. |
 
 ## Requirements

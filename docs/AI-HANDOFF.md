@@ -27,7 +27,7 @@ Updated: 2026-11-10. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 
 ## Exact next tasks
 
-Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. Next is `CODE-01`: replace source-string-only host assertions with behavioral mock tests for patch apply, sibling preservation, and rollback. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` remains open until the remote ZIP/checksum matches the verified source.
+Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. Next is `CODE-01`: replace source-string-only host assertions with behavioral mock tests for patch apply, sibling preservation, and rollback. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED: the uploaded archive blob matches local bytes and the SHA-256 manifest.
 
 ## Constraints
 
