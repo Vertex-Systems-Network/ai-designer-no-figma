@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Added schema-validated embedded PNG/JPEG image paints in ordered fill stacks, including opacity and FIT/FILL/CROP scale modes. Figma export re-embeds bounded raster bytes; unsupported effects and transformed gradients remain explicitly rejected.
+
+## Unreleased
 - Added validated schema support and native renderer/export round-trip for up to eight stacked solid and linear-gradient fills, including independent paint opacity. Unsupported mixed image paint stacks continue to fail explicitly.
 - Added bounded stacks of up to four native drop shadows with order/opacity preserved in render and selected-tree export; non-drop-shadow effects remain explicit errors.
 - Added a reviewed `swap-component` patch for selected instances and components, with rollback snapshots for the previous main component and component property values.
