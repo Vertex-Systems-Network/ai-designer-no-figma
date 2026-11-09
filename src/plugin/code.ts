@@ -5,6 +5,7 @@ import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAss
 import { verifyAssetReadback } from '../shared/asset-readback';
 import { sha256 } from '../shared/sha256';
 import { decodeBase64, encodeBase64 } from '../shared/base64';
+import { fromFigmaLayoutMode, fromFigmaPrimaryAxisAlignment, toFigmaLayoutMode, toFigmaPrimaryAxisAlignment } from './compatibility';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 let cancelActiveRender: (() => void) | undefined;
@@ -34,10 +35,10 @@ function applyNodePaint(node:SceneNode,fill?:string,gradient?:GradientSpec,shado
 }
 function applyLayout(frame:FrameNode,layout:LayoutSpec|undefined):void {
   if(!layout||layout.mode==='none')return;
-  frame.layoutMode=layout.mode==='horizontal'?'HORIZONTAL':'VERTICAL';
+  frame.layoutMode=toFigmaLayoutMode(layout.mode);
   frame.itemSpacing=layout.gap??0;
   frame.paddingTop=frame.paddingRight=frame.paddingBottom=frame.paddingLeft=layout.padding??0;
-  frame.primaryAxisAlignItems=layout.alignment==='SPACE_BETWEEN'?'SPACE_BETWEEN':layout.alignment??'MIN';
+  frame.primaryAxisAlignItems=toFigmaPrimaryAxisAlignment(layout.alignment);
   frame.primaryAxisSizingMode=layout.primaryAxisSizing??'FIXED';
   frame.counterAxisSizingMode=layout.counterAxisSizing??'FIXED';
 }
@@ -422,8 +423,11 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       if (node.type === 'FRAME' || node.type==='COMPONENT') {
         const frame = node;
         if(node.type==='FRAME'&&frame.layoutMode !== 'NONE' && [frame.paddingRight,frame.paddingBottom,frame.paddingLeft].some((value)=>value!==frame.paddingTop)) throw new Error(`Auto Layout frame "${node.name}" uses asymmetric padding which cannot be exported losslessly.`);
-        if (frame.layoutMode !== 'NONE' && !['MIN','CENTER','MAX','SPACE_BETWEEN'].includes(frame.primaryAxisAlignItems)) throw new Error(`Auto Layout frame "${node.name}" uses an alignment that schema 1.0 cannot preserve yet.`);
-        const layout = frame.layoutMode === 'NONE' ? undefined : { mode:frame.layoutMode==='HORIZONTAL'?'horizontal' as const:'vertical' as const, gap:frame.itemSpacing, padding:frame.paddingTop, alignment:frame.primaryAxisAlignItems as 'MIN'|'CENTER'|'MAX'|'SPACE_BETWEEN', primaryAxisSizing:frame.primaryAxisSizingMode, counterAxisSizing:frame.counterAxisSizingMode };
+        const semanticMode=fromFigmaLayoutMode(frame.layoutMode);
+        const semanticAlignment=fromFigmaPrimaryAxisAlignment(frame.primaryAxisAlignItems);
+        if(semanticMode===undefined)throw new Error(`Frame "${node.name}" uses a Figma layout mode unknown to schema 1.0.`);
+        if (frame.layoutMode !== 'NONE' && semanticAlignment===undefined) throw new Error(`Auto Layout frame "${node.name}" uses an alignment that schema 1.0 cannot preserve yet.`);
+        const layout = frame.layoutMode === 'NONE' ? undefined : { mode:semanticMode==='horizontal'?'horizontal' as const:'vertical' as const, gap:frame.itemSpacing, padding:frame.paddingTop, alignment:semanticAlignment??'MIN', primaryAxisSizing:frame.primaryAxisSizingMode, counterAxisSizing:frame.counterAxisSizingMode };
         const radius = typeof frame.cornerRadius === 'number' ? frame.cornerRadius : undefined;
         const layoutGrids=node.type==='FRAME'?frame.layoutGrids.map(grid=>grid.pattern==='GRID'?{pattern:'GRID' as const,sectionSize:grid.sectionSize,...(grid.visible!==undefined?{visible:grid.visible}:{})}:{pattern:grid.pattern,...(grid.sectionSize!==undefined?{sectionSize:grid.sectionSize}:{}),gutterSize:grid.gutterSize,count:grid.count,...(grid.offset!==undefined?{offset:grid.offset}:{}),...(grid.alignment?{alignment:grid.alignment}:{}),...(grid.visible!==undefined?{visible:grid.visible}:{})}):undefined;
         const frameBase={...base,...(layoutGrids?.length?{layoutGrids}:{}),...(radius!==undefined?{radius}:{})};
