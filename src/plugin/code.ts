@@ -7,6 +7,7 @@ import { sha256 } from '../shared/sha256';
 import { decodeBase64, encodeBase64 } from '../shared/base64';
 import { MAX_PATCH_IMAGE_BYTES } from '../shared/edit-patch';
 import { fromFigmaLayoutMode, fromFigmaPrimaryAxisAlignment, toFigmaLayoutMode, toFigmaPrimaryAxisAlignment } from './compatibility';
+import { assertPortableBlendMode } from './export-compat';
 import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
@@ -425,11 +426,14 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     if (depth > MAX_DEPTH) throw new Error(`Selected design exceeds the ${MAX_DEPTH}-level nesting limit.`);
     if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP','COMPONENT','INSTANCE','VECTOR'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0.`);
     const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number };
+    const nativeBlendMode=(node as SceneNode & {blendMode?:string}).blendMode;
+    if(nativeBlendMode)assertPortableBlendMode(node.name,'node',nativeBlendMode,['FRAME','GROUP','COMPONENT','INSTANCE'].includes(node.type));
     const id=logicalIds.get(node.id)||`figma-${node.id}`;
     let fill:string|undefined;let gradient:GradientSpec|undefined;let paints:PaintStackItemSpec[]|undefined;let imageData:{mimeType:'image/png'|'image/jpeg';data:string;scaleMode:'FIT'|'FILL'|'CROP'|'TILE';imageTransform?:Transform;scalingFactor?:number}|undefined;
     if('fills' in node){
       const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);
       const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);
+      for(const item of visible)assertPortableBlendMode(node.name,'paint',item.blendMode??'NORMAL');
       const toGradient=(item:GradientPaint):GradientSpec=>{const transform=item.gradientTransform;const horizontal=Math.abs(transform[0][0])>0.99&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1])>0.99;const vertical=Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1])>0.99&&Math.abs(transform[1][0])>0.99&&Math.abs(transform[1][1])<0.01;return {direction:vertical?'vertical':'horizontal',...(!horizontal&&!vertical?{transform:[[transform[0][0],transform[0][1],transform[0][2]],[transform[1][0],transform[1][1],transform[1][2]]]}:{}),stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};};
       const toRadial=(item:GradientPaint):RadialGradientSpec=>({transform:[[item.gradientTransform[0][0],item.gradientTransform[0][1],item.gradientTransform[0][2]],[item.gradientTransform[1][0],item.gradientTransform[1][1],item.gradientTransform[1][2]]],stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))});
       const toStackItem=async(item:SolidPaint|GradientPaint|ImagePaint):Promise<PaintStackItemSpec>=>{
@@ -465,6 +469,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     let shadow:ShadowSpec|undefined;let shadows:ShadowSpec[]|undefined;let designEffects:EffectSpec[]|undefined;
     if('effects' in node){
       const visibleEffects=node.effects.filter(effect=>effect.visible!==false);
+      for(const effect of visibleEffects)if(effect.type==='DROP_SHADOW'||effect.type==='INNER_SHADOW')assertPortableBlendMode(node.name,'effect',effect.blendMode??'NORMAL');
       if(visibleEffects.length>4)throw new Error(`Layer "${node.name}" has more than four effects; schema 1.0 limits the stack to four.`);
       const allDropShadows=visibleEffects.every(effect=>effect.type==='DROP_SHADOW');
       if(allDropShadows){const exported=visibleEffects.flatMap(effect=>effect.type==='DROP_SHADOW'?[{color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})}]:[]);if(exported.length===1)shadow=exported[0];else if(exported.length>1)shadows=exported;}
