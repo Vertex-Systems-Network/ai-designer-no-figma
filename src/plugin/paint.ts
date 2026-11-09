@@ -1,4 +1,4 @@
-import type { EffectSpec, GradientSpec, PaintStackItemSpec, ShadowSpec } from '../shared/spec';
+import type { EffectSpec, GradientSpec, PaintStackItemSpec, RadialGradientSpec, ShadowSpec } from '../shared/spec';
 
 function rgb(hex: string): RGB {
   const value=hex.replace('#','');
@@ -9,13 +9,18 @@ function linearGradient(spec:GradientSpec,opacity=1):GradientPaint {
   const transform:Transform=spec.transform??(spec.direction==='horizontal'?[[1,0,0],[0,1,0]]:[[0,-1,1],[1,0,0]]);
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
 }
+function radialGradient(spec:RadialGradientSpec,opacity=1):GradientPaint {
+  return {type:'GRADIENT_RADIAL',gradientTransform:spec.transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
+}
 
 export function buildPaintStack(specs:PaintStackItemSpec[],resolveImageHash?:(spec:Extract<PaintStackItemSpec,{type:'image'}>)=>string):Paint[] {
   return specs.map(spec=>spec.type==='solid'
     ?{type:'SOLID',color:rgb(spec.color),opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'}
     :spec.type==='linear-gradient'
       ?linearGradient(spec.gradient,spec.opacity??1)
-      :{type:'IMAGE',imageHash:(resolveImageHash??(()=>{throw new Error('An image paint resolver is required to render embedded image paints.');}))(spec),scaleMode:spec.scaleMode??'FIT',opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'});
+      :spec.type==='radial-gradient'
+        ?radialGradient(spec.gradient,spec.opacity??1)
+        :{type:'IMAGE',imageHash:(resolveImageHash??(()=>{throw new Error('An image paint resolver is required to render embedded image paints.');}))(spec),scaleMode:spec.scaleMode??'FIT',opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'});
 }
 
 export function buildShadowStack(specs:ShadowSpec[]):Effect[] {
