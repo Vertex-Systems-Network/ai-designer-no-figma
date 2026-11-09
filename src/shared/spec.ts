@@ -28,6 +28,7 @@ type BaseNode = {
   name: string;
   x?: number;
   y?: number;
+  rotation?:number;
   width: number;
   height: number;
   fill?: string;
@@ -130,16 +131,16 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
-    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','constraints','fillToken'],
-    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
-    instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
-    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
-    image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','imageTransform','scalingFactor','constraints'],
-    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
-    rectangle: ['type','id','name','x','y','width','height','fill','radius','cornerRadii','cornerSmoothing','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
-    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
-    line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
+    frame: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
+    group: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','constraints','fillToken'],
+    component: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
+    instance: ['type','id','name','x','y','width','height','rotation','opacity','componentRef','constraints'],
+    vector: ['type','id','name','x','y','width','height','rotation','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
+    image: ['type','id','name','x','y','width','height','rotation','opacity','mimeType','data','scaleMode','imageTransform','scalingFactor','constraints'],
+    text: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
+    rectangle: ['type','id','name','x','y','width','height','rotation','fill','radius','cornerRadii','cornerSmoothing','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
+    ellipse: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
+    line: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
   };
   const colors = new Set((spec.designSystem?.colors ?? []).map((token) => token.name));
   const typography = new Set((spec.designSystem?.typography ?? []).map((token) => token.name));
@@ -149,6 +150,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (depth > MAX_DEPTH) { issues.push({ path, message: `Layer depth exceeds ${MAX_DEPTH}.` }); return; }
     addId(node.id, `${path}.id`);
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
+    if(node.rotation!==undefined&&(!Number.isFinite(node.rotation)||node.rotation < -180||node.rotation > 180))issues.push({path:`${path}.rotation`,message:'Rotation must be between -180 and 180 degrees.'});
     if(node.radius!==undefined&&'cornerRadii' in node&&node.cornerRadii!==undefined)issues.push({path:`${path}.cornerRadii`,message:'Use radius or cornerRadii, not both.'});
     if('cornerRadii' in node&&node.cornerRadii&&Object.entries(node.cornerRadii).some(([,value])=>!Number.isFinite(value)||value<0||value>10000))issues.push({path:`${path}.cornerRadii`,message:'Corner radii must be between 0 and 10,000.'});
     if('cornerSmoothing' in node&&node.cornerSmoothing!==undefined&&(!Number.isFinite(node.cornerSmoothing)||node.cornerSmoothing<0||node.cornerSmoothing>1))issues.push({path:`${path}.cornerSmoothing`,message:'Corner smoothing must be between 0 and 1.'});
