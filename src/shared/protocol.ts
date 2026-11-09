@@ -3,7 +3,7 @@ import type { AssetSummary, StoredAsset } from './asset-library';
 import type { BridgeJob } from './bridge-contract';
 
 export type HostToUi =
-  | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> } | null }
+  | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean}> } | null }
   | { type: 'render-result'; ok: boolean; message: string; created?: number }
   | { type: 'export-result'; ok: boolean; message: string; spec?: DesignSpec }
   | { type: 'patch-result'; ok: boolean; message: string; undoCount?: number }
@@ -41,5 +41,6 @@ export type EditPatch = {
     | { op: 'set-bounds'; targetId: string; value: { x:number; y:number; width:number; height:number } }
     | { op: 'set-auto-layout'; targetId: string; value: { mode:'NONE'|'HORIZONTAL'|'VERTICAL'; gap:number; padding:number; alignment:'MIN'|'CENTER'|'MAX'|'SPACE_BETWEEN' } }
     | { op: 'swap-component'; targetId: string; value: string }
+    | { op: 'replace-image'; targetId: string; value: { mimeType:'image/png'|'image/jpeg'; data:string } }
   >;
 };
