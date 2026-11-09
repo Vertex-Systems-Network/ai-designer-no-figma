@@ -63,4 +63,9 @@ describe('native Figma paint stack mapping',()=>{
     expect(result.map(paint=>paint.type)).toEqual(['SOLID','IMAGE','GRADIENT_LINEAR']);
     expect(result[1]).toMatchObject({type:'IMAGE',imageHash:'image-hash-1',scaleMode:'CROP',opacity:.7});
   });
+  it('preserves custom image crop transforms when rendering image paint stacks',()=>{
+    const transform:[[number,number,number],[number,number,number]]=[[.8,0,.1],[0,.8,-.1]];
+    const result=buildPaintStack([{type:'image',mimeType:'image/png',data:'aGVsbG8=',scaleMode:'CROP',imageTransform:transform}],()=> 'image-hash-2');
+    expect(result[0]).toMatchObject({type:'IMAGE',scaleMode:'CROP',imageTransform:transform});
+  });
 });
