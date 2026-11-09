@@ -40,6 +40,12 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("type:'DROP_SHADOW'");
   });
 
+  it('renders and exports bounded solid and linear-gradient fill stacks',()=>{
+    expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints)');
+    expect(hostSource).toContain('paints=visible.map(item=>toStackItem');
+    expect(hostSource).toContain('combines an image or unsupported paint with other fills');
+  });
+
   it('supports embedded images, responsive grids, native tokens/styles, and advanced export paths',()=>{
     expect(hostSource).toContain('figma.createImage(bytes)');
     expect(hostSource).toContain('frame.layoutGrids=makeLayoutGrids');
