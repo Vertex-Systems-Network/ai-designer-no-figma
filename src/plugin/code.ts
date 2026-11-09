@@ -7,7 +7,7 @@ import { sha256 } from '../shared/sha256';
 import { decodeBase64, encodeBase64 } from '../shared/base64';
 import { MAX_PATCH_IMAGE_BYTES } from '../shared/edit-patch';
 import { fromFigmaLayoutMode, fromFigmaPrimaryAxisAlignment, toFigmaLayoutMode, toFigmaPrimaryAxisAlignment } from './compatibility';
-import { assertPortableBlendMode } from './export-compat';
+import { assertPortableBlendMode, assertSinglePortableStroke } from './export-compat';
 import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
@@ -120,7 +120,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     if (spec.stroke) { node.strokes=[paint(spec.stroke,spec.strokeOpacity??1)]; node.strokeWeight=spec.strokeWidth??1; node.strokeAlign=spec.strokeAlign??'CENTER'; }
   } else if (spec.type === 'line') {
     const line = figma.createLine();
-    line.strokes = [paint(spec.stroke ?? spec.fill ?? '#333333')];
+    line.strokes = [paint(spec.stroke ?? spec.fill ?? '#333333',spec.strokeOpacity??1)];
     line.strokeWeight = spec.strokeWidth ?? 1;
     node = line;
   } else if(spec.type==='vector') {
@@ -510,10 +510,14 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       return { ...base, type:node.type === 'RECTANGLE'?'rectangle':'ellipse', ...(radius!==undefined?{radius}:{}), ...(stroke?.type==='SOLID'?{stroke:hexColor(stroke.color),...(stroke.opacity!==undefined&&stroke.opacity!==1?{strokeOpacity:stroke.opacity}:{})}:{}), ...(stroke&&typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}), ...(stroke?{strokeAlign:node.strokeAlign}:{}) };
     }
     if (node.type === 'LINE') {
-      const stroke = node.strokes.find((item) => item.visible !== false && (item.opacity ?? 1) > 0);
+      const visibleStrokes = node.strokes.filter((item) => item.visible !== false && (item.opacity ?? 1) > 0);
+      assertSinglePortableStroke(node.name,visibleStrokes.length);
+      const stroke = visibleStrokes[0];
       if (stroke && stroke.type !== 'SOLID') throw new Error(`Layer "${node.name}" uses an unsupported line stroke.`);
+      if(stroke?.type==='SOLID')assertPortableBlendMode(node.name,'line stroke',stroke.blendMode??'NORMAL');
       const color = stroke?.type === 'SOLID' ? hexColor(stroke.color) : undefined;
-      return { ...base, type:'line', ...(color?{stroke:color}:{}), ...(typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}) };
+      const strokeOpacity=stroke?.type==='SOLID'?stroke.opacity:undefined;
+      return { ...base, type:'line', ...(color?{stroke:color}:{}), ...(strokeOpacity!==undefined&&strokeOpacity!==1?{strokeOpacity}:{}), ...(typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}) };
     }
     if (node.type === 'FRAME' || node.type === 'GROUP' || node.type==='COMPONENT') {
       if(node.type==='COMPONENT')definedComponents.add(id);
