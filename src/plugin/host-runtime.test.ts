@@ -42,6 +42,11 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("item.scaleMode==='CROP'&&item.imageTransform");
     expect(hostSource).toContain('imageTransform:item.imageTransform');
   });
+  it('imports and exports tiled image fill scaling factors',()=>{
+    expect(hostSource).toContain("spec.scaleMode==='TILE'&&spec.scalingFactor!==undefined");
+    expect(hostSource).toContain("item.scaleMode==='TILE'&&item.scalingFactor!==undefined");
+    expect(hostSource).not.toContain('uses TILE scale mode, which is not supported');
+  });
 
   it('exports one selected frame as a bounded visual preview and selects the first rendered frame', () => {
     expect(hostSource).toContain("operation.type==='capture-selection'");
