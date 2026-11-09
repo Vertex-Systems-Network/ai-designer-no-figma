@@ -129,6 +129,28 @@
         }
       }
     },
+    "radialGradient": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transform", "stops"],
+      "properties": {
+        "transform": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "items": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number", "minimum": -100, "maximum": 100 } }
+        },
+        "stops": {
+          "type": "array", "minItems": 2, "maxItems": 8,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["position", "color"],
+            "properties": {
+              "position": { "type": "number", "minimum": 0, "maximum": 1 },
+              "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+              "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
     "shadow": {
       "type": "object",
       "additionalProperties": false,
@@ -837,6 +859,15 @@
               "minimum": 0,
               "maximum": 1
             }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["type", "gradient"],
+          "properties": {
+            "type": { "const": "radial-gradient" },
+            "gradient": { "$ref": "#/$defs/radialGradient" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
           }
         },
         {
