@@ -85,6 +85,8 @@ function App() {
   const [jsonInput, setJsonInput] = useState('');
   const [selection, setSelection] = useState<Extract<HostToUi,{type:'selection'}>['summary']>(null);
   const [editPrompt, setEditPrompt] = useState('');
+  const [imageScaleMode,setImageScaleMode]=useState<'FILL'|'FIT'|'CROP'>('FILL');
+  const [imageTransformText,setImageTransformText]=useState('[[1,0,0],[0,1,0]]');
   const [patch, setPatch] = useState<EditPatch|null>(null);
   const [undoCount, setUndoCount] = useState(0);
   const [history, setHistory] = useState<HistoryItem[]>(() => load('adnf-history',[]));
@@ -124,6 +126,7 @@ function App() {
   const historySource = useRef<{prompt:string;model:string}|null>(null);
   const pendingRenderHistory = useRef<HistoryItem|null>(null);
   const pendingAsset = useRef<{payload:AssetPayload}|null>(null);
+  const cropTarget=selection?.nodes.find(node=>node.hasImageFill);
 
   useEffect(() => {
     const leave=setTimeout(()=>setLoaderPhase('leaving'),850);
@@ -137,6 +140,7 @@ function App() {
     post({type:'resize-ui',width,height});
   },[]);
   useEffect(() => { save('adnf-history',history.slice(0,40)); },[history]);
+  useEffect(()=>{setImageScaleMode(cropTarget?.imageScaleMode==='FIT'?'FIT':cropTarget?.imageScaleMode==='CROP'?'CROP':'FILL');setImageTransformText(JSON.stringify(cropTarget?.imageTransform??[[1,0,0],[0,1,0]]));},[cropTarget?.id,cropTarget?.imageScaleMode,JSON.stringify(cropTarget?.imageTransform)]);
   useEffect(() => { save('adnf-tokens',tokens); },[tokens]);
   useEffect(()=>{save('adnf-type-tokens',typeTokens);},[typeTokens]);
   useEffect(()=>{save('adnf-spacing-tokens',spacingTokens);},[spacingTokens]);
@@ -354,6 +358,10 @@ function App() {
     if(!['image/png','image/jpeg'].includes(mime)){setError('Replacement supports PNG or JPEG images.');return;}
     try{const data=encodeBase64(new Uint8Array(await file.arrayBuffer()));const value={mimeType:mime,data};const result=parseEditPatch(JSON.stringify({operations:[{op:'replace-image',targetId:target.id,value}]}),new Set(selection.nodes.map(node=>node.id)));if(!result.valid)throw new Error(result.message);setPatch(result.value);setPreparedPatchPrompt('');setError('');setNotice(`Replacement proposed for “${target.name}”. Review the patch, then apply it.`);}catch(error){setError(error instanceof Error?error.message:'Could not prepare image replacement.');}
   }
+  function proposeImageCrop(){
+    if(!selection||!cropTarget){setError('Select a layer with one visible image fill first.');return;}
+    try{const value=imageScaleMode==='CROP'?{scaleMode:imageScaleMode,imageTransform:JSON.parse(imageTransformText)}:{scaleMode:imageScaleMode};const result=parseEditPatch(JSON.stringify({operations:[{op:'set-image-crop',targetId:cropTarget.id,value}]}),new Set(selection.nodes.map(node=>node.id)));if(!result.valid)throw new Error(result.message);setPatch(result.value);setPreparedPatchPrompt('');setError('');setNotice(`Image crop proposed for “${cropTarget.name}”. Review it, then apply.`);}catch(error){setError(error instanceof Error?error.message:'Invalid image transform.');}
+  }
   function validateExternalPatch(){
     if(!selection){setError('Select a frame in Figma before validating an edit.');return;}
     const result=parseEditPatch(externalPatchJson,new Set(selection.nodes.map(node=>node.id)));
@@ -406,6 +414,7 @@ function App() {
         <div className="selection-card"><div className={selection?'selection-icon':'selection-icon muted-icon'}>{selection?'F':'—'}</div><div><strong>{selection?.name??'No frame selected'}</strong><p>{selection?`${selection.type} · ${selection.width} × ${selection.height} · ${selection.layerCount} layers`:'Select a frame in Figma, then refresh.'}</p></div></div>
         <label className="field-label" htmlFor="edit-prompt">What should change?</label><textarea id="edit-prompt" className="prompt-input compact" value={editPrompt} onChange={e=>setEditPrompt(e.target.value)} placeholder="For example: rename layers or change the selected colors to a warmer palette."/><div className="quick-actions">{['Improve spacing','Improve typography','Change to dark theme','Update colors','Auto Layout · vertical','Auto Layout · horizontal'].map(x=><button className="chip" key={x} onClick={()=>x==='Auto Layout · vertical'?proposeAutoLayout('VERTICAL'):x==='Auto Layout · horizontal'?proposeAutoLayout('HORIZONTAL'):setEditPrompt(x)}>{x}</button>)}</div>
         <div className="button-row"><button className="primary-button" onClick={()=>void proposePatch()} disabled={busy||!selection||(generationMode==='ollama'&&!model)}>{busy?'Preparing…':generationMode==='handoff'?'Prepare edit prompt':'Propose with Ollama'}</button>{busy&&<button className="secondary-button" onClick={()=>activeController.current?.abort()}>Cancel</button>}</div>
+        <div className="settings-card"><strong>Adjust image crop and position</strong><p className="hint">Select one image fill. Choose Fill, Fit, or a custom crop transform. The image bytes, opacity, blend mode and other fills stay intact.</p>{cropTarget?<><p className="hint">Target: {cropTarget.name}</p><label className="field-label">Image scale mode<select value={imageScaleMode} onChange={e=>setImageScaleMode(e.target.value as 'FILL'|'FIT'|'CROP')}><option value="FILL">Fill</option><option value="FIT">Fit</option><option value="CROP">Custom crop</option></select></label>{imageScaleMode==='CROP'&&<label className="field-label" htmlFor="image-transform">Crop / position transform · 2×3 JSON<textarea id="image-transform" className="json-input compact-json" spellCheck={false} value={imageTransformText} onChange={e=>setImageTransformText(e.target.value)}/></label>}<button className="secondary-button" onClick={proposeImageCrop} disabled={busy}>Review crop change</button></>:<p className="hint">No image fill is present in the current selection summary.</p>}</div>
         <div className="settings-card"><strong>Replace an image fill</strong><p className="hint">Choose one image in the selected design. PNG/JPEG up to 128 KB. The existing image fill’s scale and opacity are preserved.</p><label className="secondary-button file-button">Choose replacement image<input type="file" accept="image/png,image/jpeg" disabled={busy||!selection} onChange={e=>{void prepareImageReplacement(e.target.files?.[0]);e.currentTarget.value='';}}/></label></div>{preparedPatchPrompt&&<div className="template-panel"><div className="preview-head"><strong>Prompt for your AI app</strong><button className="icon-button icon-only-button" aria-label="Copy edit prompt" title="Copy edit prompt" onClick={()=>void copyText(preparedPatchPrompt,'Edit prompt copied. Paste it into your AI app.')}><HeaderIcon kind="copy"/></button></div><textarea className="handoff-text" aria-label="Prepared edit prompt" readOnly value={preparedPatchPrompt}/><label className="field-label" htmlFor="edit-json">Paste the AI patch JSON</label><textarea id="edit-json" className="json-input compact-json" spellCheck={false} value={externalPatchJson} onChange={e=>setExternalPatchJson(e.target.value)} placeholder='{"operations":[{"op":"set-text","targetId":"...","value":"..."}]}'/><button className="secondary-button" onClick={validateExternalPatch}>Validate patch</button></div>}
         {patch&&<div className="preview-panel"><div className="preview-head"><strong>Proposed changes</strong><span>{patch.operations.length} operation(s)</span></div>{patch.operations.map((op,i)=><div key={`${op.targetId}-${i}`} className="preview-row"><code>{op.targetId}</code><span>{op.op} → {typeof op.value==='string'?op.value:JSON.stringify(op.value)}</span></div>)}<p className="hint">Only listed IDs are targeted. Review each operation before applying.</p><div className="button-row"><button className="primary-button small icon-only-button" aria-label="Apply reviewed changes" title="Apply reviewed changes" onClick={applyPatch} disabled={busy||patch.operations.length===0}><HeaderIcon kind="apply"/></button>{undoCount>0&&<button className="secondary-button small icon-only-button" aria-label="Undo latest plugin patch" title="Undo latest plugin patch" onClick={()=>{setBusy(true);post({type:'undo-patch'});}} disabled={busy}><HeaderIcon kind="undo"/></button>}</div></div>}
       </>}
