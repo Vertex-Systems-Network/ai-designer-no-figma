@@ -67,7 +67,7 @@ async function prepareDesignSystem(spec:DesignSpec,control:RenderControl,fontFal
     const style=existingStyles.find(item=>item.name===styleName)??figma.createTextStyle();
     const font={family:token.fontFamily||fontFallback,style:fontStyle(token.fontWeight)};
     try{await figma.loadFontAsync(font);style.fontName=font;}catch{await figma.loadFontAsync({family:fontFallback,style:'Regular'});style.fontName={family:fontFallback,style:'Regular'};}
-    style.name=styleName;style.fontSize=token.fontSize;style.lineHeight=token.lineHeight?{value:token.lineHeight,unit:'PIXELS'}:{unit:'AUTO'};control.textStyles.set(token.name,style);
+    style.name=styleName;style.fontSize=token.fontSize;style.lineHeight=token.lineHeight?{value:token.lineHeight,unit:'PIXELS'}:{unit:'AUTO'};if(token.letterSpacing)style.letterSpacing=token.letterSpacing;if(token.textDecoration)style.textDecoration=token.textDecoration;if(token.textCase)style.textCase=token.textCase;control.textStyles.set(token.name,style);
   }
 }
 function bindToken(node:SceneNode,tokenName:string|undefined,control:RenderControl):void{
@@ -97,6 +97,9 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     text.characters = spec.text;
     text.fontSize = spec.fontSize ?? 16;
     text.textAlignHorizontal = spec.align ?? 'LEFT';
+    if(spec.letterSpacing)text.letterSpacing=spec.letterSpacing;
+    if(spec.textDecoration)text.textDecoration=spec.textDecoration;
+    if(spec.textCase)text.textCase=spec.textCase;
     if(spec.textStyleToken){const style=control.textStyles.get(spec.textStyleToken);if(!style)throw new Error(`TEXT_STYLE_NOT_FOUND: Unknown text style token "${spec.textStyleToken}".`);await text.setTextStyleIdAsync(style.id);}
     if (spec.color || spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(text,spec.color??spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if (spec.lineHeight) text.lineHeight = { value: spec.lineHeight, unit: 'PIXELS' };
@@ -387,7 +390,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
   const scanComponents=(node:SceneNode):void=>{if(node.type==='COMPONENT')internalComponents.add(logicalIds.get(node.id)||`figma-${node.id}`);if('children' in node)for(const child of node.children)scanComponents(child);};
   scanComponents(selected);
   const exportedColors=new Map<string,{name:string;color:string}>();
-  const exportedTypography=new Map<string,{name:string;fontFamily:string;fontSize:number;fontWeight:number;lineHeight?:number}>();
+  const exportedTypography=new Map<string,import('../shared/spec').TextStyleTokenSpec>();
   const readColorToken=async(node:SceneNode):Promise<string|undefined>=>{
     const bound=('boundVariables' in node?node.boundVariables:undefined) as {fills?:VariableAlias[];textRangeFills?:VariableAlias[][]}|undefined;
     const alias=bound?.fills?.[0]??bound?.textRangeFills?.flat()[0];if(!alias)return undefined;
@@ -461,8 +464,9 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       const font = node.fontName === figma.mixed ? undefined : node.fontName;
       const lineHeight = typeof node.lineHeight === 'object' && node.lineHeight.unit === 'PIXELS' ? node.lineHeight.value : undefined;
       const rawStyle=node.characters.length?node.getRangeTextStyleId(0,node.characters.length):null;let textStyleToken:string|undefined;
-      if(typeof rawStyle==='string'&&rawStyle!==''){const style=await figma.getStyleByIdAsync(rawStyle);if(style?.type==='TEXT'){textStyleToken=style.name.startsWith('AI Designer · ')?style.name.slice(style.name.lastIndexOf(' / ')+3):style.name;exportedTypography.set(textStyleToken,{name:textStyleToken,fontFamily:style.fontName.family,fontSize:style.fontSize,fontWeight:fontStyleToWeight(style.fontName.style),...(typeof style.lineHeight==='object'&&style.lineHeight.unit==='PIXELS'?{lineHeight:style.lineHeight.value}:{})});}}
-      return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family,fontWeight:fontStyleToWeight(font.style)}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(fill?{color:fill}:{}), ...(textStyleToken?{textStyleToken}:{}), align:node.textAlignHorizontal };
+      if(typeof rawStyle==='string'&&rawStyle!==''){const style=await figma.getStyleByIdAsync(rawStyle);if(style?.type==='TEXT'){textStyleToken=style.name.startsWith('AI Designer · ')?style.name.slice(style.name.lastIndexOf(' / ')+3):style.name;exportedTypography.set(textStyleToken,{name:textStyleToken,fontFamily:style.fontName.family,fontSize:style.fontSize,fontWeight:fontStyleToWeight(style.fontName.style),...(typeof style.lineHeight==='object'&&style.lineHeight.unit==='PIXELS'?{lineHeight:style.lineHeight.value}:{}),...(style.letterSpacing?{letterSpacing:{unit:style.letterSpacing.unit,value:style.letterSpacing.value}}:{}),...(style.textDecoration!=='NONE'?{textDecoration:style.textDecoration}:{}),...(style.textCase!=='ORIGINAL'?{textCase:style.textCase}:{})});}}
+      if(node.letterSpacing===figma.mixed||node.textDecoration===figma.mixed||node.textCase===figma.mixed)throw new Error(`Text layer "${node.name}" has mixed character styling that selected export cannot preserve in schema 1.0.`);
+      return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family,fontWeight:fontStyleToWeight(font.style)}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(node.letterSpacing?{letterSpacing:{unit:node.letterSpacing.unit,value:node.letterSpacing.value}}:{}), ...(node.textDecoration!=='NONE'?{textDecoration:node.textDecoration}:{}), ...(node.textCase!=='ORIGINAL'?{textCase:node.textCase}:{}), ...(fill?{color:fill}:{}), ...(textStyleToken?{textStyleToken}:{}), align:node.textAlignHorizontal };
     }
     if(node.type==='VECTOR'){
       const path=node.vectorPaths[0]?.data;if(!path)throw new Error(`Vector "${node.name}" has no editable path.`);return {...base,type:'vector',path};
