@@ -164,6 +164,31 @@
         }
       }
     },
+    "effect": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["type", "color", "opacity", "offsetX", "offsetY", "blur"],
+          "properties": {
+            "type": { "enum": ["drop-shadow", "inner-shadow"] },
+            "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "offsetX": { "type": "number", "minimum": -1000, "maximum": 1000 },
+            "offsetY": { "type": "number", "minimum": -1000, "maximum": 1000 },
+            "blur": { "type": "number", "minimum": 0, "maximum": 1000 },
+            "spread": { "type": "number", "minimum": -1000, "maximum": 1000 }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["type", "blur"],
+          "properties": {
+            "type": { "enum": ["layer-blur", "background-blur"] },
+            "blur": { "type": "number", "minimum": 0, "maximum": 1000 }
+          }
+        }
+      ]
+    },
     "page": {
       "type": "object",
       "additionalProperties": false,
@@ -269,6 +294,12 @@
           "items": {
             "$ref": "#/$defs/shadow"
           }
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/effect" }
         }
       }
     },
