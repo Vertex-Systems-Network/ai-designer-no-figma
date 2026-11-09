@@ -11,7 +11,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 
 ## Project progress
 
-**Overall completion: 94%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, native frame clipping, bounded solid/linear-gradient/radial-gradient/image paints, native shape strokes, detailed typography including letter/paragraph spacing, case, decoration and text layout, shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
+**Overall completion: 94%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, native frame clipping, bounded solid/linear-gradient/radial-gradient/image paints, native shape and line strokes with opacity, detailed typography including letter/paragraph spacing, case, decoration and text layout, shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -72,7 +72,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 91 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 94 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
