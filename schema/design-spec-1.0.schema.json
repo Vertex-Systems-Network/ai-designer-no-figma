@@ -31,6 +31,21 @@
     }
   },
   "$defs": {
+    "imageTransform": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {
+          "type": "number",
+          "minimum": -10,
+          "maximum": 10
+        }
+      }
+    },
     "layout": {
       "type": "object",
       "additionalProperties": false,
@@ -656,6 +671,9 @@
                     "CROP"
                   ]
                 },
+                "imageTransform": {
+                  "$ref": "#/$defs/imageTransform"
+                },
                 "fill": false,
                 "radius": false,
                 "gradient": false,
@@ -1184,6 +1202,9 @@
                 "FILL",
                 "CROP"
               ]
+            },
+            "imageTransform": {
+              "$ref": "#/$defs/imageTransform"
             },
             "opacity": {
               "type": "number",
