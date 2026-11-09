@@ -1,3 +1,9 @@
+## 2026-11-10 — safe selected image replacement
+
+- Added a bounded replace-image patch for one target in the selected Figma tree. PNG/JPEG bytes are validated before queuing and again in the host, capped at 128 KiB, and applied only when the target has exactly one visible image fill. Existing scale mode, opacity, blend settings and other fills are preserved; existing plugin patch snapshots enable undo.
+- Added Edit-tab file selection for a target image in the current selection summary, provider-neutral patch guidance, MCP capability reporting and negative/positive payload tests. Crop/reposition remains unsupported.
+- Release verification passes with 80 unit and 17 integration tests, typecheck, lint, local security audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 recorded in artifacts/SHA256SUMS.txt. Live Figma replacement and undo remain NOT TESTED.
+
 ## 2026-11-09 — text layout controls
 
 - Added paragraph spacing to nodes and typography tokens, plus text vertical alignment and resize mode to individual text nodes. Export preserves node-level settings and refuses mixed paragraph spacing rather than flattening it.
