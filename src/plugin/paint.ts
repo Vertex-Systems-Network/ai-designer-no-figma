@@ -20,7 +20,7 @@ export function buildPaintStack(specs:PaintStackItemSpec[],resolveImageHash?:(sp
       ?linearGradient(spec.gradient,spec.opacity??1)
       :(spec.type==='radial-gradient'||spec.type==='angular-gradient'||spec.type==='diamond-gradient')
         ?transformedGradient(spec.gradient,spec.type==='radial-gradient'?'GRADIENT_RADIAL':spec.type==='angular-gradient'?'GRADIENT_ANGULAR':'GRADIENT_DIAMOND',spec.opacity??1)
-        :{type:'IMAGE',imageHash:(resolveImageHash??(()=>{throw new Error('An image paint resolver is required to render embedded image paints.');}))(spec),scaleMode:spec.scaleMode??'FIT',...(spec.scaleMode==='CROP'&&spec.imageTransform?{imageTransform:spec.imageTransform}:{}),opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'});
+        :{type:'IMAGE',imageHash:(resolveImageHash??(()=>{throw new Error('An image paint resolver is required to render embedded image paints.');}))(spec),scaleMode:spec.scaleMode??'FIT',...(spec.scaleMode==='CROP'&&spec.imageTransform?{imageTransform:spec.imageTransform}:{}),...(spec.scaleMode==='TILE'&&spec.scalingFactor!==undefined?{scalingFactor:spec.scalingFactor}:{}),opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'});
 }
 
 export function buildShadowStack(specs:ShadowSpec[]):Effect[] {
