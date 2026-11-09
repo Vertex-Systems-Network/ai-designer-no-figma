@@ -20,7 +20,7 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
     const op = item as Record<string, unknown>;
     const allowedKeys = ['op', 'targetId', 'value'];
     if (Object.keys(op).some((key) => !allowedKeys.includes(key)) || Object.keys(op).length !== 3) return { valid: false, message: `${path} must contain only op, targetId, and value.` };
-    if (!['set-text', 'set-fill', 'rename', 'set-bounds', 'set-auto-layout'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
+    if (!['set-text', 'set-fill', 'rename', 'set-bounds', 'set-auto-layout','swap-component'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
     if (typeof op.targetId !== 'string' || !op.targetId || op.targetId.length > 200) return { valid: false, message: `${path}.targetId must be a non-empty string.` };
     if (allowedIds && !allowedIds.has(op.targetId)) return { valid: false, message: `${path}.targetId is not present in the current selection.` };
     if (op.op === 'set-bounds') {
@@ -37,6 +37,11 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
       if(!['NONE','HORIZONTAL','VERTICAL'].includes(String(layout.mode)))return{valid:false,message:`${path}.value.mode must be NONE, HORIZONTAL, or VERTICAL.`};
       if(typeof layout.gap!=='number'||!Number.isFinite(layout.gap)||layout.gap<0||layout.gap>1000||typeof layout.padding!=='number'||!Number.isFinite(layout.padding)||layout.padding<0||layout.padding>1000)return{valid:false,message:`${path}.value gap and padding must be between 0 and 1,000.`};
       if(!['MIN','CENTER','MAX','SPACE_BETWEEN'].includes(String(layout.alignment)))return{valid:false,message:`${path}.value.alignment is unsupported.`};
+      continue;
+    }
+    if(op.op==='swap-component'){
+      if(typeof op.value!=='string'||!op.value||op.value.length>200)return{valid:false,message:`${path}.value must be an existing component ID.`};
+      if(allowedIds&&!allowedIds.has(op.value))return{valid:false,message:`${path}.value is not present in the current selection.`};
       continue;
     }
     if (typeof op.value !== 'string' || op.value.length > 20_000) return { valid: false, message: `${path}.value must be a string no longer than 20,000 characters.` };
