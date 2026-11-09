@@ -6,11 +6,11 @@ Figma host ──> shared protocol / design-spec validator ──> official Figm
 Optional UI inference ──HTTP loopback──> runtime ──HTTP loopback──> Ollama
 ```
 
-The future MCP process and bridge are intentionally separate:
+The MCP process and bridge are intentionally separate:
 
 ```text
 MCP stdio adapter ──> bridge client ──HTTP loopback──> local bridge queue
 Figma plugin ──HTTP loopback poll/result──> local bridge queue
 ```
 
-The latter flow is architecture target only, not implemented. Never couple the MCP package to Figma internal APIs. See [`SYSTEM-ARCHITECTURE.md`](../SYSTEM-ARCHITECTURE.md).
+The MCP server and authenticated loopback bridge are implemented. The Figma plugin polls the local queue and executes validated document operations; the MCP process never calls Figma internal APIs directly. See [`SYSTEM-ARCHITECTURE.md`](../SYSTEM-ARCHITECTURE.md).
