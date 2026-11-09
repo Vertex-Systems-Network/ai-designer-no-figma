@@ -15,6 +15,11 @@ describe('native Figma paint stack mapping',()=>{
     const transform:[[number,number,number],[number,number,number]]=[[.72,-.42,.18],[.31,.86,-.07]];
     expect(buildPaintStack([{type:'linear-gradient',gradient:{direction:'horizontal',transform,stops:[{position:0,color:'#000000'},{position:1,color:'#FFFFFF'}]}}])[0]).toMatchObject({type:'GRADIENT_LINEAR',gradientTransform:transform});
   });
+  it('maps radial gradient paints with their affine transform and stop alpha',()=>{
+    const transform:[[number,number,number],[number,number,number]]=[[.8,0,.1],[0,.9,.05]];
+    const result=buildPaintStack([{type:'radial-gradient',opacity:.75,gradient:{transform,stops:[{position:0,color:'#FFFFFF',opacity:.8},{position:1,color:'#087A55'}]}}]);
+    expect(result[0]).toMatchObject({type:'GRADIENT_RADIAL',gradientTransform:transform,opacity:.75,gradientStops:[{position:0,color:{r:1,g:1,b:1,a:.8}},{position:1,color:{r:8/255,g:122/255,b:85/255,a:1}}]});
+  });
   it('maps drop-shadow stacks in order with opacity and spread intact',()=>{
     const shadows=buildShadowStack([{color:'#000000',opacity:.16,offsetX:0,offsetY:4,blur:12,spread:1},{color:'#0D8A60',opacity:.2,offsetX:2,offsetY:1,blur:3}]);
     expect(shadows).toHaveLength(2);
