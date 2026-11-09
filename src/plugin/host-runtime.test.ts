@@ -6,6 +6,10 @@ const paintSource = readFileSync('src/plugin/paint.ts', 'utf8');
 const manifest = JSON.parse(readFileSync('manifest.json', 'utf8')) as { permissions?: string[] };
 
 describe('Figma plugin host compatibility', () => {
+  it('preserves frame/component overflow clipping across import and export',()=>{
+    expect(hostSource).toContain('(node as FrameNode).clipsContent=spec.clipsContent??false');
+    expect(hostSource).toContain('frame.clipsContent?{clipsContent:true}:{}');
+  });
   it('keeps browser networking and timer globals out of the Figma JSVM host', () => {
     expect(hostSource).not.toMatch(/\bfetch\s*\(/);
     expect(hostSource).not.toMatch(/\bnew\s+URL\s*\(/);
