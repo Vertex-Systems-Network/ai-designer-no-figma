@@ -1,7 +1,13 @@
-## 2026-11-10 — safe selected image replacement
+## 2026-11-09 — selected image crop and reposition
+
+- Added `set-image-crop` patches for FILL/FIT or custom CROP with a finite, invertible 2×3 affine transform bounded to ±10. The host targets exactly one visible image fill, preserves image hash and paint metadata, and reuses the fill snapshot/undo path.
+- Selection summaries expose current image scale mode and crop matrix. Edit UI includes scale-mode controls, a matrix editor, and reviewed apply; AI patch prompts and MCP capability reporting include the operation.
+- Typecheck, lint and unit tests pass (83 tests). Live Figma crop appearance and undo remain NOT TESTED.
+
+## 2026-11-09 — safe selected image replacement
 
 - Added a bounded replace-image patch for one target in the selected Figma tree. PNG/JPEG bytes are validated before queuing and again in the host, capped at 128 KiB, and applied only when the target has exactly one visible image fill. Existing scale mode, opacity, blend settings and other fills are preserved; existing plugin patch snapshots enable undo.
-- Added Edit-tab file selection for a target image in the current selection summary, provider-neutral patch guidance, MCP capability reporting and negative/positive payload tests. Crop/reposition remains unsupported.
+- Added Edit-tab file selection for a target image in the current selection summary, provider-neutral patch guidance, MCP capability reporting and negative/positive payload tests.
 - Release verification passes with 80 unit and 17 integration tests, typecheck, lint, local security audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 recorded in artifacts/SHA256SUMS.txt. Live Figma replacement and undo remain NOT TESTED.
 
 ## 2026-11-09 — text layout controls
