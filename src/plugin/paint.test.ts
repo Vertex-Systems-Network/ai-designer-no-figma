@@ -68,4 +68,8 @@ describe('native Figma paint stack mapping',()=>{
     const result=buildPaintStack([{type:'image',mimeType:'image/png',data:'aGVsbG8=',scaleMode:'CROP',imageTransform:transform}],()=> 'image-hash-2');
     expect(result[0]).toMatchObject({type:'IMAGE',scaleMode:'CROP',imageTransform:transform});
   });
+  it('preserves native image tiling scale in image paint stacks',()=>{
+    const result=buildPaintStack([{type:'image',mimeType:'image/png',data:'aGVsbG8=',scaleMode:'TILE',scalingFactor:1.25}],()=> 'image-hash-3');
+    expect(result[0]).toMatchObject({type:'IMAGE',scaleMode:'TILE',scalingFactor:1.25});
+  });
 });
