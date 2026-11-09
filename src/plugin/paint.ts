@@ -1,4 +1,4 @@
-import type { GradientSpec, PaintStackItemSpec, ShadowSpec } from '../shared/spec';
+import type { EffectSpec, GradientSpec, PaintStackItemSpec, ShadowSpec } from '../shared/spec';
 
 function rgb(hex: string): RGB {
   const value=hex.replace('#','');
@@ -20,4 +20,13 @@ export function buildPaintStack(specs:PaintStackItemSpec[],resolveImageHash?:(sp
 
 export function buildShadowStack(specs:ShadowSpec[]):Effect[] {
   return specs.map(spec=>({type:'DROP_SHADOW',color:{...rgb(spec.color),a:spec.opacity},offset:{x:spec.offsetX,y:spec.offsetY},radius:spec.blur,...(spec.spread!==undefined?{spread:spec.spread}:{}),visible:true,blendMode:'NORMAL'}));
+}
+
+export function buildEffectStack(specs:EffectSpec[]):Effect[] {
+  return specs.map(spec=>{
+    if(spec.type==='layer-blur')return {type:'LAYER_BLUR',blurType:'NORMAL',radius:spec.blur,visible:true} as Effect;
+    if(spec.type==='background-blur')return {type:'BACKGROUND_BLUR',blurType:'NORMAL',radius:spec.blur,visible:true} as Effect;
+    if(!('color' in spec))throw new Error('Unsupported effect specification.');
+    return {type:spec.type==='inner-shadow'?'INNER_SHADOW':'DROP_SHADOW',color:{...rgb(spec.color),a:spec.opacity},offset:{x:spec.offsetX,y:spec.offsetY},radius:spec.blur,...(spec.spread!==undefined?{spread:spec.spread}:{}),visible:true,blendMode:'NORMAL'} as Effect;
+  });
 }
