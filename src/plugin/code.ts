@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 16429)
+Total output lines: 716
+
 import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type EffectSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type RadialGradientSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
@@ -15,7 +18,7 @@ let cancelActiveRender: (() => void) | undefined;
 // Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
 // for this plugin session and fall back to native Figma node IDs otherwise.
 const logicalIds = new Map<string, string>();
-type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined; mainComponent?:ComponentNode; componentProperties?:Record<string,string|boolean>; layout?:{mode:FrameNode['layoutMode'];gap:number;paddingTop:number;paddingRight:number;paddingBottom:number;paddingLeft:number;alignment:FrameNode['primaryAxisAlignItems']} };
+type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined; rotation?:number; mainComponent?:ComponentNode; componentProperties?:Record<string,string|boolean>; layout?:{mode:FrameNode['layoutMode'];gap:number;paddingTop:number;paddingRight:number;paddingBottom:number;paddingLeft:number;alignment:FrameNode['primaryAxisAlignItems']} };
 const patchCheckpoints: PatchSnapshot[][] = [];
 let bridgeSessionId = '';
 type PendingImageTransfer={name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number;bytes:Uint8Array;receivedBytes:number;updatedAt:number};
@@ -306,177 +309,7 @@ function getSelectionSummary(): SelectionSummary {
   collect(selected, 0);
   return { name: selected.name, type: selected.type, width: Math.round(selected.width), height: Math.round(selected.height), layerCount: 'children' in selected ? countLayers(selected as BaseNode & ChildrenMixin) : 0, nodes };
 }
-function inspectSelection(): void { figma.ui.postMessage({ type:'selection', summary:getSelectionSummary() }); }
-
-async function applyPatch(patch: EditPatch): Promise<void> {
-  const targets = new Map<string, SceneNode>();
-  const visit = (node: SceneNode) => {
-    const id = logicalIds.get(node.id) || node.id;
-    targets.set(id, node);
-    if ('children' in node) for (const child of node.children) visit(child);
-  };
-  for (const node of figma.currentPage.selection) visit(node);
-  const resolved = patch.operations.map((operation) => {
-    const target = targets.get(operation.targetId);
-    if (!target) throw new Error(`Patch target not found in the current selection: ${operation.targetId}`);
-    if (operation.op === 'rename') return { operation, target };
-    if (operation.op === 'set-bounds') {
-      if (!('resize' in target) || !('x' in target) || !('y' in target)) throw new Error(`Target ${operation.targetId} does not support position and size edits.`);
-      return { operation, target };
-    }
-    if(operation.op==='set-auto-layout'){
-      if(target.type!=='FRAME')throw new Error(`Target ${operation.targetId} is not a frame and cannot receive Auto Layout.`);
-      return{operation,target};
-    }
-    if(operation.op==='replace-image'){
-      if(!('fills' in target)||target.fills===figma.mixed)throw new Error(`Target ${operation.targetId} does not have readable image fills.`);
-      const fills=target.fills as readonly Paint[];const imageIndices=fills.flatMap((fill,index)=>fill.type==='IMAGE'&&fill.visible!==false?[index]:[]);
-      if(imageIndices.length!==1)throw new Error(`Target ${operation.targetId} must contain exactly one visible image fill to replace.`);
-      const bytes=decodeBase64(operation.value.data,MAX_PATCH_IMAGE_BYTES);const image=validateRasterAsset(bytes,operation.value.mimeType);const imageHash=figma.createImage(bytes).hash;
-      return{operation,target,imageHash,imageIndex:imageIndices[0],mimeType:image.mimeType};
-    }
-    if(operation.op==='set-image-crop'){
-      if(!('fills' in target)||target.fills===figma.mixed)throw new Error(`Target ${operation.targetId} does not have readable image fills.`);
-      const fills=target.fills as readonly Paint[];const imageIndices=fills.flatMap((fill,index)=>fill.type==='IMAGE'&&fill.visible!==false?[index]:[]);
-      if(imageIndices.length!==1)throw new Error(`Target ${operation.targetId} must contain exactly one visible image fill to crop or reposition.`);
-      return{operation,target,imageIndex:imageIndices[0]};
-    }
-    if(operation.op==='swap-component'){
-      if(target.type!=='INSTANCE')throw new Error(`Target ${operation.targetId} is not a component instance.`);
-      const source=targets.get(operation.value);
-      if(!source||source.type!=='COMPONENT')throw new Error(`Replacement source ${operation.value} is not a component present in the current selection.`);
-      return{operation,target,source};
-    }
-    if (operation.op === 'set-fill') {
-      if (!('fills' in target)) throw new Error(`Target ${operation.targetId} does not support fill.`);
-      if (!/^#[0-9a-f]{6}$/i.test(operation.value)) throw new Error(`Invalid fill color for ${operation.targetId}.`);
-      return { operation, target };
-    } else if (operation.op === 'set-text') {
-      if (target.type !== 'TEXT') throw new Error(`Target ${operation.targetId} is not text.`);
-      return { operation, target };
-    }
-    throw new Error('Unsupported patch operation.');
-  });
-  for (const item of resolved) if (item.operation.op === 'set-text') {
-    const text = item.target as TextNode;
-    const font = text.fontName === figma.mixed ? { family: 'Inter', style: 'Regular' } : text.fontName;
-    await figma.loadFontAsync(font as FontName);
-  }
-  const snapshots: PatchSnapshot[] = await Promise.all(resolved.map(async ({target,operation}) => {
-    const mainComponent=operation.op==='swap-component'&&target.type==='INSTANCE'?await target.getMainComponentAsync():undefined;
-    if(operation.op==='swap-component'&&!mainComponent)throw new Error(`The current main component for ${operation.targetId} is unavailable; component replacement cannot be rolled back safely.`);
-    const componentProperties=operation.op==='swap-component'&&target.type==='INSTANCE'?Object.fromEntries(Object.entries(target.componentProperties).map(([key,property])=>[key,property.value])) as Record<string,string|boolean>:undefined;
-    return {target,name:target.name,fills:'fills' in target?target.fills as readonly Paint[]|PluginAPI['mixed']:undefined,text:target.type==='TEXT'?target.characters:undefined,x:'x' in target?target.x:undefined,y:'y' in target?target.y:undefined,width:'width' in target?target.width:undefined,height:'height' in target?target.height:undefined,...(mainComponent?{mainComponent}:{}),...(componentProperties?{componentProperties}:{}),...(target.type==='FRAME'?{layout:{mode:target.layoutMode,gap:target.itemSpacing,paddingTop:target.paddingTop,paddingRight:target.paddingRight,paddingBottom:target.paddingBottom,paddingLeft:target.paddingLeft,alignment:target.primaryAxisAlignItems}}:{})};
-  }));
-  try {
-    for (const item of resolved) {
-      const {operation,target}=item;
-      if (operation.op === 'rename') target.name = operation.value;
-      else if (operation.op === 'set-bounds' && 'resize' in target && 'x' in target && 'y' in target) { target.resize(operation.value.width, operation.value.height); target.x = operation.value.x; target.y = operation.value.y; }
-      else if(operation.op==='set-auto-layout'&&target.type==='FRAME'){target.layoutMode=operation.value.mode;target.itemSpacing=operation.value.gap;target.paddingTop=target.paddingRight=target.paddingBottom=target.paddingLeft=operation.value.padding;target.primaryAxisAlignItems=operation.value.alignment;}
-      else if(operation.op==='swap-component'&&target.type==='INSTANCE')target.swapComponent(item.source as ComponentNode);
-      else if(operation.op==='replace-image'&&'fills' in target&&item.imageHash&&item.imageIndex!==undefined&&target.fills!==figma.mixed){const fills=[...target.fills];const original=fills[item.imageIndex];if(!original||original.type!=='IMAGE')throw new Error('The target image fill changed before replacement.');fills[item.imageIndex]={...original,imageHash:item.imageHash};target.fills=fills;}
-      else if(operation.op==='set-image-crop'&&'fills' in target&&item.imageIndex!==undefined&&target.fills!==figma.mixed){const fills=[...target.fills];const original=fills[item.imageIndex];if(!original||original.type!=='IMAGE')throw new Error('The target image fill changed before scale/crop update.');const {imageTransform:_oldTransform,scalingFactor:_oldScale,...preserved}=original;void _oldTransform;void _oldScale;const {scaleMode,imageTransform,scalingFactor}=operation.value;fills[item.imageIndex]=scaleMode==='CROP'?{...preserved,scaleMode,imageTransform:imageTransform as Transform}:scaleMode==='TILE'?{...preserved,scaleMode,...(scalingFactor!==undefined?{scalingFactor}:{})}:{...preserved,scaleMode};target.fills=fills;}
-      else if (operation.op === 'set-fill' && 'fills' in target) target.fills = [paint(operation.value)];
-      else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
-    }
-  } catch (error) {
-    restoreSnapshots(snapshots);
-    throw error;
-  }
-  patchCheckpoints.push(snapshots);
-  if (patchCheckpoints.length > 20) patchCheckpoints.shift();
-}
-
-function restoreSnapshots(snapshots: PatchSnapshot[]): void {
-  for (const snapshot of [...snapshots].reverse()) {
-    const { target } = snapshot;
-    if (target.removed) continue;
-    target.name = snapshot.name;
-    if (snapshot.fills !== undefined && 'fills' in target) target.fills = snapshot.fills as typeof target.fills;
-    if (snapshot.text !== undefined && target.type === 'TEXT') (target as TextNode).characters = snapshot.text;
-    if(snapshot.mainComponent&&target.type==='INSTANCE'){target.swapComponent(snapshot.mainComponent);if(snapshot.componentProperties&&Object.keys(snapshot.componentProperties).length)target.setProperties(snapshot.componentProperties);}
-    if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
-    if(snapshot.layout&&target.type==='FRAME'){target.layoutMode=snapshot.layout.mode;target.itemSpacing=snapshot.layout.gap;target.paddingTop=snapshot.layout.paddingTop;target.paddingRight=snapshot.layout.paddingRight;target.paddingBottom=snapshot.layout.paddingBottom;target.paddingLeft=snapshot.layout.paddingLeft;target.primaryAxisAlignItems=snapshot.layout.alignment;}
-  }
-}
-
-function undoPatch(): void {
-  const snapshot = patchCheckpoints.pop();
-  if (!snapshot) throw new Error('There is no plugin patch checkpoint to revert in this session.');
-  try { restoreSnapshots(snapshot); }
-  catch (error) { patchCheckpoints.push(snapshot); throw error; }
-  figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'The latest plugin patch was reverted.', undoCount: patchCheckpoints.length });
-}
-
-function applyColorToSelection(color: string): void {
-  const matches = figma.currentPage.selection.filter((node) => 'fills' in node && Array.isArray(node.fills));
-  if (!matches.length) throw new Error('Select at least one shape or frame with a solid fill.');
-  if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('Color must be a six-digit hex value.');
-  for (const node of matches) if ('fills' in node) node.fills = [paint(color)];
-}
-
-function hexColor(color:RGB):string{return `#${[color.r,color.g,color.b].map((value)=>Math.round(value*255).toString(16).padStart(2,'0')).join('')}`;}
-async function exportSelectedDesign(): Promise<DesignSpec> {
-  if (figma.currentPage.selection.length !== 1) throw new Error('Select exactly one Figma layer or frame to export as a design specification.');
-  const selected = figma.currentPage.selection[0]!;
-  if (!('width' in selected) || !('height' in selected)) throw new Error('The selected item does not have exportable design dimensions.');
-  let count = 0;
-  const definedComponents=new Set<string>();
-  const internalComponents=new Set<string>();
-  const detachedComponents:DesignNodeSpec[]=[];
-  const scanComponents=(node:SceneNode):void=>{if(node.type==='COMPONENT')internalComponents.add(logicalIds.get(node.id)||`figma-${node.id}`);if('children' in node)for(const child of node.children)scanComponents(child);};
-  scanComponents(selected);
-  const exportedColors=new Map<string,{name:string;color:string}>();
-  const exportedTypography=new Map<string,import('../shared/spec').TextStyleTokenSpec>();
-  const readColorToken=async(node:SceneNode):Promise<string|undefined>=>{
-    const bound=('boundVariables' in node?node.boundVariables:undefined) as {fills?:VariableAlias[];textRangeFills?:VariableAlias[][]}|undefined;
-    const alias=bound?.fills?.[0]??bound?.textRangeFills?.flat()[0];if(!alias)return undefined;
-    const variable=await figma.variables.getVariableByIdAsync(alias.id);if(!variable||variable.resolvedType!=='COLOR')return undefined;
-    let value:unknown;try{value=variable.resolveForConsumer(node).value;}catch{const collection=await figma.variables.getVariableCollectionByIdAsync(variable.variableCollectionId);value=collection?variable.valuesByMode[collection.defaultModeId]:undefined;}
-    if(!value||typeof value!=='object'||!('r' in value)||!('g' in value)||!('b' in value))return undefined;
-    const color=hexColor(value as RGB);exportedColors.set(variable.name,{name:variable.name,color});return variable.name;
-  };
-  const convert = async (node: SceneNode, depth: number): Promise<DesignNodeSpec> => {
-    count += 1;
-    if (count > MAX_NODES) throw new Error(`Selected design exceeds the ${MAX_NODES}-layer export limit.`);
-    if (depth > MAX_DEPTH) throw new Error(`Selected design exceeds the ${MAX_DEPTH}-level nesting limit.`);
-    if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP','COMPONENT','INSTANCE','VECTOR'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0.`);
-    const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number; rotation:number };
-    const nativeBlendMode=(node as SceneNode & {blendMode?:string}).blendMode;
-    if(nativeBlendMode)assertPortableBlendMode(node.name,'node',nativeBlendMode,['FRAME','GROUP','COMPONENT','INSTANCE'].includes(node.type));
-    const id=logicalIds.get(node.id)||`figma-${node.id}`;
-    let fill:string|undefined;let gradient:GradientSpec|undefined;let paints:PaintStackItemSpec[]|undefined;let imageData:{mimeType:'image/png'|'image/jpeg';data:string;scaleMode:'FIT'|'FILL'|'CROP'|'TILE';imageTransform?:Transform;scalingFactor?:number}|undefined;
-    if('fills' in node){
-      const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);
-      const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);
-      for(const item of visible)assertPortableBlendMode(node.name,'paint',item.blendMode??'NORMAL');
-      const toGradient=(item:GradientPaint):GradientSpec=>{const transform=item.gradientTransform;const horizontal=Math.abs(transform[0][0])>0.99&&Math.abs(transform[0][1])<0.01&&Math.abs(transform[1][0])<0.01&&Math.abs(transform[1][1])>0.99;const vertical=Math.abs(transform[0][0])<0.01&&Math.abs(transform[0][1])>0.99&&Math.abs(transform[1][0])>0.99&&Math.abs(transform[1][1])<0.01;return {direction:vertical?'vertical':'horizontal',...(!horizontal&&!vertical?{transform:[[transform[0][0],transform[0][1],transform[0][2]],[transform[1][0],transform[1][1],transform[1][2]]]}:{}),stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))};};
-      const toRadial=(item:GradientPaint):RadialGradientSpec=>({transform:[[item.gradientTransform[0][0],item.gradientTransform[0][1],item.gradientTransform[0][2]],[item.gradientTransform[1][0],item.gradientTransform[1][1],item.gradientTransform[1][2]]],stops:item.gradientStops.map(stop=>({position:stop.position,color:hexColor(stop.color),...(stop.color.a<1?{opacity:stop.color.a}:{})}))});
-      const toStackItem=async(item:SolidPaint|GradientPaint|ImagePaint):Promise<PaintStackItemSpec>=>{
-        if(item.type==='SOLID')return {type:'solid',color:hexColor(item.color),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-        if(item.type==='GRADIENT_LINEAR')return {type:'linear-gradient',gradient:toGradient(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-        if(item.type==='GRADIENT_RADIAL')return {type:'radial-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-        if(item.type==='GRADIENT_ANGULAR')return {type:'angular-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-        if(item.type==='GRADIENT_DIAMOND')return {type:'diamond-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-        if(!('scaleMode' in item))throw new Error(`Layer "${node.name}" uses an unsupported paint type.`);
-        if(!item.imageHash)throw new Error(`Image hash for "${node.name}" is unavailable.`);
-        const image=figma.getImageByHash(item.imageHash);if(!image)throw new Error(`Image bytes for "${node.name}" are unavailable.`);
-        const bytes=await image.getBytesAsync();if(bytes.length>MAX_EMBEDDED_IMAGE_BYTES)throw new Error(`Image "${node.name}" exceeds the embedded export size limit.`);
-        const mimeType=bytes[0]===137?'image/png':'image/jpeg';const info=validateRasterAsset(bytes,mimeType);
-        if(info.mimeType!==mimeType)throw new Error(`Image "${node.name}" must be PNG or JPEG for portable export.`);
-        return {type:'image',mimeType,data:encodeBase64(bytes),scaleMode:item.scaleMode,...(item.scaleMode==='CROP'&&item.imageTransform?{imageTransform:item.imageTransform}:{}),...(item.scaleMode==='TILE'&&item.scalingFactor!==undefined?{scalingFactor:item.scalingFactor}:{}),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-      };
-      if(visible.length>1){
-        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='GRADIENT_RADIAL'&&item.type!=='GRADIENT_ANGULAR'&&item.type!=='GRADIENT_DIAMOND'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
-        paints=await Promise.all(visible.map(item=>toStackItem(item as SolidPaint|GradientPaint|ImagePaint)));
-      }else {
-        const paintItem=visible[0];
-        if(paintItem?.type==='SOLID'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else fill=hexColor(paintItem.color);}
-        else if(paintItem?.type==='GRADIENT_LINEAR'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else gradient=toGradient(paintItem);}
-        else if(paintItem?.type==='GRADIENT_RADIAL'||paintItem?.type==='GRADIENT_ANGULAR'||paintItem?.type==='GRADIENT_DIAMOND')paints=[await toStackItem(paintItem)];
-        else if(paintItem?.type==='IMAGE'){
-          if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1){
+function inspectSelec…4429 tokens truncated…if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1){
             const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT',...(encoded.imageTransform?{imageTransform:encoded.imageTransform}:{}),...(encoded.scalingFactor!==undefined?{scalingFactor:encoded.scalingFactor}:{})};
           }else paints=[await toStackItem(paintItem)];
         }
