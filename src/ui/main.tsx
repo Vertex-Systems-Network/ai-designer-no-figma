@@ -338,7 +338,7 @@ function App() {
       setPreparedPatchPrompt(buildPatchPrompt(selection,editPrompt));setExternalPatchJson('');setPatch(null);setError('');setNotice('Edit prompt is ready. Send it to your AI app, then paste the operations JSON below and validate it.');return;
     }
     setBusy(true);setError('');setNotice('Preparing a targeted patch…');setPatch(null);
-    try {const raw=await callModel({mode:'patch',prompt:`Selected frame: ${selection.name}, ${selection.width}×${selection.height}. Requested change: ${editPrompt}\nKnown selection summary: ${JSON.stringify(selection)}. Return operations only for IDs you can see. If no target IDs are available, return an empty operations array.`});
+    try {const raw=await callModel({mode:'patch',prompt:buildPatchPrompt(selection,editPrompt)});
       const result=parseEditPatch(raw,new Set(selection.nodes.map(node=>node.id)));if(!result.valid)throw new Error(result.message);
       setPatch(result.value);setNotice(`${result.value.operations.length} proposed change(s). Review before applying.`);
     }catch(err){if(err instanceof DOMException&&err.name==='AbortError')setNotice('Patch generation cancelled.');else setError(err instanceof Error?err.message:'Could not prepare patch.');}finally{setBusy(false);}
