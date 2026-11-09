@@ -10,6 +10,15 @@ describe('parseEditPatch', () => {
     for(const value of [{mimeType:'image/jpeg',data},{mimeType:'image/png',data:'not-base64'},{mimeType:'image/png',data:'A'.repeat(180_000)}])
       expect(parseEditPatch(JSON.stringify({operations:[{...op,value}]})).valid).toBe(false);
   });
+  it('accepts safe image scale modes and a bounded invertible crop transform',()=>{
+    const ids=new Set(['image-1']);
+    for(const value of [{scaleMode:'FILL'},{scaleMode:'FIT'},{scaleMode:'CROP',imageTransform:[[1,0,0],[0,1,0]]}])
+      expect(parseEditPatch(JSON.stringify({operations:[{op:'set-image-crop',targetId:'image-1',value}]}),ids).valid).toBe(true);
+  });
+  it('rejects singular, oversized, malformed, and unsupported image crop transforms',()=>{
+    const values=[{scaleMode:'CROP',imageTransform:[[1,0,0],[0,0,0]]},{scaleMode:'CROP',imageTransform:[[11,0,0],[0,1,0]]},{scaleMode:'CROP',imageTransform:[[1,0],[0,1]]},{scaleMode:'CROP',imageTransform:[[1,0,0],[0,1,0]],extra:true},{scaleMode:'TILE'}];
+    for(const value of values)expect(parseEditPatch(JSON.stringify({operations:[{op:'set-image-crop',targetId:'image-1',value}]})).valid).toBe(false);
+  });
   it('accepts bounded layout edits for a selected target', () => {
     const result = parseEditPatch(JSON.stringify({operations:[{op:'set-bounds',targetId:'frame-1',value:{x:-24,y:40,width:720,height:480}}]}),new Set(['frame-1']));
     expect(result.valid).toBe(true);
