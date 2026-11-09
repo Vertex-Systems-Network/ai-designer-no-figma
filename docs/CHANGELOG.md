@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Added validated schema support and native renderer/export round-trip for up to eight stacked solid and linear-gradient fills, including independent paint opacity. Unsupported mixed image paint stacks continue to fail explicitly.
+
 ## 2026-11-09 — advanced native renderer and design schema
 
 - Extended design-spec 1.0 with reusable components and instances, bounded SVG path vectors, horizontal/vertical linear gradients, and drop shadows.
