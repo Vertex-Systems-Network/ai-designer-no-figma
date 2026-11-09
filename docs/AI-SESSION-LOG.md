@@ -1,3 +1,8 @@
+## 2026-11-09 — native shape outlines
+
+- Added bounded rectangle/ellipse stroke color, opacity, weight, and alignment to schema 1.0. The Figma renderer creates native editable strokes and selected-tree export preserves a supported single solid stroke; unsupported multiple/blended strokes fail explicitly.
+- Updated provider-neutral prompt guidance and renderer/schema regressions. Typecheck and 76 unit tests pass. Full release verification passes with 76 unit and 17 integration tests, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 recorded in artifacts/SHA256SUMS.txt. Live Figma outline fidelity remains NOT TESTED.
+
 ## 2026-11-09 — progressive blur effect stacks
 
 - Added schema-validated progressive layer/background blur with bounded start/end radii and normalized start/end offsets. Native Figma renderer and selected-tree export preserve blur kind and metadata.
