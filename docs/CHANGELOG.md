@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added behavior-level Figma host tests for selected patch/undo, sibling preservation, rollback after a partially mutating failure, and cleanup of pages created before a later render failure.
 - Published the exact-source ZIP and SHA-256 manifest with the plan/prompt corrections on GitHub `main`; verified its Git blob against the local archive bytes.
 - Replaced conflicting roadmap percentages and stale acceptance checklists with one evidence-driven execution plan and engineering master prompt; agent rules now resume the first unblocked task and explicitly separate live Figma/client gates from plugin-only capabilities.
 - Targeted edits can rotate selected layers within -180° to 180°; rotation is included in plugin rollback/undo checkpoints.

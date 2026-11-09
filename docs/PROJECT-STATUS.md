@@ -2,7 +2,7 @@
 
 Last status review: 2026-11-10. [`FEATURE-REGISTRY.json`](FEATURE-REGISTRY.json) is authoritative for capability state; [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md) is authoritative for task priority; test evidence is recorded separately.
 
-- Reconciled the duplicated roadmap, stale product checklist, conflicting test counts, README status claims, and coding-agent instructions. `npm run docs:validate` passes with 0 findings. The next code task is `CODE-01`; `PUB-01` source-and-binary publication is LIVE VERIFIED.
+- Reconciled the duplicated roadmap, stale product checklist, conflicting test counts, README status claims, and coding-agent instructions. `npm run docs:validate` passes with 0 findings. `CODE-01` now has behavioral Figma-host mock coverage; the next code task is `CODE-02`; `PUB-01` source-and-binary publication is LIVE VERIFIED.
 
 ## Completed / verified
 

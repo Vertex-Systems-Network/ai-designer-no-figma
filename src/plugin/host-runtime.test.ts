@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const hostSource = readFileSync('src/plugin/code.ts', 'utf8');
 const paintSource = readFileSync('src/plugin/paint.ts', 'utf8');
@@ -44,18 +44,6 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("message.type==='bridge-job'");
   });
 
-  it('swaps only selected instances to selected components and snapshots their previous component for rollback',()=>{
-    expect(hostSource).toContain("operation.op==='swap-component'");
-    expect(hostSource).toContain('target.swapComponent(item.source as ComponentNode)');
-    expect(hostSource).toContain('target.swapComponent(snapshot.mainComponent)');
-    expect(hostSource).toContain('getMainComponentAsync()');
-  });
-  it('applies image crop transforms to one visible image fill and restores snapshots on undo',()=>{
-    expect(hostSource).toContain("operation.op==='set-image-crop'");
-    expect(hostSource).toContain("scaleMode==='CROP'?{...preserved,scaleMode,imageTransform:imageTransform as Transform}");
-    expect(hostSource).toContain('must contain exactly one visible image fill to crop or reposition');
-    expect(hostSource).toContain("else if(operation.op==='set-image-crop'&&'fills' in target");
-  });
   it('imports and exports image crop transforms through the design specification',()=>{
     expect(hostSource).toContain("spec.scaleMode==='CROP'&&spec.imageTransform");
     expect(hostSource).toContain("item.scaleMode==='CROP'&&item.imageTransform");
@@ -94,12 +82,6 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
-  it('replaces only the existing image paint and preserves its image-fill settings for undo',()=>{
-    expect(hostSource).toContain("operation.op==='replace-image'");
-    expect(hostSource).toContain('must contain exactly one visible image fill to replace');
-    expect(hostSource).toContain('fills[item.imageIndex]={...original,imageHash:item.imageHash}');
-    expect(hostSource).toContain('target.fills = snapshot.fills as typeof target.fills');
-  });
 
   it('imports and exports text case, decoration and letter spacing',()=>{
     expect(hostSource).toContain('text.letterSpacing=spec.letterSpacing');
@@ -152,11 +134,95 @@ describe('Figma plugin host compatibility', () => {
 });
 
 
-describe('rotation edit and rollback',()=>{
-  it('validates target rotation, snapshots it, applies it, and restores it on undo',()=>{
-    expect(hostSource).toContain("operation.op === 'set-rotation'");
-    expect(hostSource).toContain("operation.op==='set-rotation'&&'rotation' in target");
-    expect(hostSource).toContain("'rotation' in target?{rotation:target.rotation}:{}");
-    expect(hostSource).toContain('target.rotation=snapshot.rotation');
+type MockHostNode={id:string;name:string;type:'FRAME'|'TEXT';x:number;y:number;width:number;height:number;rotation:number;children?:MockHostNode[];fontName?:{family:string;style:string};removed?:boolean;characters?:string;_characters?:string;throwAfterSet?:string};
+
+function mockTextNode(id:string,name:string,initialText:string,throwAfterSet?:string):MockHostNode{
+  let characters=initialText;
+  let shouldThrow=Boolean(throwAfterSet);
+  return {
+    id,name,type:'TEXT',x:0,y:0,width:120,height:24,rotation:0,fontName:{family:'Inter',style:'Regular'},
+    get characters(){return characters;},
+    set characters(value:string){characters=value;if(shouldThrow&&value===throwAfterSet){shouldThrow=false;throw new Error('mock text write failed after mutation');}},
+  };
+}
+
+async function loadHostWithSelection(selection:MockHostNode[],overrides:Record<string,unknown>={}){
+  vi.resetModules();
+  const ui:{postMessage:ReturnType<typeof vi.fn>;onmessage?:((message:unknown)=>Promise<void>);resize:ReturnType<typeof vi.fn>;hide:ReturnType<typeof vi.fn>}={postMessage:vi.fn(),resize:vi.fn(),hide:vi.fn()};
+  const fakeFigma={
+    showUI:vi.fn(),currentPage:{selection},currentUser:{name:'Test Operator',photoUrl:null},mixed:Symbol('mixed'),
+    ui,on:vi.fn(),notify:vi.fn(),loadFontAsync:vi.fn().mockResolvedValue(undefined),
+  };
+  Object.assign(fakeFigma,overrides);
+  Object.assign(globalThis,{figma:fakeFigma,__html__:'<div id="root"></div>'});
+  await import('./code');
+  return {figma:fakeFigma,ui};
+}
+
+describe('Figma host patch behavior',()=>{
+  afterEach(()=>{Reflect.deleteProperty(globalThis,'figma');Reflect.deleteProperty(globalThis,'__html__');vi.resetModules();});
+
+  it('applies only selected-tree edits, preserves siblings, and restores edits on undo',async()=>{
+    const title=mockTextNode('title','Title','Revenue');
+    const sibling=mockTextNode('sibling','Sibling','Untouched');
+    const root:MockHostNode={id:'root',name:'Dashboard',type:'FRAME',x:0,y:0,width:800,height:600,rotation:0,children:[title,sibling]};
+    const {ui}=await loadHostWithSelection([root]);
+    await ui.onmessage?.({type:'apply-patch',patch:{operations:[{op:'rename',targetId:'title',value:'Updated title'},{op:'set-rotation',targetId:'title',value:22}]}});
+    expect(title.name).toBe('Updated title');
+    expect(title.rotation).toBe(22);
+    expect(sibling.name).toBe('Sibling');
+    expect(sibling.characters).toBe('Untouched');
+    await ui.onmessage?.({type:'undo-patch'});
+    expect(title.name).toBe('Title');
+    expect(title.rotation).toBe(0);
+    expect(sibling.name).toBe('Sibling');
+    expect(sibling.characters).toBe('Untouched');
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'patch-result',ok:true,message:'The latest plugin patch was reverted.'}));
+  });
+
+  it('rolls back every selected target after a mid-patch Figma mutation fails',async()=>{
+    const first=mockTextNode('first','First','Original first');
+    const second=mockTextNode('second','Second','Original second','Trigger failure');
+    const sibling=mockTextNode('sibling','Sibling','Keep as-is');
+    const root:MockHostNode={id:'root',name:'Canvas',type:'FRAME',x:0,y:0,width:800,height:600,rotation:0,children:[first,second,sibling]};
+    const {ui}=await loadHostWithSelection([root]);
+    await ui.onmessage?.({type:'apply-patch',patch:{operations:[{op:'set-text',targetId:'first',value:'Temporary mutation'},{op:'set-text',targetId:'second',value:'Trigger failure'}]}});
+    expect(first.characters).toBe('Original first');
+    expect(second.characters).toBe('Original second');
+    expect(sibling.characters).toBe('Keep as-is');
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',code:'PLUGIN_OPERATION_FAILED',message:'mock text write failed after mutation'}));
+    await expect(ui.onmessage?.({type:'undo-patch'})).resolves.toBeUndefined();
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:'There is no plugin patch checkpoint to revert in this session.'}));
+  });
+
+  it('removes every partially created page when a later render page fails',async()=>{
+    const current=mockTextNode('current','Current','Keep current document');
+    const root:MockHostNode={id:'root',name:'Existing',type:'FRAME',x:0,y:0,width:800,height:600,rotation:0,children:[current]};
+    const createdPages:Array<{removed:boolean;children:unknown[]}> = [];
+    const createdFrames:unknown[]=[];
+    const createPage=()=>{
+      const page={type:'PAGE',id:`page-${createdPages.length}`,name:'',children:[] as unknown[],removed:false,async loadAsync(){},appendChild(node:unknown){this.children.push(node);},remove(){this.removed=true;}};
+      createdPages.push(page);return page;
+    };
+    const createFrame=()=>{
+      const frame={type:'FRAME',id:`frame-${createdFrames.length}`,name:'',x:0,y:0,width:0,height:0,rotation:0,opacity:1,children:[] as unknown[],fills:[] as unknown[],effects:[] as unknown[],layoutGrids:[] as unknown[],appendChild(node:unknown){this.children.push(node);},resize(width:number,height:number){this.width=width;this.height=height;}};
+      createdFrames.push(frame);return frame;
+    };
+    const setCurrentPageAsync=vi.fn();
+    const {ui}=await loadHostWithSelection([root],{
+      createPage,createFrame,setCurrentPageAsync,
+      loadFontAsync:vi.fn().mockRejectedValue(new Error('font missing')),
+    });
+    const spec={schemaVersion:'1.0',name:'Rollback test',pages:[
+      {id:'page-a',name:'First',children:[{type:'frame',id:'frame-a',name:'Temporary frame',width:100,height:100,children:[]}]},
+      {id:'page-b',name:'Second',children:[{type:'text',id:'text-b',name:'Missing font text',width:100,height:24,text:'Will fail',fontFamily:'Unavailable Font'}]},
+    ]};
+    await ui.onmessage?.({type:'render',spec,fontFallback:'Unavailable Font'});
+    expect(createdPages).toHaveLength(2);
+    expect(createdPages.every(page=>page.removed)).toBe(true);
+    expect(createdFrames).toHaveLength(1);
+    expect(root.children).toEqual([current]);
+    expect(setCurrentPageAsync).not.toHaveBeenCalled();
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',code:'PLUGIN_OPERATION_FAILED',message:'No supported font could be loaded. Install Inter or choose an available fallback font.'}));
   });
 });

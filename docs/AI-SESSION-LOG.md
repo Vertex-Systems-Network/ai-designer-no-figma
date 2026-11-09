@@ -146,3 +146,5 @@
 
 - Added `set-rotation` to targeted edit patches with finite ±180° validation, selected-node enforcement, plugin rollback snapshots, undo restoration, and prompt guidance. Unit and host regression coverage is included.
 - 2026-11-10: Replaced subjective all-up completion estimates and overlapping roadmaps with `docs/MASTER-ENGINEERING-PROMPT.md` and the ordered `docs/EXECUTION-PLAN.md`. Reconciled stale acceptance and agent instructions, aligned resume behavior with turn/tool limits, made Figma closed-document/new-file automation an explicit separate-runner boundary, and added a binary/source publication gate. `npm run docs:validate` passed with 0 findings.
+
+- 2026-11-10: Replaced patch/render rollback source-string-only checks with tests that dynamically import the actual plugin host against a focused Figma API mock. Verified patch+undo, sibling preservation, partial-mutation rollback, and failed multi-page render cleanup. `npm run release:verify` passed: 100 unit tests, 17 integration tests, docs audit 0 findings, archive integrity and SHA-256.

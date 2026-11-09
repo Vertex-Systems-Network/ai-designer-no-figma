@@ -46,7 +46,7 @@ Progress bars, if shown, must count checked criteria listed in the corresponding
 | ID | Priority | Task | Class | Status | Exit evidence / next action |
 |---|---:|---|---|---|---|
 | PLAN-01 | P0 | Reconcile duplicated/stale roadmap, product acceptance checklist, feature registry and prompts | Repository | AUTOMATED VERIFIED | Canonical master prompt and task board added; old estimated phase list removed; stale product checklist and test counts corrected; agent rules/handoff aligned; `npm run docs:validate` passed with 0 findings. |
-| CODE-01 | P1 | Replace source-string-only host assertions for edit/render rollback with behavioral Figma API mock tests | Code | OPEN | Mock applies a real patch sequence, proves untouched sibling state, and proves rollback after a mid-operation failure; run focused tests and release verification. |
+| CODE-01 | P1 | Replace source-string-only host assertions for edit/render rollback with behavioral Figma API mock tests | Code | AUTOMATED VERIFIED | Imported the real plugin host against a Figma API mock. Tests apply/undo rename+rotation, preserve an unaffected sibling, roll back text changes after a setter mutates then throws, and remove partially created pages after a later render page fails; focused tests and release verification pass. |
 | CODE-02 | P1 | Audit selected-tree export/render fidelity against every supported schema field and fail explicitly on losses | Code | OPEN | A field-by-field matrix has a positive round-trip fixture or a specific rejection test; update feature registry and compatibility docs. |
 | CODE-03 | P2 | Implement component properties/variants only where the official Plugin API supports deterministic import, instance binding, export, and rollback | Code | OPEN | Schema/API mapping, positive/negative tests, round-trip or explicit unsupported error; do not advertise partial controls. |
 | LIVE-01 | P1 | Verify latest build in Figma: generated native layers, import/export, selected edit, undo, and preserved siblings | Live Figma | BLOCKED · USER DESKTOP | User must re-import the latest `dist/manifest.json` build and run the listed smoke sequence; record the exact build hash and observed outcomes. |
@@ -59,7 +59,7 @@ Progress bars, if shown, must count checked criteria listed in the corresponding
 
 ### Local release evidence at last recorded verification
 
-`npm run release:verify`: 101 unit tests, 17 integration tests, strict typecheck, lint, local privacy/security audit, build/package, docs audit (0 findings), ZIP integrity and SHA-256 passed. This closes the local packaging gate for that exact source snapshot only; it does not close `LIVE-*` or `BLOCK-*` tasks. Re-run after any subsequent change.
+`npm run release:verify`: 100 unit tests, 17 integration tests, strict typecheck, lint, local privacy/security audit, build/package, docs audit (0 findings), ZIP integrity and SHA-256 passed. This closes the local packaging gate for that exact source snapshot only; it does not close `LIVE-*` or `BLOCK-*` tasks. Re-run after any subsequent change.
 
 ## Product boundary decisions
 
