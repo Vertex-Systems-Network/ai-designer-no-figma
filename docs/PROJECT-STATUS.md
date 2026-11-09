@@ -28,6 +28,7 @@ Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.
 - Export now also fails with an actionable error for non-normal layer, paint, and shadow blend modes that schema 1.0 cannot represent; this prevents silent visual loss. Automated policy tests pass; live Figma export remains NOT TESTED.
 - Frame and component `clipsContent` now survives specification validation, native rendering, and selected-tree export. The field is rejected on groups; live clipping appearance remains NOT TESTED.
 - Line import/export now preserves the single visible stroke's opacity; selected export explicitly rejects multiple visible strokes, unsupported stroke types, and non-normal line-stroke blending rather than dropping them. Automated coverage passes; live line rendering remains NOT TESTED.
+- Frames, components, and rectangles now validate, render, and export per-corner radii plus corner smoothing; uniform radii retain the compact `radius` form. Live visual round-trip remains NOT TESTED.
 - Optional Ollama integration has a fake-server integration suite; installed runtime/model behavior is NOT TESTED.
 - MCP client identity is a supplied label, not authenticated identity. The loopback pairing token authenticates local bridge access; it does not establish who authored a queued request.
 
