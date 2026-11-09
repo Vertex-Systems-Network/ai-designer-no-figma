@@ -19,7 +19,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 | 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
 | 2 · Figma plugin and renderer | `███████████████████░` 93% | IN PROGRESS | Live native renderer verification and remaining paint edge cases |
 | 3 · Specification and validation | `██████████████████░░` 90% | IN PROGRESS | Live image/render check and full metadata round-trip across all Figma paint variants |
-| 4 · AI integration | `███████████████░░░░░` 76% | IN PROGRESS | Additional client interoperability and live local-model checks |
+| 4 · AI integration | `████████████████░░░░` 80% | IN PROGRESS | Additional client interoperability and live local-model checks |
 | 5 · Selection editing | `████████████████░░░░` 80% | IN PROGRESS | Component replacement and live preservation test |
 | 6 · Design system | `███████████████████░` 93% | IN PROGRESS | Live verification of native Variables/styles and broader token round-trip |
 | 7 · Application UI | `██████████████████░░` 90% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
@@ -61,7 +61,7 @@ These are verification gates rather than unfinished code tasks. Progress estimat
 | 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
 | 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
 | 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 53 unit and 15 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
+| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | `npm run release:verify`: 55 unit and 17 integration tests, typecheck, lint, local audit, build, package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma belongs to the compatibility gate. |
 | 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
 
 ## Requirements
