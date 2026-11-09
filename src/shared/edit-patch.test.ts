@@ -12,11 +12,11 @@ describe('parseEditPatch', () => {
   });
   it('accepts safe image scale modes and a bounded invertible crop transform',()=>{
     const ids=new Set(['image-1']);
-    for(const value of [{scaleMode:'FILL'},{scaleMode:'FIT'},{scaleMode:'CROP',imageTransform:[[1,0,0],[0,1,0]]}])
+    for(const value of [{scaleMode:'FILL'},{scaleMode:'FIT'},{scaleMode:'CROP',imageTransform:[[1,0,0],[0,1,0]]},{scaleMode:'TILE',scalingFactor:1.5}])
       expect(parseEditPatch(JSON.stringify({operations:[{op:'set-image-crop',targetId:'image-1',value}]}),ids).valid).toBe(true);
   });
   it('rejects singular, oversized, malformed, and unsupported image crop transforms',()=>{
-    const values=[{scaleMode:'CROP',imageTransform:[[1,0,0],[0,0,0]]},{scaleMode:'CROP',imageTransform:[[11,0,0],[0,1,0]]},{scaleMode:'CROP',imageTransform:[[1,0],[0,1]]},{scaleMode:'CROP',imageTransform:[[1,0,0],[0,1,0]],extra:true},{scaleMode:'TILE'}];
+    const values=[{scaleMode:'CROP',imageTransform:[[1,0,0],[0,0,0]]},{scaleMode:'CROP',imageTransform:[[11,0,0],[0,1,0]]},{scaleMode:'CROP',imageTransform:[[1,0],[0,1]]},{scaleMode:'CROP',imageTransform:[[1,0,0],[0,1,0]],scalingFactor:2},{scaleMode:'TILE',scalingFactor:11},{scaleMode:'TILE',imageTransform:[[1,0,0],[0,1,0]]},{scaleMode:'FIT',scalingFactor:2}];
     for(const value of values)expect(parseEditPatch(JSON.stringify({operations:[{op:'set-image-crop',targetId:'image-1',value}]})).valid).toBe(false);
   });
   it('accepts bounded layout edits for a selected target', () => {
