@@ -23,7 +23,7 @@ function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
   return { r: parseInt(value.slice(0, 2), 16) / 255, g: parseInt(value.slice(2, 4), 16) / 255, b: parseInt(value.slice(4, 6), 16) / 255 };
 }
-function paint(hex: string): SolidPaint { return { type: 'SOLID', color: rgb(hex) }; }
+function paint(hex: string, opacity=1): SolidPaint { return { type: 'SOLID', color: rgb(hex), opacity }; }
 
 type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode>; colors: Map<string,{variable:Variable;color:string}>; textStyles: Map<string,TextStyle> };
 function gradientPaint(spec:GradientSpec,opacity=1):GradientPaint {
@@ -105,9 +105,11 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     node = figma.createRectangle();
     if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if (spec.radius !== undefined) node.cornerRadius = spec.radius;
+    if (spec.stroke) { node.strokes=[paint(spec.stroke,spec.strokeOpacity??1)]; node.strokeWeight=spec.strokeWidth??1; node.strokeAlign=spec.strokeAlign??'CENTER'; }
   } else if (spec.type === 'ellipse') {
     node = figma.createEllipse();
     if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
+    if (spec.stroke) { node.strokes=[paint(spec.stroke,spec.strokeOpacity??1)]; node.strokeWeight=spec.strokeWidth??1; node.strokeAlign=spec.strokeAlign??'CENTER'; }
   } else if (spec.type === 'line') {
     const line = figma.createLine();
     line.strokes = [paint(spec.stroke ?? spec.fill ?? '#333333')];
@@ -472,7 +474,11 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     }
     if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
       const radius = node.type === 'RECTANGLE' && typeof node.cornerRadius === 'number' ? node.cornerRadius : undefined;
-      return { ...base, type:node.type === 'RECTANGLE'?'rectangle':'ellipse', ...(radius!==undefined?{radius}:{}) };
+      const visibleStrokes=node.strokes.filter(item=>item.visible!==false&&(item.opacity??1)>0);
+      if(visibleStrokes.length>1)throw new Error(`Layer "${node.name}" uses multiple strokes which schema 1.0 cannot preserve.`);
+      const stroke=visibleStrokes[0];
+      if(stroke&& (stroke.type!=='SOLID'||stroke.blendMode!=='NORMAL'))throw new Error(`Layer "${node.name}" uses a non-solid or blended stroke unsupported by portable export.`);
+      return { ...base, type:node.type === 'RECTANGLE'?'rectangle':'ellipse', ...(radius!==undefined?{radius}:{}), ...(stroke?.type==='SOLID'?{stroke:hexColor(stroke.color),...(stroke.opacity!==undefined&&stroke.opacity!==1?{strokeOpacity:stroke.opacity}:{})}:{}), ...(stroke&&typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}), ...(stroke?{strokeAlign:node.strokeAlign}:{}) };
     }
     if (node.type === 'LINE') {
       const stroke = node.strokes.find((item) => item.visible !== false && (item.opacity ?? 1) > 0);
