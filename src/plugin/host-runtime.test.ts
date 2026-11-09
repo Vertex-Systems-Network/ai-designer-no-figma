@@ -150,3 +150,13 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('getBytesAsync()');
   });
 });
+
+
+describe('rotation edit and rollback',()=>{
+  it('validates target rotation, snapshots it, applies it, and restores it on undo',()=>{
+    expect(hostSource).toContain("operation.op === 'set-rotation'");
+    expect(hostSource).toContain("operation.op==='set-rotation'&&'rotation' in target");
+    expect(hostSource).toContain("'rotation' in target?{rotation:target.rotation}:{}");
+    expect(hostSource).toContain('target.rotation=snapshot.rotation');
+  });
+});
