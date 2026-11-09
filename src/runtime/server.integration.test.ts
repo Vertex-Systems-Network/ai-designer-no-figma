@@ -8,6 +8,10 @@ let fakeOllama: Server;
 let child: ChildProcess;
 let serviceUrl = '';
 let requestsSeen = 0;
+let lastModelPrompt = '';
+let streamModeRequested = false;
+let slowRequestStarted = false;
+let cancelledUpstreamResponse = false;
 
 async function freePort(): Promise<number> {
   const probe = createNetServer();
@@ -27,9 +31,14 @@ beforeAll(async () => {
     }
     if (req.url === '/api/generate') {
       requestsSeen += 1;
-      const input = JSON.parse(body) as {model:string;prompt:string;format:string};
-      res.setHeader('Content-Type','application/json');
-      res.end(JSON.stringify({response:JSON.stringify({echoModel:input.model,hasInstructions:input.prompt.includes('Return only JSON'),format:input.format}),done:true})); return;
+      const input = JSON.parse(body) as {model:string;prompt:string;format:string;stream?:boolean};
+      lastModelPrompt=input.prompt;
+      streamModeRequested=input.stream===true;
+      if(input.prompt.includes('slow-cancel-probe')){slowRequestStarted=true;res.on('close',()=>{cancelledUpstreamResponse=true;});return;}
+      const output=JSON.stringify({echoModel:input.model,hasInstructions:input.prompt.includes('Return'),format:input.format});
+      res.setHeader('Content-Type','application/x-ndjson');
+      res.write(`${JSON.stringify({response:output.slice(0,Math.min(18,output.length)),done:false})}\n`);
+      res.end(`${JSON.stringify({response:output.slice(Math.min(18,output.length)),done:true})}\n`); return;
     }
     res.statusCode=404;res.end('{}');
   });
@@ -89,8 +98,33 @@ describe('loopback runtime HTTP integration',()=>{
   it('forwards a bounded structured request to the installed local model',async()=>{
     const response=await fetch(`${serviceUrl}/api/generate`,{method:'POST',headers:{'Content-Type':'application/json','X-AI-Designer-Local':'1'},body:JSON.stringify({model:'test-model:latest',prompt:'Create a sample screen',mode:'design'})});
     expect(response.status).toBe(200);
-    const result=await response.json() as {response:string};
-    expect(JSON.parse(result.response)).toMatchObject({echoModel:'test-model:latest',hasInstructions:true,format:'json'});
+    const chunks=(await response.text()).trim().split('\n').map((line)=>JSON.parse(line) as {response:string;done:boolean});
+    const result=chunks.map(chunk=>chunk.response).join('');
+    expect(JSON.parse(result)).toMatchObject({echoModel:'test-model:latest',hasInstructions:true,format:'json'});
+    expect(lastModelPrompt).toContain('Return one valid JSON object only');
+    expect(lastModelPrompt).toContain('Supported node types are frame, group, component, instance, vector, image');
+    expect(lastModelPrompt).toContain('Category-specific structure:');
+    expect(streamModeRequested).toBe(true);
+    expect(chunks.at(-1)?.done).toBe(true);
     expect(requestsSeen).toBe(1);
+  });
+  it('gives local patch generation the same bounded Auto Layout operation as the UI',async()=>{
+    const response=await fetch(`${serviceUrl}/api/generate`,{method:'POST',headers:{'Content-Type':'application/json','X-AI-Designer-Local':'1'},body:JSON.stringify({model:'test-model:latest',prompt:'Current selection summary: node-1',mode:'patch',category:'Dashboard'})});
+    expect(response.status).toBe(200);
+    expect(lastModelPrompt).toContain('set-auto-layout');
+    expect(lastModelPrompt).toContain('Use only supplied logical IDs');
+    expect(lastModelPrompt).toContain('Dashboard');
+  });
+  it('propagates a cancelled UI request to the local model stream',async()=>{
+    slowRequestStarted=false;cancelledUpstreamResponse=false;
+    const controller=new AbortController();
+    const generation=fetch(`${serviceUrl}/api/generate`,{method:'POST',headers:{'Content-Type':'application/json','X-AI-Designer-Local':'1'},body:JSON.stringify({model:'test-model:latest',prompt:'slow-cancel-probe'}) ,signal:controller.signal}).catch(()=>undefined);
+    const deadline=Date.now()+2000;
+    while(!slowRequestStarted&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,20));
+    expect(slowRequestStarted).toBe(true);
+    controller.abort();await generation;
+    const closeDeadline=Date.now()+2000;
+    while(!cancelledUpstreamResponse&&Date.now()<closeDeadline)await new Promise(resolve=>setTimeout(resolve,20));
+    expect(cancelledUpstreamResponse).toBe(true);
   });
 });
