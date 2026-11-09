@@ -56,4 +56,11 @@
 - Added versioned schema support for bounded PNG/JPEG nodes, named color/text-style tokens, responsive constraints and row/column/grid definitions. Validation checks byte bounds, MIME signatures and token references.
 - Renderer creates native Figma image fills, color Variables and Text Styles, applies supported constraints/grids and binds token references. Selected-tree export now preserves supported image/paint/layout/token metadata and returns actionable failures for unsupported cases.
 - Added category-specific prompt recipes for website, dashboard, mobile, admin, WordPress admin, e-commerce, landing and custom interfaces.
-- `npm run release:verify` passed: 53 unit and 15 integration tests, typecheck/lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma rendering, token binding and export/import round-trip are NOT TESTED.
+- `npm run release:verify` passed: 55 unit and 17 integration tests, typecheck/lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma rendering, token binding and export/import round-trip are NOT TESTED.
+
+
+## 2026-11-09 — compatibility adapter and streamed local inference
+
+- Extracted schema Auto Layout mode and primary-axis alignment conversions into `src/plugin/compatibility.ts`; round-trip tests compile against the installed official Figma Plugin API typings and reject silent coercion for unmapped native values. This is scoped adapter coverage, not complete compatibility certification.
+- Local Ollama requests now share the external design prompt's schema/category guidance and include the UI-supported Auto Layout patch operation. Runtime streams NDJSON, enforces a 500 KB response cap, and propagates browser cancellation to the local model request; the UI reports actual received character counts.
+- Typecheck, lint, and 17 MCP/runtime integration tests passed. `npm run release:verify` then passed with 55 unit and 17 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. A localhost Ollama probe found no model service; live Figma remains unavailable.
