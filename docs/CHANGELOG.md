@@ -1,10 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Frame, component and rectangle specifications now support distinct corner radii and Figma corner smoothing; selected export round-trips them and renderer applies them natively.
 - Line export now preserves single-stroke opacity and rejects multiple visible strokes or unsupported blend/stroke types instead of silently discarding them; imported lines restore stroke opacity.
 - Added schema-backed `clipsContent` for frames and components; native rendering applies it and selected-tree export preserves enabled clipping. Groups safely reject the unsupported field.
 - Selected export now rejects non-normal node, paint, and shadow blend modes that schema 1.0 cannot represent, instead of silently dropping them; Normal and default pass-through containers remain exportable.
-- Release verification after blend-mode, clipping, and line-stroke safeguards: 94 unit tests and 17 integration tests pass; typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity, and SHA-256 pass. Live Figma export remains NOT TESTED.
+- Release verification after blend-mode, clipping, line-stroke, and corner-fidelity safeguards: 96 unit tests and 17 integration tests pass; typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity, and SHA-256 pass. Live Figma export remains NOT TESTED.
 - Exposed image Fill/Fit/Tile/custom crop patching in Edit with a bounded TILE scale-factor control. Automated release verification passes; live image appearance remains NOT TESTED.
 - Preserved native image crop/reposition transforms in the versioned design spec for standalone image nodes and image paint stacks; the renderer restores them and selected export emits them. Schema checks require CROP mode and an invertible bounded affine transform.
 - Added schema-backed TILE image fills with a bounded `scalingFactor` for standalone image nodes and layered paints; native image repetition now renders and round-trips through selected export.
