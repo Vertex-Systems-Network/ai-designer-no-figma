@@ -10,6 +10,12 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('(node as FrameNode).clipsContent=spec.clipsContent??false');
     expect(hostSource).toContain('frame.clipsContent?{clipsContent:true}:{}');
   });
+  it('preserves mixed corner radii and smoothing on frames, components, and rectangles',()=>{
+    expect(hostSource).toContain('function applyCornerStyle');
+    expect(hostSource).toContain('function exportCornerStyle');
+    expect(hostSource).toContain('target.topLeftRadius=spec.cornerRadii.topLeft');
+    expect(hostSource).toContain('target.cornerSmoothing=spec.cornerSmoothing');
+  });
   it('preserves line stroke opacity and rejects lossy multiple strokes',()=>{
     expect(hostSource).toContain("assertSinglePortableStroke(node.name,visibleStrokes.length)");
     expect(hostSource).toContain("assertPortableBlendMode(node.name,'line stroke'");
