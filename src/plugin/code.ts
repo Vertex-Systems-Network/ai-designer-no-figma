@@ -153,6 +153,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   if(spec.fillToken)bindToken(node,spec.fillToken,control);
   if (spec.type==='frame'||spec.type==='group'||spec.type==='component') {
     applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
+    if(spec.type==='frame'||spec.type==='component')(node as FrameNode).clipsContent=spec.clipsContent??false;
     if(spec.radius!==undefined)(node as FrameNode).cornerRadius=spec.radius;
     if(spec.type==='component')control.components.set(spec.id,node as ComponentNode);
   }
@@ -527,7 +528,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         const layout = frame.layoutMode === 'NONE' ? undefined : { mode:semanticMode==='horizontal'?'horizontal' as const:'vertical' as const, gap:frame.itemSpacing, padding:frame.paddingTop, alignment:semanticAlignment??'MIN', primaryAxisSizing:frame.primaryAxisSizingMode, counterAxisSizing:frame.counterAxisSizingMode };
         const radius = typeof frame.cornerRadius === 'number' ? frame.cornerRadius : undefined;
         const layoutGrids=node.type==='FRAME'?frame.layoutGrids.map(grid=>grid.pattern==='GRID'?{pattern:'GRID' as const,sectionSize:grid.sectionSize,...(grid.visible!==undefined?{visible:grid.visible}:{})}:{pattern:grid.pattern,...(grid.sectionSize!==undefined?{sectionSize:grid.sectionSize}:{}),gutterSize:grid.gutterSize,count:grid.count,...(grid.offset!==undefined?{offset:grid.offset}:{}),...(grid.alignment?{alignment:grid.alignment}:{}),...(grid.visible!==undefined?{visible:grid.visible}:{})}):undefined;
-        const frameBase={...base,...(layoutGrids?.length?{layoutGrids}:{}),...(radius!==undefined?{radius}:{})};
+        const frameBase={...base,...(layoutGrids?.length?{layoutGrids}:{}),...(radius!==undefined?{radius}:{}),...(frame.clipsContent?{clipsContent:true}:{})};
         if(node.type==='COMPONENT')return {...frameBase,type:'component',children,...(layout?{layout}:{})};
         return { ...frameBase, type:'frame', children, ...(layout?{layout}:{}) };
       }
