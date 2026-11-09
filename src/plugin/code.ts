@@ -163,6 +163,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   node.resize(spec.width, spec.height);
   node.x = spec.x ?? 0;
   node.y = spec.y ?? 0;
+  if(spec.rotation!==undefined)node.rotation=spec.rotation;
   node.opacity = spec.opacity ?? 1;
   applyConstraints(node,spec.constraints);
   if(spec.fillToken)bindToken(node,spec.fillToken,control);
@@ -441,7 +442,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     if (count > MAX_NODES) throw new Error(`Selected design exceeds the ${MAX_NODES}-layer export limit.`);
     if (depth > MAX_DEPTH) throw new Error(`Selected design exceeds the ${MAX_DEPTH}-level nesting limit.`);
     if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP','COMPONENT','INSTANCE','VECTOR'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0.`);
-    const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number };
+    const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number; rotation:number };
     const nativeBlendMode=(node as SceneNode & {blendMode?:string}).blendMode;
     if(nativeBlendMode)assertPortableBlendMode(node.name,'node',nativeBlendMode,['FRAME','GROUP','COMPONENT','INSTANCE'].includes(node.type));
     const id=logicalIds.get(node.id)||`figma-${node.id}`;
@@ -498,7 +499,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     }
     const constraints='constraints' in node?node.constraints:undefined;
     const fillToken=await readColorToken(node);
-    const base = { id, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(fill?{fill}:{}),...(gradient?{gradient}:{}),...(paints?{paints}:{}),...(shadow?{shadow}:{}),...(shadows?{shadows}:{}),...(designEffects?.length?{effects:designEffects}:{}),...(constraints?{constraints}:{}),...(fillToken?{fillToken}:{}) };
+    const base = { id, name: node.name.slice(0,160), x: Math.round(supported.x), y: Math.round(supported.y), width: Math.max(.01,Math.round(supported.width*100)/100), height: Math.max(.01,Math.round(supported.height*100)/100), opacity: supported.opacity, ...(supported.rotation!==0?{rotation:supported.rotation}:{}), ...(fill?{fill}:{}),...(gradient?{gradient}:{}),...(paints?{paints}:{}),...(shadow?{shadow}:{}),...(shadows?{shadows}:{}),...(designEffects?.length?{effects:designEffects}:{}),...(constraints?{constraints}:{}),...(fillToken?{fillToken}:{}) };
     if(imageData)return {...base,type:'image',...imageData};
     if (node.type === 'TEXT') {
       const font = node.fontName === figma.mixed ? undefined : node.fontName;
