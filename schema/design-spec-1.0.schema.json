@@ -763,6 +763,26 @@
                     "SMALL_CAPS",
                     "SMALL_CAPS_FORCED"
                   ]
+                },
+                "paragraphSpacing": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000
+                },
+                "textAlignVertical": {
+                  "enum": [
+                    "TOP",
+                    "CENTER",
+                    "BOTTOM"
+                  ]
+                },
+                "textAutoResize": {
+                  "enum": [
+                    "NONE",
+                    "WIDTH_AND_HEIGHT",
+                    "HEIGHT",
+                    "TRUNCATE"
+                  ]
                 }
               }
             }
@@ -1053,6 +1073,11 @@
                   "SMALL_CAPS",
                   "SMALL_CAPS_FORCED"
                 ]
+              },
+              "paragraphSpacing": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
               }
             }
           }
