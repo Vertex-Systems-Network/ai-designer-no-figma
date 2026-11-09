@@ -1,7 +1,12 @@
+## 2026-11-09 — tiled image fill round-trip
+
+- Added TILE image mode and bounded `scalingFactor` to schema 1.0 standalone images and paint stacks. Native Figma render and selected export now retain repeating image scale instead of rejecting TILE.
+- Added parser, paint mapping, and host coverage. Typecheck, lint and 87 unit tests pass; real Figma pattern appearance remains NOT TESTED.
+
 ## 2026-11-09 — image crop transform round-trip
 
 - Extended schema 1.0 image nodes and image paint entries with bounded affine `imageTransform`, available only for CROP mode. Figma rendering applies it and selected export serializes it, preserving crop and reposition through design JSON round trips.
-- Added schema, paint-mapping, and host regressions for valid/singular matrices and non-CROP rejection. Typecheck, lint, and 85 unit tests pass; live Figma visual round-trip remains NOT TESTED.
+- Added schema, paint-mapping, and host regressions for valid/singular matrices and non-CROP rejection. Typecheck, lint, and 85 unit tests passed at this checkpoint; live Figma visual round-trip remains NOT TESTED.
 
 ## 2026-11-09 — selected image crop and reposition
 
