@@ -25,6 +25,13 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("message.type==='bridge-job'");
   });
 
+  it('swaps only selected instances to selected components and snapshots their previous component for rollback',()=>{
+    expect(hostSource).toContain("operation.op==='swap-component'");
+    expect(hostSource).toContain('target.swapComponent(item.source as ComponentNode)');
+    expect(hostSource).toContain('target.swapComponent(snapshot.mainComponent)');
+    expect(hostSource).toContain('getMainComponentAsync()');
+  });
+
   it('exports one selected frame as a bounded visual preview and selects the first rendered frame', () => {
     expect(hostSource).toContain("operation.type==='capture-selection'");
     expect(hostSource).toContain("format:'JPG'");
