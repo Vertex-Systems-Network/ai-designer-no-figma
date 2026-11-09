@@ -5,12 +5,12 @@ Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.
 ## Completed / verified
 
 - Local-first plugin shell, structured JSON validation/import, provider-neutral prompt copy/paste, history/tokens/theme/settings, native rendering for supported basic node types.
-- Optional Ollama loopback service and deterministic HTTP integration tests using a local test double; this does not verify a real model.
+- Optional Ollama loopback service now receives the full schema/category prompt, streams bounded NDJSON output to the UI, and propagates cancellation; deterministic HTTP integration tests use a local test double and do not verify a real model.
 - VSN startup loader and plugin UI were confirmed working by the user in Figma.
 - Custom stdio MCP server and authenticated loopback bridge: protocol initialization, tested tool discovery, schema rejection, job correlation, session isolation and result return are covered by automated integration tests.
 - Settings now accepts the loopback pairing endpoint/token, and Agent Activity receives real bridge status and operation events. This is build-verified; live pairing is not yet tested.
 - Bridge polling and HTTP requests now run in the plugin UI iframe; the restricted Figma JSVM host only executes validated Figma document operations and sends correlated results back. Connect now hides the panel after the loopback session is confirmed while the iframe keeps polling. The plugin also reads the signed-in Figma user's display name through the explicit `currentuser` permission. Automated host-runtime regressions pass; live hidden-panel operation is not yet tested.
-- `npm run release:verify` passes for this change set: 53 unit tests, 15 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma validation remains separate and NOT TESTED.
+- `npm run release:verify` passes for this change set: 55 unit tests, 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma validation remains separate and NOT TESTED.
 - Added an advisory design-quality audit for low-contrast text against solid ancestor fills, generic layer names, missing explicit font sizes, and multi-child containers without Auto Layout. It is deterministic, non-blocking, and test-covered; it is not a screenshot/rendering or subjective design-quality score.
 - Added an AI-orchestrated visual feedback path: after render, the first root frame is selected; Claude MCP can request a JPEG preview of one selected frame, bounded to 1024 px wide / 700 KiB, and `figma_get_job_result` returns it as an MCP image block. The agent can inspect that image, submit a targeted patch, and capture again. This does not run without an AI client invoking the tools, and live Figma capture/image review remain NOT TESTED.
 
@@ -32,7 +32,7 @@ Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.
 - Live Figma pairing and MCP-driven mutation, screenshot/visual validation, universal Figma compatibility layer and client-specific setup verification remain open.
 - A Figma Desktop session cannot be driven by the current executor; user-confirmed UI is not evidence for newly added export/undo features.
 - Hidden-panel background work is scoped to the currently open Figma document and live plugin session. Closing Figma or the document terminates it; creating/opening a new Draft file automatically requires a separate local desktop runner and is not implemented.
-- Figma-version/API compatibility, token-mode behavior, visual accessibility screenshot QA and live renderer preservation still need environment verification.
+- The compatibility adapter isolates schema Auto Layout modes and primary-axis alignment against the locked Figma typings; other API mappings, Figma-version behavior, token modes, visual accessibility screenshot QA and live renderer preservation still need verification.
 
 ## Release gate
 
