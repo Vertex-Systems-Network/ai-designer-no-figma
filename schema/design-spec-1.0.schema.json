@@ -215,8 +215,27 @@
             "type": { "enum": ["layer-blur", "background-blur"] },
             "blur": { "type": "number", "minimum": 0, "maximum": 1000 }
           }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["type", "startRadius", "endRadius", "startOffset", "endOffset"],
+          "properties": {
+            "type": { "enum": ["progressive-layer-blur", "progressive-background-blur"] },
+            "startRadius": { "type": "number", "minimum": 0, "maximum": 1000 },
+            "endRadius": { "type": "number", "minimum": 0, "maximum": 1000 },
+            "startOffset": { "$ref": "#/$defs/unitPoint" },
+            "endOffset": { "$ref": "#/$defs/unitPoint" }
+          }
         }
       ]
+    },
+    "unitPoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     },
     "page": {
       "type": "object",
