@@ -1,8 +1,13 @@
+## 2026-11-09 — image crop transform round-trip
+
+- Extended schema 1.0 image nodes and image paint entries with bounded affine `imageTransform`, available only for CROP mode. Figma rendering applies it and selected export serializes it, preserving crop and reposition through design JSON round trips.
+- Added schema, paint-mapping, and host regressions for valid/singular matrices and non-CROP rejection. Typecheck, lint, and 85 unit tests pass; live Figma visual round-trip remains NOT TESTED.
+
 ## 2026-11-09 — selected image crop and reposition
 
 - Added `set-image-crop` patches for FILL/FIT or custom CROP with a finite, invertible 2×3 affine transform bounded to ±10. The host targets exactly one visible image fill, preserves image hash and paint metadata, and reuses the fill snapshot/undo path.
 - Selection summaries expose current image scale mode and crop matrix. Edit UI includes scale-mode controls, a matrix editor, and reviewed apply; AI patch prompts and MCP capability reporting include the operation.
-- Typecheck, lint and unit tests pass (83 tests). Live Figma crop appearance and undo remain NOT TESTED.
+- Typecheck, lint and 83 unit tests passed at this implementation checkpoint. Live Figma crop appearance and undo remain NOT TESTED.
 
 ## 2026-11-09 — safe selected image replacement
 
