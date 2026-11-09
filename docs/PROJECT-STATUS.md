@@ -2,7 +2,7 @@
 
 Last status review: 2026-11-10. [`FEATURE-REGISTRY.json`](FEATURE-REGISTRY.json) is authoritative for capability state; [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md) is authoritative for task priority; test evidence is recorded separately.
 
-- Reconciled the duplicated roadmap, stale product checklist, conflicting test counts, README status claims, and coding-agent instructions. `npm run docs:validate` passes with 0 findings. `CODE-01` now has behavioral Figma-host mock coverage; the next code task is `CODE-02`; `PUB-01` source-and-binary publication is LIVE VERIFIED.
+- Reconciled the duplicated roadmap, stale product checklist, conflicting test counts, README status claims, and coding-agent instructions. `npm run docs:validate` passes with 0 findings. `CODE-01` has behavioral Figma-host mock coverage; `CODE-02` is active (token export criterion 1/4 complete); `PUB-01` source-and-binary publication is LIVE VERIFIED.
 
 ## Completed / verified
 
@@ -27,6 +27,7 @@ Last status review: 2026-11-10. [`FEATURE-REGISTRY.json`](FEATURE-REGISTRY.json)
 - The AI Assets view now persists sanitized SVG/raster source bytes locally with SHA-256 deduplication, size/item caps, preview, reuse, select and delete/clear actions. Live Figma insertion/editability remains NOT TESTED.
 - Design System manages locally persisted typography/spacing scales and up to 20 named presets. Spec imports create/reuse native color variables and text styles and bind layer fills/text to named tokens. Live document behavior is NOT TESTED.
 - Selected-tree export now serializes frames, groups, components, supported instances, vectors, embedded PNG/JPEG, linear/radial/angular/diamond gradients, up to eight stacked solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image paints, up to four native strokes plus effects (drop/inner shadows and normal/progressive layer/background blur), grids/constraints and referenced local color/text tokens. It deliberately fails on other unsupported effects and unsupported gradient/effect types, token modes that cannot be resolved, or instances without an accessible main component. Export/render round-trip is automated-fixture covered but NOT TESTED in live Figma.
+- Fixed a silent selected-export loss: bound color variables and text styles were collected during async traversal, but the export snapshot was assembled before traversal completed. A behavior-level host test now confirms token definitions and their node references are included in exported JSON. Release verification: 101 unit and 17 integration tests; live Figma remains NOT TESTED.
 - Export now also fails with an actionable error for non-normal layer, paint, and shadow blend modes that schema 1.0 cannot represent; this prevents silent visual loss. Automated policy tests pass; live Figma export remains NOT TESTED.
 - Frame and component `clipsContent` now survives specification validation, native rendering, and selected-tree export. The field is rejected on groups; live clipping appearance remains NOT TESTED.
 - Line import/export now preserves the single visible stroke's opacity; selected export explicitly rejects multiple visible strokes, unsupported stroke types, and non-normal line-stroke blending rather than dropping them. Automated coverage passes; live line rendering remains NOT TESTED.

@@ -44,7 +44,7 @@
     {
       "id": "FIGMA-001",
       "name": "Native Figma rendering and asset insertion",
-      "description": "Create editable native frames, groups, components/instances with bounded rotation, frame/component clipping and per-corner radius/smoothing, vectors, bounded raster fills, gradients, bounded solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image paint stacks, rectangle/ellipse strokes, line strokes with opacity, drop/inner shadows and normal/progressive blur effects, token-bound colors and typography styles with case, decoration, letter/paragraph spacing, vertical alignment and text sizing, responsive constraints and layout grids.",
+      "description": "Create editable native frames, groups, components/instances with bounded rotation, frame/component clipping and per-corner radius/smoothing, vectors, bounded raster fills, gradients, bounded solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image paint stacks, rectangle/ellipse strokes, line strokes with opacity, drop/inner shadows and normal/progressive blur effects, token-bound colors and typography styles with exported token definitions and bindings, case, decoration, letter/paragraph spacing, vertical alignment and text sizing, responsive constraints and layout grids.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
@@ -70,9 +70,9 @@
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
-      "lastModified": "2026-11-09",
-      "lastVerified": "2026-11-09",
-      "nextAction": "Run a live import covering image nodes, tokens, constraints/grids and advanced paint types; verify editability and record results."
+      "lastModified": "2026-11-10",
+      "lastVerified": "2026-11-10",
+      "nextAction": "Continue CODE-02 field-family host round-trip fixtures and explicit unsupported-feature rejection; live Figma behavior remains NOT TESTED."
     },
     {
       "id": "FIGMA-002",

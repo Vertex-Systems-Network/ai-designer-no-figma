@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed selected-tree export dropping bound color variable and text-style definitions because async traversal was snapshotted too early; added host behavior regression coverage. Release verification passed with 101 unit and 17 integration tests, strict docs audit (0 findings), ZIP integrity and SHA-256.
 - Added behavior-level Figma host tests for selected patch/undo, sibling preservation, rollback after a partially mutating failure, and cleanup of pages created before a later render failure.
 - Published the exact-source ZIP and SHA-256 manifest with the plan/prompt corrections on GitHub `main`; verified its Git blob against the local archive bytes.
 - Replaced conflicting roadmap percentages and stale acceptance checklists with one evidence-driven execution plan and engineering master prompt; agent rules now resume the first unblocked task and explicitly separate live Figma/client gates from plugin-only capabilities.

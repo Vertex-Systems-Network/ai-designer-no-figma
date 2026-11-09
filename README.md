@@ -15,10 +15,10 @@ There is no aggregate completion percentage: it hid the distinction between code
 
 | Gate | Progress | Evidence / remaining action |
 |---|---:|---|
-| Automated release checks | `██████████` 8/8 | Latest recorded `npm run release:verify`: typecheck, lint, 100 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
+| Automated release checks | `██████████` 8/8 | Latest `npm run release:verify`: typecheck, lint, 101 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
 | Feature registry fully implemented | `█████░░░░░` 8/17 | Eight features are `IMPLEMENTED`; nine remain `PARTIAL`. Counts are registry entries, not product completion. |
 | Live Figma/client acceptance | `░░░░░░░░░░` 0/4 | Four named live checks are in [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md); current executor cannot drive the user's desktop session. |
-| Remaining local engineering tasks | `███░░░░░░░` 1/3 | `CODE-01` behavior tests pass; `CODE-02` and `CODE-03` remain open. |
+| Remaining local engineering tasks | `███░░░░░░░` 1/3 | `CODE-01` is verified. `CODE-02` export fidelity is active (1/4 criteria verified); `CODE-03` remains open. |
 | Published binary matches verified source | `██████████` 1/1 | `PUB-01` LIVE VERIFIED: source/docs and ZIP are on `main`; uploaded blob equals the local archive bytes and the SHA-256 manifest passes. |
 
 The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages are not used for overall project completion; each task closes against its own evidence.
@@ -27,7 +27,7 @@ The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages
 
 | Task group | Status | Next action |
 |---|---|---|
-| Local code | OPEN | `CODE-01` is verified; next start `CODE-02`: audit selected-tree export/render fidelity and prove round-trip or explicit rejection for each field. |
+| Local code | IN PROGRESS | `CODE-02` criterion 1/4: selected export now includes asynchronously discovered bound color variables and text-style tokens; regression covered by actual host mock. Remaining: audit node field families, asset/component paths, and explicit rejection behavior. |
 | Live Figma and AI clients | BLOCKED · USER DESKTOP | Run `LIVE-01` through `LIVE-04` against the exact built package; record app, build hash, and observed result. |
 | Repository publication | LIVE VERIFIED | `PUB-01`: source and exact verified ZIP/checksum are synced on `main`. |
 | Plugin-only closed-file/background operation | OUT OF SCOPE | `BLOCK-01`: requires a separate supported desktop runner; the current plugin session ends when its document closes. |
