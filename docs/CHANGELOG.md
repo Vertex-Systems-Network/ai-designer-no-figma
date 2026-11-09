@@ -2,6 +2,8 @@
 
 ## Unreleased
 - Added validated schema support and native renderer/export round-trip for up to eight stacked solid and linear-gradient fills, including independent paint opacity. Unsupported mixed image paint stacks continue to fail explicitly.
+- Added bounded stacks of up to four native drop shadows with order/opacity preserved in render and selected-tree export; non-drop-shadow effects remain explicit errors.
+- Release verification: 60 unit and 17 integration tests passed; typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 passed. Live Figma visual round-trip remains NOT TESTED.
 
 ## 2026-11-09 — advanced native renderer and design schema
 
