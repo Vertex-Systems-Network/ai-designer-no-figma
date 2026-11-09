@@ -52,6 +52,8 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints,item=>figma.createImage');
     expect(hostSource).toContain('paints=await Promise.all(visible.map(item=>toStackItem');
     expect(hostSource).toContain("type:'image',mimeType,data:encodeBase64(bytes)");
+    expect(hostSource).toContain("item.type==='GRADIENT_RADIAL'");
+    expect(hostSource).toContain("type:'radial-gradient',gradient:toRadial(item)");
     expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
