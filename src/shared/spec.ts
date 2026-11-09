@@ -14,7 +14,7 @@ export type LayoutSpec = {
 };
 export type GradientSpec = { direction: 'horizontal' | 'vertical'; transform?: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
 export type RadialGradientSpec = { transform: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
-export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'radial-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'angular-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'diamond-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'; opacity?:number };
+export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'radial-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'angular-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'diamond-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'; imageTransform?:[[number,number,number],[number,number,number]]; opacity?:number };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 export type EffectSpec = { type: 'drop-shadow'|'inner-shadow'; color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number } | { type: 'layer-blur'|'background-blur'; blur: number } | { type:'progressive-layer-blur'; startRadius:number; endRadius:number; startOffset:{x:number;y:number}; endOffset:{x:number;y:number} } | { type:'progressive-background-blur'; startRadius:number; endRadius:number; startOffset:{x:number;y:number}; endOffset:{x:number;y:number} };
 export type ConstraintsSpec = { horizontal: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE'; vertical: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE' };
@@ -62,7 +62,7 @@ export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNod
 export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[] };
 export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: string };
 export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
-export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP' };
+export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP'; imageTransform?:[[number,number,number],[number,number,number]] };
 export type ShapeNodeSpec = BaseNode & { type: 'rectangle' | 'ellipse'; stroke?: string; strokeOpacity?: number; strokeWidth?: number; strokeAlign?: 'INSIDE'|'CENTER'|'OUTSIDE' };
 export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeWidth?: number };
 export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ImageNodeSpec | ShapeNodeSpec | LineNodeSpec;
@@ -134,7 +134,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','constraints','fillToken'],
     instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
     vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
-    image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','constraints'],
+    image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','imageTransform','constraints'],
     text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
     rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
@@ -169,12 +169,13 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (node.gradient && (node.gradient.stops.length < 2 || node.gradient.stops.some((stop, index) => index > 0 && stop.position < node.gradient!.stops[index - 1]!.position))) issues.push({ path: `${path}.gradient.stops`, message: 'Gradient needs at least two stops ordered by position.' });
     const validStops=(stops:Array<{position:number}>):boolean=>stops.length>=2&&!stops.some((stop,index)=>index>0&&stop.position<stops[index-1]!.position);
     const validTransform=(matrix:[[number,number,number],[number,number,number]]):boolean=>Math.abs(matrix[0][0]*matrix[1][1]-matrix[0][1]*matrix[1][0])>1e-6;
+    if(node.type==='image'&&node.imageTransform&&((node.scaleMode??'FIT')!=='CROP'||!validTransform(node.imageTransform)))issues.push({path:`${path}.imageTransform`,message:'Image transform is allowed only for CROP mode and must be invertible.'});
     if(node.gradient?.transform&&!validTransform(node.gradient.transform))issues.push({path:`${path}.gradient.transform`,message:'Gradient transform must be invertible.'});
     node.paints?.forEach((item,index)=>{
       if(item.type==='linear-gradient'&&(!validStops(item.gradient.stops)||(item.gradient.transform&&!validTransform(item.gradient.transform))))issues.push({path:`${path}.paints[${index}].gradient`,message:'Linear gradient needs ordered stops and an invertible optional transform.'});
       if((item.type==='radial-gradient'||item.type==='angular-gradient'||item.type==='diamond-gradient')&&(!validStops(item.gradient.stops)||!validTransform(item.gradient.transform)))issues.push({path:`${path}.paints[${index}].gradient`,message:'Transformed gradient needs ordered stops and an invertible transform.'});
     });
-    node.paints?.forEach((item,index)=>{if(item.type!=='image')return;try{const bytes=decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES);const image=validateRasterAsset(bytes,item.mimeType);if(image.mimeType!==item.mimeType)issues.push({path:`${path}.paints[${index}].mimeType`,message:'Image MIME type does not match its data.'});}catch(error){issues.push({path:`${path}.paints[${index}].data`,message:error instanceof Error?error.message:'Invalid embedded image paint.'});}});
+    node.paints?.forEach((item,index)=>{if(item.type!=='image')return;if(item.imageTransform&&((item.scaleMode??'FIT')!=='CROP'||!validTransform(item.imageTransform)))issues.push({path:`${path}.paints[${index}].imageTransform`,message:'Image transform is allowed only for CROP mode and must be invertible.'});try{const bytes=decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES);const image=validateRasterAsset(bytes,item.mimeType);if(image.mimeType!==item.mimeType)issues.push({path:`${path}.paints[${index}].mimeType`,message:'Image MIME type does not match its data.'});}catch(error){issues.push({path:`${path}.paints[${index}].data`,message:error instanceof Error?error.message:'Invalid embedded image paint.'});}});
   };
   spec.pages.forEach((page, p) => {
     addId(page.id, `pages[${p}].id`);
