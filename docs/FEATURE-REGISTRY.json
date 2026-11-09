@@ -44,7 +44,7 @@
     {
       "id": "FIGMA-001",
       "name": "Native Figma rendering and asset insertion",
-      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, bounded solid/linear-gradient/radial-gradient/image paint stacks, ordered drop/inner-shadow and normal blur effect stacks, token-bound colors/text styles, responsive constraints and layout grids.",
+      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, bounded solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image paint stacks, ordered drop/inner-shadow and normal blur effect stacks, token-bound colors/text styles, responsive constraints and layout grids.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
@@ -122,7 +122,7 @@
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "Live Figma round-trip is NOT TESTED. Export preserves solid and linear-gradient stacks up to eight layers; it rejects progressive blur, angular/diamond gradients and other unsupported effects, unresolved token modes and inaccessible component sources."
+        "Live Figma round-trip is NOT TESTED. Export preserves solid and linear-gradient stacks up to eight layers; it rejects progressive blur, other unsupported gradients/effects, unresolved token modes and inaccessible component sources."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
