@@ -44,6 +44,14 @@ describe('native Figma paint stack mapping',()=>{
     expect(effects[1]).toMatchObject({type:'LAYER_BLUR',radius:8});
     expect(effects[2]).toMatchObject({type:'BACKGROUND_BLUR',radius:12});
   });
+  it('maps progressive layer/background blur radii and normalized endpoints',()=>{
+    const effects=buildEffectStack([
+      {type:'progressive-layer-blur',startRadius:2,endRadius:18,startOffset:{x:.1,y:.2},endOffset:{x:.9,y:.8}},
+      {type:'progressive-background-blur',startRadius:0,endRadius:12,startOffset:{x:0,y:.5},endOffset:{x:1,y:.5}},
+    ]);
+    expect(effects[0]).toMatchObject({type:'LAYER_BLUR',blurType:'PROGRESSIVE',startRadius:2,radius:18,startOffset:{x:.1,y:.2},endOffset:{x:.9,y:.8}});
+    expect(effects[1]).toMatchObject({type:'BACKGROUND_BLUR',blurType:'PROGRESSIVE',startRadius:0,radius:12,startOffset:{x:0,y:.5},endOffset:{x:1,y:.5}});
+  });
   it('resolves embedded image paints and keeps them in the declared order',()=>{
     const resolve=vi.fn(()=> 'image-hash-1');
     const result=buildPaintStack([
