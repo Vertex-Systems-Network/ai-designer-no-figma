@@ -59,6 +59,13 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
+  it('replaces only the existing image paint and preserves its image-fill settings for undo',()=>{
+    expect(hostSource).toContain("operation.op==='replace-image'");
+    expect(hostSource).toContain('must contain exactly one visible image fill to replace');
+    expect(hostSource).toContain('fills[item.imageIndex]={...original,imageHash:item.imageHash}');
+    expect(hostSource).toContain('target.fills = snapshot.fills as typeof target.fills');
+  });
+
   it('imports and exports text case, decoration and letter spacing',()=>{
     expect(hostSource).toContain('text.letterSpacing=spec.letterSpacing');
     expect(hostSource).toContain('text.textAlignVertical=spec.textAlignVertical');
