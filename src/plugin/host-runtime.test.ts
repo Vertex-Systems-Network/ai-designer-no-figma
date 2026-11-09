@@ -56,9 +56,15 @@ describe('Figma plugin host compatibility', () => {
   });
 
   it('renders and exports bounded native drop-shadow stacks',()=>{
-    expect(hostSource).toContain('buildShadowStack(effectSpecs)');
+    expect(hostSource).toContain('buildShadowStack(shadows?.length?shadows:shadow?[shadow]:[])');
     expect(hostSource).toContain('else if(exported.length>1)shadows=exported');
-    expect(hostSource).toContain('more than four drop shadows');
+    expect(hostSource).toContain('more than four effects');
+  });
+  it('renders and exports bounded inner-shadow and blur effects',()=>{
+    expect(hostSource).toContain('buildEffectStack(effects)');
+    expect(hostSource).toContain("effect.type==='INNER_SHADOW'?'inner-shadow':'drop-shadow'");
+    expect(hostSource).toContain("effect.type==='BACKGROUND_BLUR'");
+    expect(hostSource).toContain('more than four effects');
   });
 
   it('supports embedded images, responsive grids, native tokens/styles, and advanced export paths',()=>{
