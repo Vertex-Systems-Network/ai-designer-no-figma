@@ -43,3 +43,5 @@ Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.
 ## Release gate
 
 Do not mark the product 100% until required capabilities are implemented and acceptance evidence exists. The README phase percentages are approximate scope estimates, not live integration results.
+
+- Selection-aware edit patches accept rotation changes from -180° to 180°, target only selected-tree nodes, and capture/restore rotation in the existing undo checkpoint. Automated validation and host-source regression tests pass; live Figma application/undo remains NOT TESTED.
