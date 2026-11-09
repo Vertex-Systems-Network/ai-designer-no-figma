@@ -44,7 +44,7 @@
     {
       "id": "FIGMA-001",
       "name": "Native Figma rendering and asset insertion",
-      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, shadows, token-bound colors/text styles, responsive constraints and layout grids.",
+      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, bounded solid/linear-gradient paint stacks, drop-shadow stacks, token-bound colors/text styles, responsive constraints and layout grids.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
