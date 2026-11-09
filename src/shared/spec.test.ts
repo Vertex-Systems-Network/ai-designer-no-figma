@@ -55,6 +55,10 @@ describe('design specification validation', () => {
       {type:'image',mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'CROP',imageTransform:[[.8,0,.1],[0,.8,-.1]],opacity:.9},
     ]}];
     expect(validateDesignSpec(spec).valid).toBe(true);
+    const tiledPaint=structuredClone(spec);const tiledRect=tiledPaint.pages[0]!.children[0]!.type==='frame'?tiledPaint.pages[0]!.children[0]!.children[0]:undefined;if(tiledRect?.type!=='rectangle'||tiledRect.paints?.[2]?.type!=='image')throw new Error('image paint fixture expected');const tilePaint={...tiledRect.paints[2]};delete tilePaint.imageTransform;tiledRect.paints[2]={...tilePaint,scaleMode:'TILE',scalingFactor:1.25};
+    expect(validateDesignSpec(tiledPaint).valid).toBe(true);
+    const badTile=structuredClone(tiledPaint);const badRect=badTile.pages[0]!.children[0]!.type==='frame'?badTile.pages[0]!.children[0]!.children[0]:undefined;if(badRect?.type!=='rectangle'||badRect.paints?.[2]?.type!=='image')throw new Error('image paint fixture expected');badRect.paints[2]={...badRect.paints[2],scalingFactor:20};
+    expect(validateDesignSpec(badTile).issues.some(issue=>issue.path.endsWith('scalingFactor'))).toBe(true);
     const singularPaint=structuredClone(spec);const painted=singularPaint.pages[0]!.children[0]!.type==='frame'?singularPaint.pages[0]!.children[0]!.children[0]:undefined;if(painted?.type!=='rectangle'||painted.paints?.[2]?.type!=='image')throw new Error('image paint fixture expected');painted.paints[2].imageTransform=[[1,0,0],[2,0,0]];
     expect(validateDesignSpec(singularPaint).issues.some(issue=>issue.path.endsWith('imageTransform')&&issue.message.includes('invertible'))).toBe(true);
     const invalidImage=structuredClone(spec);const imageRect=invalidImage.pages[0]!.children[0]!.type==='frame'?invalidImage.pages[0]!.children[0]!.children[0]:undefined;if(imageRect?.type!=='rectangle')throw new Error('fixture rectangle expected');imageRect.paints![2]={type:'image',mimeType:'image/jpeg',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='};
