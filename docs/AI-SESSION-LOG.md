@@ -1,14 +1,19 @@
+## 2026-11-09 — progressive blur effect stacks
+
+- Added schema-validated progressive layer/background blur with bounded start/end radii and normalized start/end offsets. Native Figma renderer and selected-tree export preserve blur kind and metadata.
+- Prompt guidance, feature/backlog documentation and release progress now describe the supported effect. `npm run release:verify` passes with 74 unit and 17 integration tests, typecheck, lint, local security audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 recorded in artifacts/SHA256SUMS.txt. Live Figma visual/effect round-trip remains NOT TESTED.
+
 # AI session log
 
 ## 2026-11-09 — angular and diamond gradient stacks
 
 - Added bounded angular/diamond gradient paint specs, native Figma rendering and selected-tree export preserving affine transform, ordered stops and opacity. Singular transforms are rejected during validation.
-- Schema, renderer and host tests cover both gradient kinds. Progressive blur, other unsupported effects and live Figma visual round-trip remain NOT TESTED.
+- Schema, renderer and host tests cover both gradient kinds. Other unsupported effects and live Figma visual round-trip remain NOT TESTED.
 
 ## 2026-11-09 — radial gradient stacks
 
 - Added schema-validated radial gradient paint items with bounded, invertible affine transforms. Figma rendering creates native radial gradient paints; selected-tree export preserves transform, ordered stops, stop alpha and paint opacity.
-- `npm run release:verify` passes with 72 unit and 17 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Progressive blur and live Figma visual round-trip remain NOT TESTED.
+- `npm run release:verify` passes with 74 unit and 17 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Progressive blur and live Figma visual round-trip remain NOT TESTED.
 
 ## 2026-11-09 — affine linear-gradient round-trip
 
