@@ -48,10 +48,11 @@ describe('Figma plugin host compatibility', () => {
     expect(paintSource).toContain("type:'DROP_SHADOW'");
   });
 
-  it('renders and exports bounded solid and linear-gradient fill stacks',()=>{
-    expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints)');
-    expect(hostSource).toContain('paints=visible.map(item=>toStackItem');
-    expect(hostSource).toContain('combines an image or unsupported paint with other fills');
+  it('renders and exports bounded solid, gradient and embedded image fill stacks',()=>{
+    expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints,item=>figma.createImage');
+    expect(hostSource).toContain('paints=await Promise.all(visible.map(item=>toStackItem');
+    expect(hostSource).toContain("type:'image',mimeType,data:encodeBase64(bytes)");
+    expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
   it('renders and exports bounded native drop-shadow stacks',()=>{
