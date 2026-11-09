@@ -10,6 +10,11 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('(node as FrameNode).clipsContent=spec.clipsContent??false');
     expect(hostSource).toContain('frame.clipsContent?{clipsContent:true}:{}');
   });
+  it('preserves line stroke opacity and rejects lossy multiple strokes',()=>{
+    expect(hostSource).toContain("assertSinglePortableStroke(node.name,visibleStrokes.length)");
+    expect(hostSource).toContain("assertPortableBlendMode(node.name,'line stroke'");
+    expect(hostSource).toContain("paint(spec.stroke ?? spec.fill ?? '#333333',spec.strokeOpacity??1)");
+  });
   it('keeps browser networking and timer globals out of the Figma JSVM host', () => {
     expect(hostSource).not.toMatch(/\bfetch\s*\(/);
     expect(hostSource).not.toMatch(/\bnew\s+URL\s*\(/);
