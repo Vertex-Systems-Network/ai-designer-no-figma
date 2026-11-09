@@ -1,6 +1,6 @@
 {
   "registryVersion": "1.0",
-  "lastReviewed": "2026-11-09",
+  "lastReviewed": "2026-11-10",
   "statusValues": [
     "IMPLEMENTED",
     "PARTIAL",
@@ -75,13 +75,14 @@
     {
       "id": "FIGMA-002",
       "name": "Selection inspection and edit patches",
-      "description": "Bounded selection inspection and targeted text, fill, rename, bounds, frame Auto Layout, and selected instance-to-component swaps with up to 20 session undo checkpoints.",
+      "description": "Bounded selection inspection and targeted text, fill, image replacement, rename, bounds, frame Auto Layout, and selected instance-to-component swaps with up to 20 session undo checkpoints.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
         "src/shared/edit-patch.ts",
         "src/shared/protocol.ts",
-        "src/ui/main.tsx"
+        "src/ui/main.tsx",
+        "src/shared/edit-patch.test.ts"
       ],
       "dependencies": [
         "CORE-001"
@@ -94,13 +95,13 @@
         "src/plugin/host-runtime.test.ts"
       ],
       "knownIssues": [
-        "Live Figma preservation, component override behavior and Undo are not reverified."
+        "Live Figma preservation, image replacement, component override behavior and Undo remain unverified; crop/reposition is not implemented."
       ],
       "priority": "P1",
       "releaseTarget": "0.2.0",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
-      "nextAction": "Reimport and verify targeted edits, component swap override/undo behavior and unchanged sibling layers."
+      "nextAction": "Verify image replacement, targeted edits, component swap and Undo in live Figma; design safe crop/reposition semantics."
     },
     {
       "id": "EXPORT-001",
