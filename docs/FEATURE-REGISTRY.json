@@ -357,7 +357,11 @@
         "AGENTS.md",
         "docs/PROJECT-STATUS.md",
         "docs/AI-HANDOFF.md",
-        "scripts/repository-audit.mjs"
+        "scripts/repository-audit.mjs",
+        "docs/MASTER-ENGINEERING-PROMPT.md",
+        "docs/EXECUTION-PLAN.md",
+        "docs/PRODUCT-SPEC.md",
+        "docs/DEVELOPMENT-ROADMAP.md"
       ],
       "dependencies": [],
       "status": "IMPLEMENTED",
@@ -370,7 +374,7 @@
       "releaseTarget": "0.2.0",
       "lastModified": "2026-11-08",
       "lastVerified": "2026-11-08",
-      "nextAction": "Update the source registry and README task table whenever shipped scope changes."
+      "nextAction": "Keep the execution plan, agent rules, README gate table, status and handoff coherent; regenerate traceability and run the strict docs audit after changes."
     },
     {
       "id": "CORE-002",

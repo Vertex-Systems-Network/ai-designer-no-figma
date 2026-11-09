@@ -1,6 +1,8 @@
 # Project status
 
-Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.json`](FEATURE-REGISTRY.json); test evidence is reported independently.
+Last status review: 2026-11-10. [`FEATURE-REGISTRY.json`](FEATURE-REGISTRY.json) is authoritative for capability state; [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md) is authoritative for task priority; test evidence is recorded separately.
+
+- Reconciled the duplicated roadmap, stale product checklist, conflicting test counts, README status claims, and coding-agent instructions. `npm run docs:validate` passes with 0 findings. The remaining code task is `CODE-01`; current binary publication remains `PUB-01`.
 
 ## Completed / verified
 
@@ -42,6 +44,6 @@ Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.
 
 ## Release gate
 
-Do not mark the product 100% until required capabilities are implemented and acceptance evidence exists. The README phase percentages are approximate scope estimates, not live integration results.
+Do not mark the product 100% until required capabilities are implemented and acceptance evidence exists. No aggregate completion percentage is published. Progress bars in README count named registry/task gates only; they do not imply release readiness or live integration success.
 
 - Selection-aware edit patches accept rotation changes from -180° to 180°, target only selected-tree nodes, and capture/restore rotation in the existing undo checkpoint. Automated validation and host-source regression tests pass; live Figma application/undo remains NOT TESTED.

@@ -1,6 +1,6 @@
 # AI Designer No Figma — agent rules
 
-Read this file before modifying the repository. The current evidence-based status is in [`docs/PROJECT-STATUS.md`](docs/PROJECT-STATUS.md); the next tasks and blockers are in [`docs/AI-HANDOFF.md`](docs/AI-HANDOFF.md).
+Read this file before modifying the repository. Use [`docs/MASTER-ENGINEERING-PROMPT.md`](docs/MASTER-ENGINEERING-PROMPT.md) for the project contract and [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md) for the ordered, actionable worklist. [`docs/FEATURE-REGISTRY.json`](docs/FEATURE-REGISTRY.json) is the capability status source; [`docs/AI-HANDOFF.md`](docs/AI-HANDOFF.md) is the latest exact checkpoint.
 
 ## Purpose and architecture
 
@@ -28,28 +28,25 @@ This TypeScript project creates editable native Figma layers from validated JSON
 
 ## Workflow and definition of done
 
-1. Read status, handoff, registry and the relevant module docs before editing.
-2. Inspect source and tests; use the smallest safe, typed implementation.
-3. Add or update deterministic tests for changed behavior. Run `npm run verify` for release-bound work; at minimum run the directly relevant check and report exact results.
-4. Update `docs/FEATURE-REGISTRY.json`, project status, roadmap, known issues, changelog and handoff as applicable. Keep README phase bars and task table synchronized.
-5. Run `npm run docs:validate` and build/package when available. Never call a mock a live integration test.
-6. Record changed files, commands, results, unresolved gates and exact next steps in `docs/AI-HANDOFF.md` and `docs/AI-SESSION-LOG.md`.
+1. Read `docs/EXECUTION-PLAN.md` and the current handoff. Read only the source/docs needed for the chosen task; do not restart a broad repository audit each turn.
+2. Pick the highest-priority unblocked task. If a live environment is unavailable, record the exact blocker and continue with the next local task.
+3. Inspect source/tests and implement one reviewable vertical slice. Add deterministic behavior tests; source-string checks alone are insufficient for stateful host operations.
+4. Run focused checks first. For release-bound work run `npm run release:verify`. Never call a mock a live integration test.
+5. Update the registry and only the docs affected by the change. Keep README task/progress counts and handoff aligned with evidence; don't publish subjective overall percentages.
+6. Publish tested source and matching artifacts through the authorized GitHub connector, then verify remote files/hashes. Never use Git CLI/GitHub CLI.
+7. Record commands, outcomes, blockers and one exact next task in the handoff/session log. Do not stop at a plan or progress narration when implementation remains unblocked. No work continues after the active execution turn unless a supported automation is explicitly running.
 
 ## Compatibility and safety
 
 Keep MCP tool contracts, universal design schema and Figma adapter separately versioned. Only advertise operations implemented end-to-end. Bound recursion, output sizes, request time, queues and retry counts. Commands from external agents must be validated, correlated, idempotent where possible, and visible to the user before destructive changes.
 
-## Required next-session reading order
+## Minimal next-session reading order
 
 1. `AGENTS.md`
-2. `docs/PROJECT-OVERVIEW.md`
-3. `docs/SYSTEM-ARCHITECTURE.md`
-4. `docs/PROJECT-STATUS.md`
-5. `docs/FEATURE-REGISTRY.json`
-6. `docs/DEVELOPMENT-ROADMAP.md`
-7. `docs/KNOWN-ISSUES.md`
-8. `docs/AI-HANDOFF.md`
-9. Relevant integration/module documents and source/tests
+2. `docs/MASTER-ENGINEERING-PROMPT.md`
+3. `docs/EXECUTION-PLAN.md`
+4. `docs/AI-HANDOFF.md`
+5. `docs/FEATURE-REGISTRY.json` entries and code/tests relevant to the chosen task
 
 ## Commands
 

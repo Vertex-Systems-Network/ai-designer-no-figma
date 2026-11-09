@@ -3,4 +3,4 @@ description: Verification and project-memory requirements
 globs: "**/*"
 alwaysApply: false
 ---
-Run the relevant checks and report exact command results. Update `/docs/FEATURE-REGISTRY.json`, `/docs/PROJECT-STATUS.md`, `/docs/AI-HANDOFF.md`, changelog and README progress/task table when affected. Use `npm run docs:validate`; never claim live Figma/Ollama verification from a mock.
+Run focused checks and `npm run release:verify` for release-bound changes. Update the feature registry and affected docs; count README progress bars only from named acceptance items. Publish the matching source/artifact through the authorized GitHub connector and verify remote hashes. Use `npm run docs:validate`; never claim live Figma/Ollama verification from a mock.

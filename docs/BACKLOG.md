@@ -1,49 +1,15 @@
 # Engineering backlog
 
-Status means evidence in this repository, not an estimate.
+[`EXECUTION-PLAN.md`](EXECUTION-PLAN.md) is the sole ordered task board. This file groups its IDs for navigation; it does not keep a second estimate or duplicate exit criteria.
 
-| Phase | Scope | Progress | Status | Evidence / next gate |
-|---|---|---:|---|---|
-| Design quality | Quality-oriented prompt and spec audit | 70% | AUTOMATED VERIFIED · VISUAL QA OPEN | Deterministic advisory checks and prompt requirements are implemented; rendered screenshots, responsive behavior, and Figma Agent comparison are not verified. |
-| 0 | Environment and existing-work audit | 100% | PASS | Node/npm available; blank target workspace; organization `open-designer` inspected as a separate desktop/web editor, not a drop-in plugin. |
-| 1 | TypeScript foundation, schema, tooling, docs | 100% | PASS | Dependency install, strict typecheck, lint, unit tests, runtime integration tests, and build completed. |
-| 2 | Plugin lifecycle and native renderer | 99% | IN PROGRESS | Renderer creates native components/instances/vectors/images, bounded node rotation, frame/component overflow clipping and per-corner radii/smoothing, gradients, up to eight solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image fills, up to four ordered shadow/normal/progressive-blur effects, native rectangle/ellipse/line strokes, and letter/paragraph spacing, case/decoration, vertical alignment and resize controls, local Variables/Text Styles, grids and constraints; export rejects unrepresented blend modes instead of silently dropping them. Live Figma verification remains. |
-| 3 | Versioned specification and validation | 99% | IN PROGRESS | JSON Schema 1.0 covers native rotation, frame/component clipping and per-corner radii/smoothing, bounded PNG/JPEG bytes and crop transforms, tokens, grids, constraints, components, vectors, gradients, multi-paint stacks, native drop/inner-shadow and normal/progressive blur effect stacks, rectangle/ellipse strokes, line stroke opacity and text styling. Live rendering and token-mode/export edge cases remain. |
-| 4 | Provider-neutral AI integration and custom MCP | 80% | IN PROGRESS | Provider-neutral handoff, optional Ollama, custom MCP, and an image-returning visual capture tool are implemented; client-specific setup and live Figma actions remain unverified. |
-| 5 | Selection-aware editing and rollback | 96% | IN PROGRESS | Geometry-aware selection summary, safe bounds/rotation/text/fill/name/Auto Layout patches, selected image-fill replacement, Fill/Fit/Tile and bounded affine image crop/reposition patches, selected instance-to-component swaps, preview, rollback snapshots, and up to 20 plugin-session undo checkpoints implemented; live preservation/undo test remains. |
-| 6 | Design system engine | 93% | IN PROGRESS | Native color Variables and Text Styles, including letter/paragraph spacing, text case and decoration, are created/reused and applied through spec token references; prompt-linked local scales and up to 20 presets remain. Live mode/style behavior and broader token round-trip remain. |
-| 7 | Complete premium UI | 90% | IN PROGRESS | Generate/Edit, external AI handoff, import/export, tokens, history, themes, settings, VSN loader, patch review/undo, MCP pairing/activity, signed-in Figma operator display and hide-after-connect exist; broader visual/accessibility QA remains. |
-| 8 | Testing and hardening | 99% | IN PROGRESS | Schema, paint, patch, export-compatibility and host regressions cover bounded fill/shadow stacks, image crop/reposition and tiled-image scaling import/export, selected instance swaps, blend-mode rejection, rotation patch rollback, and image/token/grid/import-export paths; current unit suite is 101 tests. Live rendering/capture and repair remain unverified. |
-| 9 | Build and release packaging | 100% | PASS | Plugin/runtime bundles, source ZIP, SHA-256 manifest, ZIP integrity, and reproducible archive hash verified. |
-| 10 | Final audit and evidence report | 74% | IN PROGRESS | Native schema/render/export scope expanded and capability disclosure updated. Live Figma render, agent critique, pairing, compatibility and registration evidence remain. |
+| Group | Task IDs | Current state |
+|---|---|---|
+| Plan/prompt coherence | `PLAN-01` | AUTOMATED VERIFIED; canonical plan/prompt, synchronized agent rules and acceptance docs; strict docs audit passed with 0 findings. |
+| Local code work | `CODE-01`–`CODE-03` | OPEN; behavior-based host tests first, schema/render/export fidelity second, component properties only with deterministic API support. |
+| Live acceptance | `LIVE-01`–`LIVE-04` | BLOCKED on the user's Figma/client/model environment; run each only on the current package and record exact evidence. |
+| Publication | `PUB-01` | OPEN; latest verified ZIP and SHA-256 must match the updated source on GitHub. |
+| External desktop boundary | `BLOCK-01`–`BLOCK-02` | Outside plugin-only scope; requires a supported app-specific desktop/client capability. |
 
-## Custom MCP workstream
+## Last recorded automated release check
 
-| Work item | Progress | Status / evidence |
-|---|---:|---|
-| MCP stdio server and actual tool catalog | 100% | Protocol integration test covers initialization, discovery, validation errors and capabilities. |
-| Token-authenticated loopback bridge | 100% | Broker and HTTP integration tests cover token/origin rejection, session isolation, correlated delivery and result return. |
-| Pairing, hidden background jobs and Figma operator status | 95% | UI iframe performs authenticated loopback polling, host handles document operations, Figma current-user identity is displayed, and Connect hides the panel; live desktop confirmation remains. Closing Figma or its document ends the session. |
-| Cross-client installation and Figma live actions | 0% | Not tested in this environment; use installation guide and confirm on desktop. |
-
-## Master Prompt 04 · AI assets
-
-| Phase | Progress | Status / evidence |
-|---|---:|---|
-| 1 · Repository audit | `██████████` 100% | Existing MCP, bridge, renderer, UI, registry, and tests inspected. |
-| 2 · Client capability discovery | `████░░░░░░` 40% | Capability endpoint reports unverified client generation/file access; per-client probes/matrix remain. |
-| 3 · Asset transport | `████████░░` 80% | MCP accepts raster files up to 5 MiB, sends files above the 192 KiB direct threshold in 64 KiB chunks, reserves queued jobs atomically, and verifies SHA-256 before native insert. Paired live transfer remains. |
-| 4 · SVG vector pipeline | `██████░░░░` 60% | Allowlisted sanitizer and native `createNodeFromSvg` handler; tests pass, live editability untested. |
-| 5 · Raster image pipeline | `██████░░░░` 60% | PNG/JPEG/GIF validation plus native image-fill handler; tests pass, live rendering untested. |
-| 6 · AI capability routing | `██░░░░░░░░` 20% | Manual handoff is explicit; no generic AI-client asset router is verified. |
-| 7 · Agent activity integration | `███░░░░░░░` 30% | Import completion result is surfaced; full transfer/verify lifecycle absent. |
-| 8 · Asset intelligence | `█████████░` 90% | SHA-256 keyed local bridge library stores sanitized source bytes in a private companion-service file, deduplicates imports, enforces 50-item/2-MiB source limits, and supports preview/reuse/delete. Figma and browser storage are not used; latest build needs live save/reuse confirmation. |
-| 9 · AI Assets UI | `███████░░░` 75% | Import, capability disclosure, local preview/reuse/select/remove and clear-all controls are connected; live screenshot review remains. |
-| 10 · Autonomous verification | `████░░░░░░` 40% | SVG/image insertions now query the Figma host for the created node and verify dimensions, vector children or image fill; helper has positive/negative unit cases. Live-editor verification remains. |
-| 11 · Compatibility/security | `████░░░░░░` 40% | Bounds, allowlist, and no remote asset fetch; client checks/live security evidence remain. |
-| 12 · Testing/release | `██████████` 100% | Latest `npm run release:verify` passed: 98 unit tests, 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma remains a separate compatibility gate. |
-| 13 · Repository intelligence | `██████████` 100% | README, backlog, roadmap, registry, status, known issues, changelog and handoff synchronized; strict documentation audit reported 0 findings. |
-
-## Acceptance rule
-
-Progress percentages are estimates of acceptance scope completed, not schedule estimates. Do not mark a gate PASS based on intent or a code stub. Each row must link to working code and a recorded command result. Figma editor validation, direct desktop-app integrations, local Ollama, and environment-dependent checks get explicit `BLOCKED` or `NOT TESTED` states when unavailable. The current agent executor has no attached native apps (`cua.getState()` reports `apps: []`), no graphical display session, and no Figma executable on its PATH, so the user's installed desktop Figma cannot currently be driven from this session. The shared Figma Web session is separate; it authenticated on 2026-11-08, but its cloud renderer failed GPU initialization and retained unsynced offline changes.
+`npm run release:verify` passed with 101 unit tests, 17 integration tests, typecheck, lint, local security/privacy audit, production build/package, strict documentation audit (0 findings), ZIP integrity, and SHA-256. Re-run after any repository edits. This is not live Figma/Claude/Ollama evidence.

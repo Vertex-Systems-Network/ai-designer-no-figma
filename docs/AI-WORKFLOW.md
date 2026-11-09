@@ -4,21 +4,19 @@ This is the persistent resume point for an AI coding agent. It records verified 
 
 ## Resume protocol
 
-1. Read this file, `docs/BACKLOG.md`, `docs/PRODUCT-SPEC.md`, and `docs/ARCHITECTURE.md`.
-2. Inspect workspace files and public repo state through the GitHub connector or filesystem. Never execute Git CLI.
-3. Take the earliest incomplete acceptance gate and implement a testable vertical slice.
-4. Run relevant checks, fix genuine failures, and record evidence.
-5. Update this tracker, backlog, product acceptance checklist, package, checksum, and public repository after meaningful changes.
-6. Continue while the tools and execution environment permit. Mark unavailable live checks accurately.
+1. Read root `AGENTS.md`, `docs/MASTER-ENGINEERING-PROMPT.md`, `docs/EXECUTION-PLAN.md`, then this checkpoint.
+2. Select the first `OPEN` unblocked task. Inspect only the relevant implementation/tests/docs. Do not restart broad repository discovery or repeat work already evidenced.
+3. Implement a vertical slice, add behavior tests, run focused checks, and run `npm run release:verify` for release-bound changes.
+4. Fix failures, record exact evidence, update the feature registry and affected progress/status documents, then publish source and matching archive through the authorized GitHub connector. Never invoke Git CLI/GitHub CLI.
+5. If blocked on an external app, record the smallest required observation and continue with the next unblocked task. Do not ask for repeated authorization or claim background work after the current turn ends.
 
 ## Current checkpoint
 
 - **Repository:** `Vertex-Systems-Network/ai-designer-no-figma` (public, `main`).
-- **Product workflow:** AI app selection is user-controlled. Default generation/editing prepares structured prompts for Claude Desktop or any other AI the user can access. The plugin calls no provider API and needs no API key. User pastes returned JSON into the plugin for validation and native rendering. Ollama is an optional local alternative.
-- **Current implementation:** Typed design schema, editable Figma renderer, provider-neutral design/edit prompt builders, bounded pasted-patch validator, React plugin UI, optional loopback Ollama sidecar, tests, packaging, architecture docs, backlog, and GitHub issues.
-- **Current unavailable validation:** CUA reports no attached native apps, and the executor has no Figma binary on its path. The user reports installing Figma on their own machine, but this executor cannot see or drive that separate desktop installation. No live Figma result is claimed.
-- **Process note:** A read-only `git status --short` invocation was accidentally attempted during this continuation despite the project's Git CLI prohibition. No mutating Git command was run; repository writes and publication used the GitHub connector.
-- **Next unblocked task:** Continue implementing the earliest open phase from `docs/BACKLOG.md`; expand schema and native rendering coverage, then run UI visual checks if an application surface becomes available.
+- **Product workflow:** user-operated provider-neutral prompt/JSON handoff; Ollama is optional.
+- **Current evidence:** see `docs/PROJECT-STATUS.md` and `docs/FEATURE-REGISTRY.json`; automated and live evidence remain separate.
+- **Execution order:** `PLAN-01` docs audit/reconciliation, then `CODE-01` host behavior tests, then `CODE-02` export fidelity audit, then `CODE-03` component property support assessment. Run `LIVE-*` only against the user's desktop and exact build; finish `PUB-01` only when remote ZIP hash matches the tested local artifact.
+- **Environment boundary:** this executor cannot control the user's installed Figma app. No latest live Figma result is claimed.
 
 ## Evidence log
 

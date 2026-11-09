@@ -5,75 +5,32 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 ## Current release
 
 - Public repository: [Vertex-Systems-Network/ai-designer-no-figma](https://github.com/Vertex-Systems-Network/ai-designer-no-figma)
-- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (built from the source at the latest release verification.)
+- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (older snapshot; `PUB-01` tracks republishing and verifying the latest source-matched archive.)
 - Claude Desktop installer: [AI Designer No Figma `.mcpb`](artifacts/ai-designer-no-figma-claude.mcpb) (`npm run package:claude`)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
 ## Project progress
 
-**Overall completion: 94%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, native layer rotation and selection-aware rotation patch/undo, frame clipping and per-corner radii, bounded solid/linear-gradient/radial-gradient/image paints, native shape and line strokes with opacity, detailed typography including letter/paragraph spacing, case, decoration and text layout, shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
+There is no aggregate completion percentage: it hid the distinction between code that passes local automation and work that needs a live Figma/AI-client session. These bars count explicit gates only.
 
-| Phase | Progress | Status | Remaining gate |
-|---|---:|---|---|
-| 0 · Environment audit | `████████████████████` 100% | PASS | — |
-| 1 · Engineering foundation | `████████████████████` 100% | PASS | — |
-| 2 · Figma plugin and renderer | `███████████████████░` 99% | IN PROGRESS | Live native renderer verification; other unsupported effect variants |
-| 3 · Specification and validation | `███████████████████░` 99% | IN PROGRESS | Live image/render check and full metadata round-trip across supported gradient and progressive-blur variants |
-| 4 · AI integration | `████████████████░░░░` 80% | IN PROGRESS | Additional client interoperability and live local-model checks |
-| 5 · Selection editing | `███████████████████░` 96% | IN PROGRESS | Live crop/replacement, instance replacement, undo and preservation verification |
-| 6 · Design system | `███████████████████░` 93% | IN PROGRESS | Live verification of native Variables/styles and broader token round-trip |
-| 7 · Application UI | `██████████████████░░` 90% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
-| 8 · Testing and hardening | `███████████████████░` 99% | IN PROGRESS | Live Figma renderer/preservation and real local-model checks remain environment-dependent |
-| 9 · Build and packaging | `████████████████████` 100% | PASS | — |
-| 10 · Final audit | `███████████████░░░░░` 74% | IN PROGRESS | Complete live Figma and client interoperability evidence |
+| Gate | Progress | Evidence / remaining action |
+|---|---:|---|
+| Automated release checks | `██████████` 8/8 | Latest recorded `npm run release:verify`: typecheck, lint, 101 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
+| Feature registry fully implemented | `█████░░░░░` 8/17 | Eight features are `IMPLEMENTED`; nine remain `PARTIAL`. Counts are registry entries, not product completion. |
+| Live Figma/client acceptance | `░░░░░░░░░░` 0/4 | Four named live checks are in [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md); current executor cannot drive the user's desktop session. |
+| Remaining local engineering tasks | `░░░░░░░░░░` 0/3 | Three ordered code tasks are open in the execution plan. |
+| Published binary matches verified source | `░░░░░░░░░░` 0/1 | `PUB-01` remains open: publish the current verified ZIP/checksum alongside source and verify the remote hash. The GitHub ZIP link below is an older snapshot until this gate closes. |
 
-Progress percentages estimate completed acceptance scope for each phase; they are not schedule estimates. A phase reaches 100% only when its acceptance gate is verified. See [the backlog](docs/BACKLOG.md) for evidence and [open issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) for tracked work.
+The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages are not used for overall project completion; each task closes against its own evidence.
 
 ## Remaining task tracker
 
-Completed engineering rows have been removed. Remaining work is split between live verification and code/environment gates, with each status called out in its row.
-
-### Requires live Figma or Claude verification
-
-| Verification task | Status | What must be observed |
+| Task group | Status | Next action |
 |---|---|---|
-| Render images, components, instances, vectors, gradients, strokes, shadows, grids, constraints and Variables/styles | NOT TESTED | Confirm schema features appear as editable Figma nodes, variable bindings, text styles and responsive layout. |
-| Pair Claude and run a hidden-panel job | NOT TESTED | Confirm background bridge response and Agent Activity in the signed-in desktop session. |
-| Export selected design and re-import it | NOT TESTED | Confirm supported node, paint, token and layout data round-trips in live Figma. |
-| Save, reload and reuse SVG/raster assets | NOT TESTED | Confirm local library persistence and native asset insertion in Figma. |
-| Image replacement, rotation patch/undo, Auto Layout, instance replacement, undo and sibling preservation | NOT TESTED | Confirm only intended layers change and rollback restores the selection. |
-| Preview → AI review → patch → recapture | NOT TESTED | Confirm actual preview image reaches Claude and a repair cycle works. |
-
-Live rows are not treated as passes based on mocks. There are also unfinished engineering/environment tasks; they remain visible below rather than being counted as completed.
-
-### Remaining implementation and environment gates
-
-| Task | Status | Remaining work |
-|---|---|---|
-| Create/open a new Draft file and work after Figma/plugin closure | BLOCKED · NOT IMPLEMENTED | Current plugin sessions end when Figma or the open document closes. A supported desktop automation runner and a Windows Figma session are required. |
-| Export remaining paint/effect variants | OPEN | Image FILL/FIT/CROP transforms and TILE scaling factors are schema-backed and round-trip. Unsupported effect types and other unrepresented native metadata still fail explicitly; live visual round-trip is untested. |
-| Image scaling and crop controls | IMPLEMENTED · AUTOMATED VERIFIED | Edit supports Fill/Fit/Tile/custom Crop and a bounded tile scale or Figma 2×3 affine transform. Image bytes/paint metadata are preserved, spec import/export round-trips them, and patch rollback restores previous fills. Live Figma visual verification remains NOT TESTED. |
-| Verify generation with a real local Ollama model | NOT TESTED | No Ollama endpoint or installed model is available in this executor; the fake-server suite only verifies the stream contract. |
-| Run screenshot-based responsive/accessibility review | NOT TESTED | Needs a live Figma renderer or a browser build with realistic Figma host mocks; no rendered screenshot is claimed. |
-| Verify per-client MCP and generated-file access | NOT VERIFIED | Client-specific local MCP launch, file discovery, and tool use need separate tests in Claude/Codex/Cursor/Gemini. |
-
-## Master Prompt 04 · AI assets progress
-
-| Phase | Progress | Status | Evidence / next gate |
-|---|---:|---|---|
-| 1 · Repository audit | `██████████` 100% | PASS | Existing MCP, bridge, renderer, UI, registry, and tests inspected. |
-| 2 · Client capability discovery | `████░░░░░░` 40% | PARTIAL | Server explicitly reports native generation and automatic file access as NOT VERIFIED; per-client probes/matrix remain. |
-| 3 · Asset transport | `████████░░` 80% | IMPLEMENTED · AUTOMATED VERIFIED | MCP accepts raster files up to 5 MiB, transfers larger payloads in 64 KiB checksum-verified chunks, and atomically reserves all bridge jobs. Live paired transfer remains. |
-| 4 · Safe SVG import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | Conservative sanitizer, geometry allowlist, size/dimension bounds, and native SVG-node insertion; live Figma editability untested. |
-| 5 · Raster image import | `██████░░░░` 60% | IMPLEMENTED · AUTOMATED VERIFIED | PNG/JPEG/GIF signatures/dimensions/checksums and native image fills are validated; live rendering untested. |
-| 6 · Capability routing | `██░░░░░░░░` 20% | PARTIAL | Honest manual/local options and unsupported client claims are reported; no generic AI client router is verified. |
-| 7 · Agent activity | `███░░░░░░░` 30% | PARTIAL | Actual import completion result appears in plugin UI; intermediate lifecycle events are not implemented. |
-| 8 · Local asset library | `█████████░` 90% | IMPLEMENTED · BUILD VERIFIED | SHA-256 dedupe, bounded local bridge file storage, preview, reuse and explicit delete/clear controls no longer depend on Figma plugin ID or iframe storage; live refresh/reuse confirmation remains. |
-| 9 · AI Assets UI | `███████░░░` 75% | IMPLEMENTED · AUTOMATED VERIFIED | Manual vector/raster import and local library actions are wired; UI screenshot/layout review in live Figma is pending. |
-| 10 · Structural verification | `███░░░░░░░` 30% | PARTIAL | Import handlers validate bytes and return dimensions/node IDs; post-insert readback and bounded repair remain. |
-| 11 · Compatibility/security | `████░░░░░░` 40% | PARTIAL | SVG allowlist, input bounds, image signatures and no remote fetch; client matrix/live security checks remain. |
-| 12 · Tests and release | `██████████` 100% | PASS · AUTOMATED | Latest `npm run release:verify` passed: 101 unit and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Live Figma belongs to the compatibility gate. |
-| 13 · Repository documentation | `██████████` 100% | PASS · AUDITED | README, backlog, roadmap, feature registry, status, known issues, changelog and handoff reflect the current build; strict audit reported 0 findings. |
+| Local code | OPEN | Start `CODE-01`: replace source-string-only host assertions with behavior tests for patch apply, sibling preservation, and rollback. |
+| Live Figma and AI clients | BLOCKED · USER DESKTOP | Run `LIVE-01` through `LIVE-04` against the exact built package; record app, build hash, and observed result. |
+| Repository publication | OPEN | Finish `PUB-01`; source is synced, but the current binary ZIP still needs remote hash verification. |
+| Plugin-only closed-file/background operation | OUT OF SCOPE | `BLOCK-01`: requires a separate supported desktop runner; the current plugin session ends when its document closes. |
 
 ## Requirements
 

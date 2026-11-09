@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Replaced conflicting roadmap percentages and stale acceptance checklists with one evidence-driven execution plan and engineering master prompt; agent rules now resume the first unblocked task and explicitly separate live Figma/client gates from plugin-only capabilities.
 - Targeted edits can rotate selected layers within -180° to 180°; rotation is included in plugin rollback/undo checkpoints.
 - Native node rotation now validates in the -180° to 180° range, is applied on render, and survives selected-tree export.
 - Frame, component and rectangle specifications now support distinct corner radii and Figma corner smoothing; selected export round-trips them and renderer applies them natively.

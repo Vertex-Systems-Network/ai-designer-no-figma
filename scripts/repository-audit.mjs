@@ -27,6 +27,7 @@ function fail(message) { issues.push(message); }
 
 const requiredDocs = [
   'AGENTS.md','CLAUDE.md','GEMINI.md','.github/copilot-instructions.md',
+  'docs/MASTER-ENGINEERING-PROMPT.md','docs/EXECUTION-PLAN.md',
   '.cursor/rules/project-core.mdc','.cursor/rules/engineering.mdc','.cursor/rules/figma-integration.mdc','.cursor/rules/testing-documentation.mdc',
   'docs/PROJECT-OVERVIEW.md','docs/SYSTEM-ARCHITECTURE.md','docs/PROJECT-STATUS.md','docs/FEATURE-REGISTRY.json',
   'docs/DEVELOPMENT-ROADMAP.md','docs/KNOWN-ISSUES.md','docs/AI-HANDOFF.md','docs/AI-SESSION-LOG.md','docs/SECURITY-ARCHITECTURE.md',

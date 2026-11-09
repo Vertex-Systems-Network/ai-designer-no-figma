@@ -1,6 +1,6 @@
 # AI development handoff
 
-Updated: 2026-11-09. Start with root [`AGENTS.md`](../AGENTS.md), then [project status](PROJECT-STATUS.md), [registry](FEATURE-REGISTRY.json), [roadmap](DEVELOPMENT-ROADMAP.md), and relevant source/tests.
+Updated: 2026-11-10. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGINEERING-PROMPT.md`](MASTER-ENGINEERING-PROMPT.md), [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md), then the relevant registry entries and source/tests.
 
 ## Current state
 
@@ -27,15 +27,7 @@ Updated: 2026-11-09. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 
 ## Exact next tasks
 
-1. Reimport `dist/manifest.json` in Figma Desktop and use **Connect & hide panel** in plugin Settings; no token entry is needed.
-2. Confirm Figma operator display, then issue one Claude MCP operation with the panel hidden; verify actual result and that reopening the plugin shows Agent Activity.
-3. Verify selection inspect, import, targeted patch, selected export, export/import round-trip, bounds edits, undo and unaffected siblings in Figma.
-4. Test Ollama only if a local runtime/model is actually available; otherwise record NOT TESTED.
-5. Verify native component/instance/vector/image/gradient/shadow rendering, Variables/Text Styles, responsive grids/constraints, SVG/raster insertion, selected export/import round-trip and Auto Layout patch/undo in Figma.
-6. Closed-file/new-Draft automation is not implemented: Figma plugin sessions stop with the host document. Build a supported desktop runner only with access to the native Figma session and verify it does not alter unrelated files.
-7. Reimport the new build and live-verify component swap override/undo behavior; then add selected-export coverage for remaining image/effect cases where the Figma API allows, keeping unsupported cases explicit.
-8. Compare generated output against Figma Agent only in a controlled live evaluation with the same briefs and visual review; no superiority claim is supported yet.
-9. In Figma, run Claude Desktop MCP: render a design, call `figma_capture_selection`, inspect the image in `figma_get_job_result`, apply a bounded patch, and capture again. Confirm image content reaches Claude, rendered text remains legible, and result-size limits behave as intended.
+Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. Next is `CODE-01`: replace source-string-only host assertions with behavioral mock tests for patch apply, sibling preservation, and rollback. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` remains open until the remote ZIP/checksum matches the verified source.
 
 ## Constraints
 
