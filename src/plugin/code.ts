@@ -523,9 +523,12 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family,fontWeight:fontStyleToWeight(font.style)}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(typeof node.paragraphSpacing==='number'?{paragraphSpacing:node.paragraphSpacing}:{}), textAlignVertical:node.textAlignVertical, textAutoResize:node.textAutoResize, ...(node.letterSpacing?{letterSpacing:{unit:node.letterSpacing.unit,value:node.letterSpacing.value}}:{}), ...(node.textDecoration!=='NONE'?{textDecoration:node.textDecoration}:{}), ...(node.textCase!=='ORIGINAL'?{textCase:node.textCase}:{}), ...(fill?{color:fill}:{}), ...(textStyleToken?{textStyleToken}:{}), align:node.textAlignHorizontal };
     }
     if(node.type==='VECTOR'){
+      if(node.vectorPaths.length!==1)throw new Error(`Vector "${node.name}" has ${node.vectorPaths.length} editable paths; schema 1.0 supports exactly one path per vector layer.`);
       const path=node.vectorPaths[0]?.data;if(!path)throw new Error(`Vector "${node.name}" has no editable path.`);return {...base,type:'vector',path};
     }
     if(node.type==='INSTANCE'){
+      if(node.overrides.length)throw new Error(`Instance "${node.name}" has component overrides that schema 1.0 cannot preserve. Export the component itself or detach the instance before exporting.`);
+      if(Math.abs(node.scaleFactor-1)>0.0001)throw new Error(`Instance "${node.name}" uses a scale-tool factor that schema 1.0 cannot preserve. Reset scale or detach the instance before exporting.`);
       const component=await node.getMainComponentAsync();if(!component)throw new Error(`Instance "${node.name}" has no accessible main component and cannot be round-tripped.`);const componentRef=logicalIds.get(component.id)||`figma-${component.id}`;
       if(!definedComponents.has(componentRef)){if(internalComponents.has(componentRef))throw new Error(`Instance "${node.name}" appears before its component in the selected tree; reorder the component before the instance before exporting.`);detachedComponents.push(await convert(component,depth+1));}
       return {...base,type:'instance',componentRef};

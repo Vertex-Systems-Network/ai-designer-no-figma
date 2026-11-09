@@ -184,29 +184,41 @@ describe('Figma host patch behavior',()=>{
     const styledText={
       id:'styled-text',name:'Heading',type:'TEXT',x:12,y:16,width:220,height:40,rotation:0,opacity:1,
       characters:'Monthly revenue',fontName:{family:'Inter',style:'Semi Bold'},fontSize:24,
-      lineHeight:{unit:'PIXELS',value:30},paragraphSpacing:0,letterSpacing:{unit:'PIXELS',value:0},
-      textDecoration:'NONE',textCase:'ORIGINAL',textAlignVertical:'TOP',textAutoResize:'HEIGHT',textAlignHorizontal:'LEFT',
+      lineHeight:{unit:'PIXELS',value:30},paragraphSpacing:4,letterSpacing:{unit:'PERCENT',value:2},
+      textDecoration:'UNDERLINE',textCase:'UPPER',textAlignVertical:'CENTER',textAutoResize:'TRUNCATE',textAlignHorizontal:'RIGHT',
       fills:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3},opacity:1}],effects:[],constraints:{horizontal:'MIN',vertical:'MIN'},
       boundVariables:{fills:[{id:'color-variable'}]},getRangeTextStyleId:()=> 'text-style',
     } as unknown as MockHostNode;
     const frame={id:'styled-frame',name:'Finance',type:'FRAME',x:4,y:8,width:800,height:600,rotation:15,opacity:1,
       fills:[],effects:[],layoutMode:'HORIZONTAL',itemSpacing:12,paddingTop:16,paddingRight:16,paddingBottom:16,paddingLeft:16,
-      primaryAxisAlignItems:'CENTER',primaryAxisSizingMode:'AUTO',counterAxisSizingMode:'FIXED',layoutGrids:[],clipsContent:true,children:[styledText]} as unknown as MockHostNode;
+      primaryAxisAlignItems:'CENTER',primaryAxisSizingMode:'AUTO',counterAxisSizingMode:'FIXED',layoutGrids:[
+        {pattern:'GRID',sectionSize:8,visible:false},
+        {pattern:'COLUMNS',sectionSize:72,gutterSize:16,count:12,offset:10,alignment:'STRETCH',visible:true},
+        {pattern:'ROWS',gutterSize:8,count:6,offset:4,alignment:'CENTER',visible:false},
+      ],clipsContent:true,children:[styledText]} as unknown as MockHostNode;
     const {ui}=await loadHostWithSelection([frame],{
       variables:{
         getVariableByIdAsync:vi.fn().mockResolvedValue({name:'Ink/Primary',resolvedType:'COLOR',variableCollectionId:'collection',resolveForConsumer:()=>({value:{r:0.1,g:0.2,b:0.3}})}),
         getVariableCollectionByIdAsync:vi.fn().mockResolvedValue(null),
       },
-      getStyleByIdAsync:vi.fn().mockResolvedValue({type:'TEXT',name:'AI Designer · Core / Heading',fontName:{family:'Inter',style:'Semi Bold'},fontSize:24,lineHeight:{unit:'PIXELS',value:30},paragraphSpacing:0,letterSpacing:{unit:'PIXELS',value:0},textDecoration:'NONE',textCase:'ORIGINAL'}),
+      getStyleByIdAsync:vi.fn().mockResolvedValue({type:'TEXT',name:'AI Designer · Core / Heading',fontName:{family:'Inter',style:'Semi Bold'},fontSize:24,lineHeight:{unit:'PIXELS',value:30},paragraphSpacing:4,letterSpacing:{unit:'PERCENT',value:2},textDecoration:'UNDERLINE',textCase:'UPPER'}),
       currentPage:{name:'Page 1',selection:[frame]},
     });
     await ui.onmessage?.({type:'export-selection'});
-    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{designSystem?:{colors?:Array<{name:string}>;typography?:Array<{name:string}>};pages?:Array<{children?:Array<{x:number;y:number;rotation:number;clipsContent:boolean;layout:{mode:string;gap:number;padding:number;alignment:string};children?:Array<{x:number;y:number;width:number;height:number;fillToken?:string;textStyleToken?:string;fontSize:number;lineHeight:number;constraints:{horizontal:string;vertical:string}}>}>}>}}|undefined;
+    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{schemaVersion:string;name:string;designSystem?:{colors?:Array<{name:string;color:string}>;typography?:Array<{name:string;fontFamily:string;fontSize:number;fontWeight:number;lineHeight:number;paragraphSpacing:number;letterSpacing:{unit:string;value:number};textDecoration:string;textCase:string}>};pages:Array<{id:string;name:string;children?:Array<{x:number;y:number;rotation:number;clipsContent:boolean;layout:{mode:string;gap:number;padding:number;alignment:string;primaryAxisSizing:string;counterAxisSizing:string};layoutGrids:Array<Record<string,unknown>>;children?:Array<{id:string;name:string;x:number;y:number;width:number;height:number;fillToken?:string;textStyleToken?:string;fontFamily:string;fontWeight:number;fontSize:number;lineHeight:number;paragraphSpacing:number;letterSpacing:{unit:string;value:number};textDecoration:string;textCase:string;textAlignVertical:string;textAutoResize:string;color:string;align:string;constraints:{horizontal:string;vertical:string}}>}>}>}}|undefined;
     const root=exported?.spec?.pages?.[0]?.children?.[0];
+    expect(exported?.spec?.schemaVersion).toBe('1.0');
+    expect(exported?.spec?.name).toBe('Finance');
+    expect(exported?.spec?.pages[0]).toMatchObject({id:'export-page-styled-frame',name:'Page 1'});
     expect(exported?.spec?.designSystem?.colors).toEqual([expect.objectContaining({name:'Ink/Primary',color:'#1a334d'})]);
-    expect(exported?.spec?.designSystem?.typography).toEqual([expect.objectContaining({name:'Heading'})]);
+    expect(exported?.spec?.designSystem?.typography).toEqual([expect.objectContaining({name:'Heading',fontFamily:'Inter',fontSize:24,fontWeight:600,lineHeight:30,paragraphSpacing:4,letterSpacing:{unit:'PERCENT',value:2},textDecoration:'UNDERLINE',textCase:'UPPER'})]);
     expect(root).toEqual(expect.objectContaining({x:4,y:8,rotation:15,clipsContent:true,layout:{mode:'horizontal',gap:12,padding:16,alignment:'CENTER',primaryAxisSizing:'AUTO',counterAxisSizing:'FIXED'}}));
-    expect(root?.children?.[0]).toEqual(expect.objectContaining({x:12,y:16,width:220,height:40,fillToken:'Ink/Primary',textStyleToken:'Heading',fontSize:24,lineHeight:30,constraints:{horizontal:'MIN',vertical:'MIN'}}));
+    expect(root?.layoutGrids).toEqual([
+      {pattern:'GRID',sectionSize:8,visible:false},
+      {pattern:'COLUMNS',sectionSize:72,gutterSize:16,count:12,offset:10,alignment:'STRETCH',visible:true},
+      {pattern:'ROWS',gutterSize:8,count:6,offset:4,alignment:'CENTER',visible:false},
+    ]);
+    expect(root?.children?.[0]).toEqual(expect.objectContaining({id:'figma-styled-text',name:'Heading',x:12,y:16,width:220,height:40,fillToken:'Ink/Primary',textStyleToken:'Heading',fontFamily:'Inter',fontWeight:600,fontSize:24,lineHeight:30,paragraphSpacing:4,letterSpacing:{unit:'PERCENT',value:2},textDecoration:'UNDERLINE',textCase:'UPPER',textAlignVertical:'CENTER',textAutoResize:'TRUNCATE',color:'#1a334d',align:'RIGHT',constraints:{horizontal:'MIN',vertical:'MIN'}}));
 
     const lightText={id:'light-weight',name:'Light text',type:'TEXT',x:0,y:0,width:80,height:24,rotation:0,opacity:1,characters:'Light',fontName:{family:'Inter',style:'Light'},fontSize:16,
       lineHeight:{unit:'AUTO'},paragraphSpacing:0,letterSpacing:{unit:'PIXELS',value:0},textDecoration:'NONE',textCase:'ORIGINAL',textAlignVertical:'TOP',textAutoResize:'HEIGHT',textAlignHorizontal:'LEFT',fills:[],effects:[],getRangeTextStyleId:()=>null} as unknown as MockHostNode;
@@ -222,6 +234,11 @@ describe('Figma host patch behavior',()=>{
     await ui.onmessage?.({type:'export-selection'});
     const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;path?:string}>}>}}|undefined;
     expect(exported?.spec?.pages[0]?.children[0]).toMatchObject({type:'vector',path:'M0 0 L24 9 L0 18 Z'});
+
+    const compound={...vector,id:'compound-vector',vectorPaths:[{data:'M0 0 L24 9 L0 18 Z'},{data:'M8 5 L16 9 L8 13 Z'}]} as unknown as MockHostNode;
+    const compoundHost=await loadHostWithSelection([compound]);
+    await compoundHost.ui.onmessage?.({type:'export-selection'});
+    expect(compoundHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/2 editable paths.*supports exactly one path/)}));
   });
 
   it('rejects text formatting and token combinations that schema 1.0 cannot represent',async()=>{
@@ -247,7 +264,7 @@ describe('Figma host patch behavior',()=>{
 
   it('exports an instance with its detached main component definition and stable reference',async()=>{
     const component={id:'component-1',name:'Button / Primary',type:'COMPONENT',x:0,y:0,width:120,height:40,rotation:0,opacity:1,fills:[],effects:[],layoutMode:'NONE',layoutGrids:[],clipsContent:false,children:[]} as unknown as MockHostNode;
-    const instance={id:'instance-1',name:'Submit button',type:'INSTANCE',x:20,y:30,width:120,height:40,rotation:0,opacity:1,fills:[],effects:[],async getMainComponentAsync(){return component;}} as unknown as MockHostNode;
+    const instance={id:'instance-1',name:'Submit button',type:'INSTANCE',x:20,y:30,width:120,height:40,rotation:0,opacity:1,fills:[],effects:[],scaleFactor:1,overrides:[],async getMainComponentAsync(){return component;}} as unknown as MockHostNode;
     const {ui}=await loadHostWithSelection([instance]);
     await ui.onmessage?.({type:'export-selection'});
     const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;id:string;componentRef?:string}>}>}}|undefined;
@@ -255,6 +272,16 @@ describe('Figma host patch behavior',()=>{
       expect.objectContaining({type:'component',id:'figma-component-1',name:'Button / Primary'}),
       expect.objectContaining({type:'instance',id:'figma-instance-1',componentRef:'figma-component-1'}),
     ]);
+
+    const overridden={...instance,id:'overridden-instance',overrides:[{id:'child-id',overriddenFields:['characters']}]} as unknown as MockHostNode;
+    const overrideHost=await loadHostWithSelection([overridden]);
+    await overrideHost.ui.onmessage?.({type:'export-selection'});
+    expect(overrideHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/component overrides that schema 1.0 cannot preserve/)}));
+
+    const scaled={...instance,id:'scaled-instance',scaleFactor:1.25} as unknown as MockHostNode;
+    const scaleHost=await loadHostWithSelection([scaled]);
+    await scaleHost.ui.onmessage?.({type:'export-selection'});
+    expect(scaleHost.ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'error',message:expect.stringMatching(/scale-tool factor that schema 1.0 cannot preserve/)}));
   });
 
   it('exports embedded raster paint bytes and crop metadata, and rejects unsupported effects',async()=>{
@@ -268,12 +295,18 @@ describe('Figma host patch behavior',()=>{
     expect(exported?.spec?.pages[0]?.children[0]).toMatchObject({type:'image',mimeType:'image/png',data:png.toString('base64'),scaleMode:'CROP',imageTransform:[[0.8,0,0.1],[0,0.8,-0.1]]});
     expect((figma as unknown as {getImageByHash:ReturnType<typeof vi.fn>}).getImageByHash).toHaveBeenCalledWith('image-hash');
 
-    const decoratedImage={...imageNode,id:'decorated-image',topLeftRadius:12,topRightRadius:12,bottomRightRadius:12,bottomLeftRadius:12,
-      strokes:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3},opacity:1,visible:true,blendMode:'NORMAL'}],strokeWeight:2,strokeAlign:'INSIDE'} as unknown as MockHostNode;
+    const decoratedImage={...imageNode,id:'decorated-image',topLeftRadius:12,topRightRadius:12,bottomRightRadius:12,bottomLeftRadius:12,cornerSmoothing:0.25,
+      strokes:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3},opacity:0.6,visible:true,blendMode:'NORMAL'}],strokeWeight:2,strokeAlign:'INSIDE'} as unknown as MockHostNode;
     const decorated=await loadHostWithSelection([decoratedImage],{getImageByHash:vi.fn(()=>({getBytesAsync:async()=>new Uint8Array(png)}))});
     await decorated.ui.onmessage?.({type:'export-selection'});
-    const decoratedSpec=decorated.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;radius?:number;stroke?:string;strokeWidth?:number;paints?:Array<{type:string;mimeType?:string}>}>}>}}|undefined;
-    expect(decoratedSpec?.spec?.pages[0]?.children[0]).toMatchObject({type:'rectangle',radius:12,stroke:'#1a334d',strokeWidth:2,paints:[{type:'image',mimeType:'image/png'}]});
+    const decoratedSpec=decorated.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;radius?:number;cornerSmoothing?:number;stroke?:string;strokeOpacity?:number;strokeWidth?:number;strokeAlign?:string;paints?:Array<{type:string;mimeType?:string}>}>}>}}|undefined;
+    expect(decoratedSpec?.spec?.pages[0]?.children[0]).toMatchObject({type:'rectangle',radius:12,cornerSmoothing:0.25,stroke:'#1a334d',strokeOpacity:0.6,strokeWidth:2,strokeAlign:'INSIDE',paints:[{type:'image',mimeType:'image/png'}]});
+
+    const tiledImage={...imageNode,id:'tiled-image',fills:[{type:'IMAGE',imageHash:'image-hash',scaleMode:'TILE',scalingFactor:1.75,opacity:1,visible:true,blendMode:'NORMAL'}]} as unknown as MockHostNode;
+    const tiled=await loadHostWithSelection([tiledImage],{getImageByHash:vi.fn(()=>({getBytesAsync:async()=>new Uint8Array(png)}))});
+    await tiled.ui.onmessage?.({type:'export-selection'});
+    const tiledSpec=tiled.ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{type:string;scaleMode?:string;scalingFactor?:number}>}>}}|undefined;
+    expect(tiledSpec?.spec?.pages[0]?.children[0]).toMatchObject({type:'image',scaleMode:'TILE',scalingFactor:1.75});
 
     const paintNode={...imageNode,id:'painted-card',fills:[{type:'GRADIENT_LINEAR',gradientTransform:[[1,0,0],[0,1,0]],gradientStops:[
       {position:0,color:{r:0,g:0,b:0,a:1}},{position:1,color:{r:0.05,g:0.5,b:0.3,a:0.6}},

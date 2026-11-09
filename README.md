@@ -27,7 +27,7 @@ The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages
 
 | Task group | Status | Next action |
 |---|---|---|
-| Local code | IN PROGRESS | `CODE-02` criteria 4/5: host fixtures cover token definitions/bindings; geometry, text/layout, vector, image/crop, component/instance, gradient and shadow export; font-weight mapping; and explicit errors for unsupported/mixed data. Decorated image rectangles retain their corners/strokes. Remaining: complete the schema-property fidelity matrix. |
+| Local code | IN PROGRESS | `CODE-02` criteria 4/5: host fixtures cover token definitions/bindings; geometry, text/layout/grids, vector, image/crop/tile, component/instance, gradient and shadow export; font weights; and explicit errors for unsupported/mixed data, instance overrides/scaling and compound vectors. Decorated image rectangles retain corners/strokes. Remaining: complete the schema-property fidelity matrix. |
 | Live Figma and AI clients | BLOCKED · USER DESKTOP | Run `LIVE-01` through `LIVE-04` against the exact built package; record app, build hash, and observed result. |
 | Repository publication | LIVE VERIFIED | `PUB-01`: source and exact verified ZIP/checksum are synced on `main`. |
 | Plugin-only closed-file/background operation | OUT OF SCOPE | `BLOCK-01`: requires a separate supported desktop runner; the current plugin session ends when its document closes. |

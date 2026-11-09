@@ -27,7 +27,7 @@ Updated: 2026-11-10. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 
 ## Exact next tasks
 
-Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` is AUTOMATED VERIFIED. `CODE-02` is active at 4/5 criteria: host fixtures cover tokens, geometry/text/layout, vectors, embedded raster crop, component/instance references, gradients/shadows, font weight conversion, decorated image shapes, and explicit errors for unsupported effects/nodes/strokes and mixed text styles/tokens. Next generate and finish the schema-property fidelity matrix. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED: the uploaded archive blob matches local bytes and the SHA-256 manifest.
+Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` is AUTOMATED VERIFIED. `CODE-02` is active at 4/5 criteria: host fixtures cover tokens, text/style fields, geometry/layout/grids, vectors, embedded raster crop/tile, component references, gradients/shadows, font weights, decorated image shapes, and explicit rejection of unsupported effects/nodes/strokes, mixed text styles/tokens, instance overrides/scaling, and compound vectors. Next generate and finish the schema-property fidelity matrix. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED: the uploaded archive blob matches local bytes and the SHA-256 manifest.
 
 ## Constraints
 

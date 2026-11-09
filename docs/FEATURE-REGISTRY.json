@@ -127,7 +127,7 @@
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "A schema-property fidelity matrix is still being completed under CODE-02. Live Figma round-trip is NOT TESTED. Native unsupported paint/effect/stroke/node types, mixed text font/line-height styles, multiple text color variables, unresolved token modes, and inaccessible component sources are rejected explicitly."
+        "A schema-property fidelity matrix is still being completed under CODE-02. Live Figma round-trip is NOT TESTED. Unrepresented blend/stroke/effect/node types, mixed text styles/tokens, component overrides, scale-tool instance factors, compound vector paths, unresolved token modes, and inaccessible component sources are rejected explicitly."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
