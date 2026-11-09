@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added schema-validated solid outlines for rectangle and ellipse nodes, including opacity, width and alignment. Import renders native strokes; selected-layer export preserves single normal solid strokes and clearly rejects unsupported multi-stroke or blended outlines.
 - Added native angular and diamond gradient paints with bounded affine transforms, schema checks, rendering, and selected-tree export round-trip.
 - Added native radial-gradient paint stacks with bounded affine transforms, editable Figma paint rendering, validation against singular matrices, and selected-tree export round-trip.
 - Added bounded affine 2×3 transforms for linear gradients. Diagonal and rotated linear gradients now preserve their Figma transform through import/export; radial, angular and diamond gradients are supported with bounded transforms.
