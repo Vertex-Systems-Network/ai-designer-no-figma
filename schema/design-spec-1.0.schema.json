@@ -883,6 +883,11 @@
                   "type": "string",
                   "pattern": "^#[0-9A-Fa-f]{6}$"
                 },
+                "strokeOpacity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
                 "strokeWidth": {
                   "type": "number",
                   "minimum": 0,
