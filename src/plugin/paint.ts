@@ -31,6 +31,7 @@ export function buildEffectStack(specs:EffectSpec[]):Effect[] {
   return specs.map(spec=>{
     if(spec.type==='layer-blur')return {type:'LAYER_BLUR',blurType:'NORMAL',radius:spec.blur,visible:true} as Effect;
     if(spec.type==='background-blur')return {type:'BACKGROUND_BLUR',blurType:'NORMAL',radius:spec.blur,visible:true} as Effect;
+    if(spec.type==='progressive-layer-blur'||spec.type==='progressive-background-blur')return {type:spec.type==='progressive-layer-blur'?'LAYER_BLUR':'BACKGROUND_BLUR',blurType:'PROGRESSIVE',radius:spec.endRadius,startRadius:spec.startRadius,startOffset:spec.startOffset,endOffset:spec.endOffset,visible:true} as Effect;
     if(!('color' in spec))throw new Error('Unsupported effect specification.');
     return {type:spec.type==='inner-shadow'?'INNER_SHADOW':'DROP_SHADOW',color:{...rgb(spec.color),a:spec.opacity},offset:{x:spec.offsetX,y:spec.offsetY},radius:spec.blur,...(spec.spread!==undefined?{spread:spec.spread}:{}),visible:true,blendMode:'NORMAL'} as Effect;
   });
