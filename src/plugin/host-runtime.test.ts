@@ -33,7 +33,7 @@ describe('Figma plugin host compatibility', () => {
   });
   it('applies image crop transforms to one visible image fill and restores snapshots on undo',()=>{
     expect(hostSource).toContain("operation.op==='set-image-crop'");
-    expect(hostSource).toContain("if(scaleMode==='CROP')fills[item.imageIndex]={...original,scaleMode,imageTransform:imageTransform as Transform}");
+    expect(hostSource).toContain("scaleMode==='CROP'?{...preserved,scaleMode,imageTransform:imageTransform as Transform}");
     expect(hostSource).toContain('must contain exactly one visible image fill to crop or reposition');
     expect(hostSource).toContain("else if(operation.op==='set-image-crop'&&'fills' in target");
   });
