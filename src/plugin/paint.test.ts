@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPaintStack } from './paint';
+import { buildPaintStack, buildShadowStack } from './paint';
 
 describe('native Figma paint stack mapping',()=>{
   it('preserves paint order, solid opacity, gradient direction and stop alpha',()=>{
@@ -10,5 +10,11 @@ describe('native Figma paint stack mapping',()=>{
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({type:'SOLID',color:{r:13/255,g:138/255,b:96/255},opacity:.8});
     expect(result[1]).toMatchObject({type:'GRADIENT_LINEAR',gradientTransform:[[0,-1,1],[1,0,0]],opacity:.45,gradientStops:[{position:0,color:{r:1,g:1,b:1,a:.25}},{position:1,color:{r:0,g:0,b:0,a:1}}]});
+  });
+  it('maps drop-shadow stacks in order with opacity and spread intact',()=>{
+    const shadows=buildShadowStack([{color:'#000000',opacity:.16,offsetX:0,offsetY:4,blur:12,spread:1},{color:'#0D8A60',opacity:.2,offsetX:2,offsetY:1,blur:3}]);
+    expect(shadows).toHaveLength(2);
+    expect(shadows[0]).toMatchObject({type:'DROP_SHADOW',color:{r:0,g:0,b:0,a:.16},offset:{x:0,y:4},radius:12,spread:1});
+    expect(shadows[1]).toMatchObject({type:'DROP_SHADOW',color:{r:13/255,g:138/255,b:96/255,a:.2},offset:{x:2,y:1},radius:3});
   });
 });
