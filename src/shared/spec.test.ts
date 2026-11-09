@@ -34,6 +34,14 @@ describe('design specification validation', () => {
     expect(utf8ByteLength('\ud800')).toBe(3);
   });
   it('accepts a well-formed editable design tree', () => expect(validateDesignSpec(valid).valid).toBe(true));
+  it('validates clipping on frames and components while rejecting it on groups',()=>{
+    const clipped=structuredClone(valid);const frame=clipped.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.clipsContent=true;
+    expect(validateDesignSpec(clipped).valid).toBe(true);
+    const componentSpec:DesignSpec={schemaVersion:'1.0',name:'Clipping component',pages:[{id:'clip-page',name:'Page',children:[{type:'component',id:'clip-component',name:'Clip component',width:100,height:100,clipsContent:true,children:[]}]}]};
+    expect(validateDesignSpec(componentSpec).valid).toBe(true);
+    const invalid=structuredClone(clipped);const invalidFrame=invalid.pages[0]!.children[0]!;if(invalidFrame.type!=='frame')throw new Error('fixture frame expected');invalidFrame.children=[{type:'group',id:'group-clip',name:'Group',width:50,height:50,children:[]}];(invalidFrame.children[0] as unknown as Record<string,unknown>).clipsContent=true;
+    expect(validateDesignSpec(invalid).issues.some(issue=>issue.path.endsWith('.clipsContent')&&issue.message==='Unsupported property.')).toBe(true);
+  });
   it('accepts gradients, shadows, editable vectors, and instances of earlier components', () => {
     const advanced: DesignSpec = { schemaVersion: '1.0', name: 'Advanced', pages: [{ id: 'p-advanced', name: 'Components', children: [
       { type: 'component', id: 'button-component', name: 'Primary button', width: 120, height: 40, fill: '#087A55', children: [
