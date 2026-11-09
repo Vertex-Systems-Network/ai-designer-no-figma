@@ -63,7 +63,7 @@ export type PatchPromptSelection = {
   width: number;
   height: number;
   layerCount: number;
-  nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean}>;
+  nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:[[number,number,number],[number,number,number]]}>;
 };
 
 export function buildPatchPrompt(selection: PatchPromptSelection, request: string): string {
@@ -75,10 +75,11 @@ export function buildPatchPrompt(selection: PatchPromptSelection, request: strin
     { op: 'set-auto-layout', targetId: 'existing-frame-id', value: { mode: 'VERTICAL', gap: 16, padding: 16, alignment: 'MIN' } },
     { op: 'swap-component', targetId: 'existing-instance-id', value: 'existing-component-id' },
     { op: 'replace-image', targetId: 'existing-image-layer-id', value: { mimeType: 'image/png', data: 'caller-provided-base64-image-bytes' } },
+    { op: 'set-image-crop', targetId: 'existing-image-layer-id', value: { scaleMode: 'CROP', imageTransform: [[1, 0, 0], [0, 1, 0]] } },
   ] };
   return `Propose a safe, targeted edit to the selected Figma frame.
 
-Return one JSON object only, with an operations array matching this shape. Use only the operation types shown and only IDs present in the selection summary. For set-bounds, use positive width/height and bounded x/y. For set-auto-layout, target a frame and set mode, gap, padding, and alignment explicitly. For replace-image, only use actual PNG/JPEG base64 bytes supplied by the caller; do not invent or fabricate image bytes. The target must be an existing image-fill layer in the selection summary. For swap-component, only when explicitly requested, target an existing INSTANCE and set value to the ID of an existing COMPONENT in the selection summary. Figma preserves compatible overrides using its native heuristics; do not promise that unrelated properties will transfer. Do not invent IDs. Do not return markdown or commentary. Return an empty operations array if the requested change cannot be expressed safely with these operations. Never return executable code.
+Return one JSON object only, with an operations array matching this shape. Use only the operation types shown and only IDs present in the selection summary. For set-bounds, use positive width/height and bounded x/y. For set-auto-layout, target a frame and set mode, gap, padding, and alignment explicitly. For replace-image, only use actual PNG/JPEG base64 bytes supplied by the caller; do not invent or fabricate image bytes. For set-image-crop, target a layer marked hasImageFill. Use FILL or FIT without extra fields, or CROP with a finite invertible 2×3 affine imageTransform matrix whose values are within ±10; existing image bytes and paint attributes are retained. For swap-component, only when explicitly requested, target an existing INSTANCE and set value to the ID of an existing COMPONENT in the selection summary. Figma preserves compatible overrides using its native heuristics; do not promise that unrelated properties will transfer. Do not invent IDs. Do not return markdown or commentary. Return an empty operations array if the requested change cannot be expressed safely with these operations. Never return executable code.
 ${JSON.stringify(patchShape, null, 2)}
 
 Requested change:
