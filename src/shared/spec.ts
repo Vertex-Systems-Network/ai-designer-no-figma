@@ -13,6 +13,7 @@ export type LayoutSpec = {
   counterAxisSizing?: 'AUTO' | 'FIXED';
 };
 export type GradientSpec = { direction: 'horizontal' | 'vertical'; stops: Array<{ position: number; color: string; opacity?: number }> };
+export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 export type ConstraintsSpec = { horizontal: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE'; vertical: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE' };
 export type GridSpec = { pattern: 'GRID'; sectionSize: number; visible?: boolean } | { pattern: 'COLUMNS'|'ROWS'; sectionSize?: number; gutterSize: number; count: number; offset?: number; alignment?: 'MIN'|'CENTER'|'MAX'|'STRETCH'; visible?: boolean };
@@ -30,6 +31,7 @@ type BaseNode = {
   radius?: number;
   opacity?: number;
   gradient?: GradientSpec;
+  paints?: PaintStackItemSpec[];
   shadow?: ShadowSpec;
   constraints?: ConstraintsSpec;
   fillToken?: string;
@@ -116,15 +118,15 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout','layoutGrids','constraints','fillToken'],
-    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout','constraints','fillToken'],
-    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','children','layout','layoutGrids','constraints','fillToken'],
+    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','children','layout','layoutGrids','constraints','fillToken'],
+    group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','children','layout','constraints','fillToken'],
+    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','children','layout','layoutGrids','constraints','fillToken'],
     instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
-    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','path','constraints'],
+    vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','paints','path','constraints'],
     image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','constraints'],
-    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','text','fontFamily','fontSize','fontWeight','lineHeight','color','align','textStyleToken','constraints','fillToken'],
-    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','constraints','fillToken'],
-    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','shadow','constraints','fillToken'],
+    text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','text','fontFamily','fontSize','fontWeight','lineHeight','color','align','textStyleToken','constraints','fillToken'],
+    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','constraints','fillToken'],
+    ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','constraints','fillToken'],
     line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeWidth','constraints'],
   };
   const colors = new Set((spec.designSystem?.colors ?? []).map((token) => token.name));
@@ -136,6 +138,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     addId(node.id, `${path}.id`);
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
     if (node.fillToken && !colors.has(node.fillToken)) issues.push({ path: `${path}.fillToken`, message: `Unknown color token: ${node.fillToken}` });
+    if (node.paints && (node.fill !== undefined || node.gradient !== undefined)) issues.push({ path: `${path}.paints`, message: 'Use either paints or the legacy fill/gradient fields, not both.' });
     if (node.type === 'text' && node.textStyleToken && !typography.has(node.textStyleToken)) issues.push({ path: `${path}.textStyleToken`, message: `Unknown text style token: ${node.textStyleToken}` });
     if(node.type==='group'&&'layoutGrids' in node)issues.push({path:`${path}.layoutGrids`,message:'Layout grids can only be attached to frames or components.'});
     if (node.type === 'image') {
@@ -150,6 +153,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (node.type === 'instance' && !componentIds.has(node.componentRef)) issues.push({ path: `${path}.componentRef`, message: `Component reference "${node.componentRef}" must point to a component declared earlier in the document.` });
     if (node.type === 'vector' && (!node.path.trim() || node.path.length > 8192 || !/^[\sMmLlHhVvCcSsQqTtAaZz0-9.,+\-]+$/.test(node.path) || !/[Mm]/.test(node.path))) issues.push({ path: `${path}.path`, message: 'Vector path must be a bounded SVG path using standard path commands and numbers only.' });
     if (node.gradient && (node.gradient.stops.length < 2 || node.gradient.stops.some((stop, index) => index > 0 && stop.position < node.gradient!.stops[index - 1]!.position))) issues.push({ path: `${path}.gradient.stops`, message: 'Gradient needs at least two stops ordered by position.' });
+    if (node.paints?.some((item) => item.type === 'linear-gradient' && (item.gradient.stops.length < 2 || item.gradient.stops.some((stop,index)=>index>0&&stop.position<item.gradient.stops[index-1]!.position)))) issues.push({ path: `${path}.paints`, message: 'Each linear gradient needs at least two stops ordered by position.' });
   };
   spec.pages.forEach((page, p) => {
     addId(page.id, `pages[${p}].id`);
