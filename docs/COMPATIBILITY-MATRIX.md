@@ -2,7 +2,7 @@
 
 | Target | Implementation | Test status | Notes |
 |---|---|---|---|
-| Figma Plugin API | Manifest API `1.0.0`; typings pinned by lockfile | Build/typecheck; user-confirmed loader/UI on prior build; current SVG/raster operations automated-tested only | New asset render, export/undo live checks not verified; see [asset tests](testing/ASSET-PIPELINE-TESTS.md) |
+| Figma Plugin API | Manifest API `1.0.0`; schema Auto Layout mode and primary-axis alignment mappings isolated in `src/plugin/compatibility.ts` and checked against locked typings; typings pinned by lockfile | Build/typecheck against locked official typings; schema-to-Figma Auto Layout mappings have round-trip unit tests; prior user-confirmed loader/UI; layout mapping unit tests and current advanced rendering are not live-tested | New asset render, export/undo live checks not verified; see [asset tests](testing/ASSET-PIPELINE-TESTS.md) |
 | Node.js | Package requires Node 20+; current development executor Node 24.22.1 | Runtime integration tests pass on executor | Test Node 20 in release CI before claiming it |
 | Claude Desktop | User-operated prompt/JSON copy/paste; custom MCP availability is client/version dependent | Prompt builder tests; local asset flow is manual only | Native image generation/file access/automatic asset transfer NOT VERIFIED; see [asset capability matrix](integrations/ASSET-CAPABILITY-MATRIX.md) |
 | Claude Code | User-operated prompt/JSON handoff; MCP may be configured locally by the user | No app-specific asset transfer test | Native generation/file access/transfer NOT VERIFIED |
