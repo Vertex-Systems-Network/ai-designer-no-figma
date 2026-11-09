@@ -45,6 +45,20 @@ describe('design specification validation', () => {
     ] }] };
     expect(validateDesignSpec(advanced).valid).toBe(true);
   });
+  it('validates bounded solid and linear-gradient paint stacks without mixing legacy paint fields', () => {
+    const spec=structuredClone(valid);
+    const frame=spec.pages[0]!.children[0]!;
+    if(frame.type!=='frame')throw new Error('fixture frame expected');
+    frame.children=[{type:'rectangle',id:'paint-stack',name:'Layered accent',width:80,height:40,paints:[
+      {type:'solid',color:'#0D8A60',opacity:.8},
+      {type:'linear-gradient',gradient:{direction:'horizontal',stops:[{position:0,color:'#FFFFFF'},{position:1,color:'#000000'}]},opacity:.45},
+    ]}];
+    expect(validateDesignSpec(spec).valid).toBe(true);
+    const mixed=structuredClone(spec);const rect=mixed.pages[0]!.children[0]!.type==='frame'?mixed.pages[0]!.children[0]!.children[0]:undefined;if(rect?.type!=='rectangle')throw new Error('fixture rectangle expected');rect.fill='#FFFFFF';
+    expect(validateDesignSpec(mixed).issues.some(issue=>issue.message.includes('either paints'))).toBe(true);
+    const oversized=structuredClone(spec);const oversizedRect=oversized.pages[0]!.children[0]!.type==='frame'?oversized.pages[0]!.children[0]!.children[0]:undefined;if(oversizedRect?.type!=='rectangle')throw new Error('fixture rectangle expected');oversizedRect.paints=Array.from({length:9},()=>({type:'solid' as const,color:'#FFFFFF'}));
+    expect(validateDesignSpec(oversized).valid).toBe(false);
+  });
   it('rejects unknown component references and unsafe vector path content', () => {
     const bad = structuredClone(valid);
     bad.pages[0]!.children = [
