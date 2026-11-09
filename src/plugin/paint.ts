@@ -1,4 +1,4 @@
-import type { GradientSpec, PaintStackItemSpec } from '../shared/spec';
+import type { GradientSpec, PaintStackItemSpec, ShadowSpec } from '../shared/spec';
 
 function rgb(hex: string): RGB {
   const value=hex.replace('#','');
@@ -14,4 +14,8 @@ export function buildPaintStack(specs:PaintStackItemSpec[]):Paint[] {
   return specs.map(spec=>spec.type==='solid'
     ?{type:'SOLID',color:rgb(spec.color),opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'}
     :linearGradient(spec.gradient,spec.opacity??1));
+}
+
+export function buildShadowStack(specs:ShadowSpec[]):Effect[] {
+  return specs.map(spec=>({type:'DROP_SHADOW',color:{...rgb(spec.color),a:spec.opacity},offset:{x:spec.offsetX,y:spec.offsetY},radius:spec.blur,...(spec.spread!==undefined?{spread:spec.spread}:{}),visible:true,blendMode:'NORMAL'}));
 }
