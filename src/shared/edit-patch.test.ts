@@ -49,3 +49,14 @@ describe('parseEditPatch', () => {
     for(const value of ['',{},'x'.repeat(201)])expect(parseEditPatch(JSON.stringify({operations:[{...operation,value}]})).valid).toBe(false);
   });
 });
+
+
+describe('set-rotation edit operation',()=>{
+  it('accepts finite rotations within the supported range for selected IDs',()=>{
+    for(const value of [-180,-45,0,90,180])expect(parseEditPatch(JSON.stringify({operations:[{op:'set-rotation',targetId:'node-1',value}]}),new Set(['node-1'])).valid).toBe(true);
+  });
+  it('rejects invalid rotations and targets outside the selection',()=>{
+    for(const value of [NaN,Infinity,-181,181,'45',null])expect(parseEditPatch(JSON.stringify({operations:[{op:'set-rotation',targetId:'node-1',value}]})).valid).toBe(false);
+    expect(parseEditPatch('{"operations":[{"op":"set-rotation","targetId":"other","value":45}]}',new Set(['node-1']))).toMatchObject({valid:false,message:'operations[0].targetId is not present in the current selection.'});
+  });
+});
