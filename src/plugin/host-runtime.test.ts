@@ -54,6 +54,8 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain("type:'image',mimeType,data:encodeBase64(bytes)");
     expect(hostSource).toContain("item.type==='GRADIENT_RADIAL'");
     expect(hostSource).toContain("type:'radial-gradient',gradient:toRadial(item)");
+    expect(hostSource).toContain("item.type==='GRADIENT_ANGULAR'");
+    expect(hostSource).toContain("item.type==='GRADIENT_DIAMOND'");
     expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
