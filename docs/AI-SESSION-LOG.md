@@ -1,5 +1,10 @@
 # AI session log
 
+## 2026-11-09 — native blur and inner-shadow stacks
+
+- Added schema-validated ordered effects for inner/drop shadow and normal layer/background blur, capped at four per node. Renderer and selected-tree exporter preserve the supported effect type, order, color, opacity, offsets, spread and blur radius. Progressive blur and unsupported Figma effect variants fail with explicit messages.
+- `npm run release:verify` passes with 66 unit and 17 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 (`e1f9aa9bc28374e057515cdb2072b60a4d1418a695d04f64bf827f9d44c59705`). Live Figma visual/effect round-trip remains NOT TESTED.
+
 ## 2026-11-09 — embedded image paint stacks
 
 - Added bounded PNG/JPEG image paints to schema 1.0 paint stacks, including validation of decoded size, image signature/MIME match, scale mode, and opacity.
