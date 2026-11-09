@@ -18,7 +18,7 @@
     {
       "id": "CORE-001",
       "name": "Versioned design specification validation",
-      "description": "Validate schema 1.0 documents, supported node fields, bounded image/vector assets, design tokens, constraints/grids, component references, paint properties, IDs and resource limits.",
+      "description": "Validate schema 1.0 documents, supported node fields, bounded image/vector assets, design tokens including letter spacing/text case/text decoration, constraints/grids, component references, paint properties, IDs and resource limits.",
       "module": "shared-schema",
       "sourceFiles": [
         "src/shared/spec.ts",
@@ -44,7 +44,7 @@
     {
       "id": "FIGMA-001",
       "name": "Native Figma rendering and asset insertion",
-      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, bounded solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image paint stacks, ordered rectangle/ellipse strokes and drop/inner-shadow, normal and progressive blur effect stacks, token-bound colors/text styles, responsive constraints and layout grids.",
+      "description": "Create editable native frames, groups, components/instances, vectors, bounded raster fills, gradients, bounded solid/linear-gradient/radial-gradient/angular-gradient/diamond-gradient/image paint stacks, ordered rectangle/ellipse strokes and drop/inner-shadow, normal and progressive blur effect stacks, token-bound colors and typography styles with case, decoration and letter-spacing, responsive constraints and layout grids.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
