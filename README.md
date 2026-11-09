@@ -31,7 +31,7 @@ Progress percentages estimate completed acceptance scope for each phase; they ar
 
 ## Remaining task tracker
 
-Completed engineering rows have been removed. The implementation work for this slice is complete and has automated coverage; the remaining rows require a live Figma/Claude session.
+Completed engineering rows have been removed. Remaining work is split between live verification and code/environment gates, with each status called out in its row.
 
 ### Requires live Figma or Claude verification
 
@@ -44,7 +44,17 @@ Completed engineering rows have been removed. The implementation work for this s
 | Patch, Auto Layout, undo and sibling preservation | NOT TESTED | Confirm only intended layers change and rollback restores the selection. |
 | Preview → AI review → patch → recapture | NOT TESTED | Confirm actual preview image reaches Claude and a repair cycle works. |
 
-These are verification gates rather than unfinished code tasks. Progress estimates apply to implementation scope. Automated test results and live Figma observations are reported separately; passing a local build does not close a live-verification task.
+Live rows are not treated as passes based on mocks. There are also unfinished engineering/environment tasks; they remain visible below rather than being counted as completed.
+
+### Remaining implementation and environment gates
+
+| Task | Status | Remaining work |
+|---|---|---|
+| Create/open a new Draft file and work after Figma/plugin closure | BLOCKED · NOT IMPLEMENTED | Current plugin sessions end when Figma or the open document closes. A supported desktop automation runner and a Windows Figma session are required. |
+| Replace selected instances/components and support multi-fill / additional effect export | OPEN | Current safe patch operations do not replace component instances; selected export rejects unsupported paint/effect combinations. |
+| Verify generation with a real local Ollama model | NOT TESTED | No Ollama endpoint or installed model is available in this executor; the fake-server suite only verifies the stream contract. |
+| Run screenshot-based responsive/accessibility review | NOT TESTED | Needs a live Figma renderer or a browser build with realistic Figma host mocks; no rendered screenshot is claimed. |
+| Verify per-client MCP and generated-file access | NOT VERIFIED | Client-specific local MCP launch, file discovery, and tool use need separate tests in Claude/Codex/Cursor/Gemini. |
 
 ## Master Prompt 04 · AI assets progress
 
