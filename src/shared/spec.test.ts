@@ -71,7 +71,7 @@ describe('design specification validation', () => {
   });
   it('validates text case, decoration and bounded letter spacing',()=>{
     const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');
-    frame.children=[{type:'text',id:'tracked-heading',name:'Tracked heading',width:300,height:48,text:'FINANCE',fontSize:30,letterSpacing:{unit:'PIXELS',value:1.5},textDecoration:'UNDERLINE',textCase:'UPPER'}];
+    frame.children=[{type:'text',id:'tracked-heading',name:'Tracked heading',width:300,height:48,text:'FINANCE',fontSize:30,letterSpacing:{unit:'PIXELS',value:1.5},paragraphSpacing:8,textAlignVertical:'CENTER',textAutoResize:'HEIGHT',textDecoration:'UNDERLINE',textCase:'UPPER'}];
     expect(validateDesignSpec(spec).valid).toBe(true);
     const invalid=structuredClone(spec);const text=invalid.pages[0]!.children[0]!.type==='frame'?invalid.pages[0]!.children[0]!.children[0]:undefined;if(text?.type!=='text'||!text.letterSpacing)throw new Error('text fixture expected');text.letterSpacing.value=1001;
     expect(validateDesignSpec(invalid).valid).toBe(false);
@@ -126,7 +126,7 @@ describe('design specification validation', () => {
     expect(validateDesignSpec(spec).valid).toBe(true);
   });
   it('validates embedded raster assets, design tokens, grid layouts, constraints and token references',()=>{
-    const extended:DesignSpec={schemaVersion:'1.0',name:'Extended',designSystem:{name:'Acme',colors:[{name:'Brand/Primary',color:'#087A55'}],typography:[{name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34,letterSpacing:{unit:'PERCENT',value:2},textDecoration:'NONE',textCase:'TITLE'}]},pages:[{id:'p-ext',name:'Desktop',children:[
+    const extended:DesignSpec={schemaVersion:'1.0',name:'Extended',designSystem:{name:'Acme',colors:[{name:'Brand/Primary',color:'#087A55'}],typography:[{name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34,paragraphSpacing:6,letterSpacing:{unit:'PERCENT',value:2},textDecoration:'NONE',textCase:'TITLE'}]},pages:[{id:'p-ext',name:'Desktop',children:[
       {type:'frame',id:'frame-ext',name:'Responsive frame',width:1440,height:900,fillToken:'Brand/Primary',constraints:{horizontal:'STRETCH',vertical:'MIN'},layoutGrids:[{pattern:'COLUMNS',count:12,gutterSize:24,alignment:'STRETCH'},{pattern:'GRID',sectionSize:8}],children:[
         {type:'text',id:'heading-ext',name:'Page heading',width:500,height:40,text:'Overview',textStyleToken:'Heading',fontSize:28,fillToken:'Brand/Primary'},
         {type:'image',id:'image-ext',name:'Product image',width:1,height:1,mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'FIT'},
