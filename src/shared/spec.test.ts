@@ -48,6 +48,14 @@ describe('design specification validation', () => {
     const missingColor=structuredClone(lineSpec);const line=missingColor.pages[0]!.children[0]!;if(line.type!=='line')throw new Error('fixture line expected');delete line.stroke;
     expect(validateDesignSpec(missingColor).issues.some(issue=>issue.path.endsWith('.strokeOpacity'))).toBe(true);
   });
+  it('validates per-corner radii and smoothing only on supported native shapes',()=>{
+    const custom:DesignSpec={schemaVersion:'1.0',name:'Corner fidelity',pages:[{id:'corner-page',name:'Page',children:[{type:'frame',id:'clip-frame',name:'Clipped frame',width:100,height:100,cornerRadii:{topLeft:8,topRight:12,bottomRight:20,bottomLeft:4},cornerSmoothing:.6,children:[{type:'rectangle',id:'shape',name:'Shape',width:40,height:20,cornerRadii:{topLeft:2,topRight:8,bottomRight:4,bottomLeft:10}}]}]}]};
+    expect(validateDesignSpec(custom).valid).toBe(true);
+    const ambiguous=structuredClone(custom);const frame=ambiguous.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.radius=4;
+    expect(validateDesignSpec(ambiguous).issues.some(issue=>issue.path.endsWith('.cornerRadii')&&issue.message.includes('radius or cornerRadii'))).toBe(true);
+    const outOfRange=structuredClone(custom);const bad=outOfRange.pages[0]!.children[0]!;if(bad.type!=='frame')throw new Error('fixture frame expected');bad.cornerSmoothing=1.5;
+    expect(validateDesignSpec(outOfRange).issues.some(issue=>issue.path.endsWith('cornerSmoothing'))).toBe(true);
+  });
   it('accepts gradients, shadows, editable vectors, and instances of earlier components', () => {
     const advanced: DesignSpec = { schemaVersion: '1.0', name: 'Advanced', pages: [{ id: 'p-advanced', name: 'Components', children: [
       { type: 'component', id: 'button-component', name: 'Primary button', width: 120, height: 40, fill: '#087A55', children: [
