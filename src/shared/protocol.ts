@@ -39,6 +39,7 @@ export type EditPatch = {
     | { op: 'set-fill'; targetId: string; value: string }
     | { op: 'rename'; targetId: string; value: string }
     | { op: 'set-bounds'; targetId: string; value: { x:number; y:number; width:number; height:number } }
+    | { op: 'set-rotation'; targetId: string; value: number }
     | { op: 'set-auto-layout'; targetId: string; value: { mode:'NONE'|'HORIZONTAL'|'VERTICAL'; gap:number; padding:number; alignment:'MIN'|'CENTER'|'MAX'|'SPACE_BETWEEN' } }
     | { op: 'swap-component'; targetId: string; value: string }
     | { op: 'replace-image'; targetId: string; value: { mimeType:'image/png'|'image/jpeg'; data:string } }
