@@ -42,6 +42,12 @@ describe('design specification validation', () => {
     const invalid=structuredClone(clipped);const invalidFrame=invalid.pages[0]!.children[0]!;if(invalidFrame.type!=='frame')throw new Error('fixture frame expected');invalidFrame.children=[{type:'group',id:'group-clip',name:'Group',width:50,height:50,children:[]}];(invalidFrame.children[0] as unknown as Record<string,unknown>).clipsContent=true;
     expect(validateDesignSpec(invalid).issues.some(issue=>issue.path.endsWith('.clipsContent')&&issue.message==='Unsupported property.')).toBe(true);
   });
+  it('accepts bounded line stroke opacity only when a stroke color is supplied',()=>{
+    const lineSpec:DesignSpec={schemaVersion:'1.0',name:'Line opacity',pages:[{id:'line-page',name:'Page',children:[{type:'line',id:'rule',name:'Rule',width:100,height:1,stroke:'#112233',strokeOpacity:.35,strokeWidth:2}]}]};
+    expect(validateDesignSpec(lineSpec).valid).toBe(true);
+    const missingColor=structuredClone(lineSpec);const line=missingColor.pages[0]!.children[0]!;if(line.type!=='line')throw new Error('fixture line expected');delete line.stroke;
+    expect(validateDesignSpec(missingColor).issues.some(issue=>issue.path.endsWith('.strokeOpacity'))).toBe(true);
+  });
   it('accepts gradients, shadows, editable vectors, and instances of earlier components', () => {
     const advanced: DesignSpec = { schemaVersion: '1.0', name: 'Advanced', pages: [{ id: 'p-advanced', name: 'Components', children: [
       { type: 'component', id: 'button-component', name: 'Primary button', width: 120, height: 40, fill: '#087A55', children: [
