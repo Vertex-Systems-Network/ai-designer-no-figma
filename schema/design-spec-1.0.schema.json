@@ -455,6 +455,11 @@
           "exclusiveMinimum": 0,
           "maximum": 100000
         },
+        "rotation": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
         "fill": {
           "type": "string",
           "pattern": "^#[0-9A-Fa-f]{6}$"
