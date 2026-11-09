@@ -446,8 +446,8 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       if(allDropShadows){const exported=visibleEffects.flatMap(effect=>effect.type==='DROP_SHADOW'?[{color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})}]:[]);if(exported.length===1)shadow=exported[0];else if(exported.length>1)shadows=exported;}
       else designEffects=visibleEffects.map(effect=>{
         if(effect.type==='DROP_SHADOW'||effect.type==='INNER_SHADOW')return {type:effect.type==='INNER_SHADOW'?'inner-shadow':'drop-shadow',color:hexColor(effect.color),opacity:effect.color.a,offsetX:effect.offset.x,offsetY:effect.offset.y,blur:effect.radius,...(effect.spread!==undefined?{spread:effect.spread}:{})};
-        if(effect.type==='LAYER_BLUR'){if(effect.blurType!=='NORMAL')throw new Error(`Layer "${node.name}" uses progressive blur, which schema 1.0 cannot preserve losslessly.`);return {type:'layer-blur',blur:effect.radius};}
-        if(effect.type==='BACKGROUND_BLUR'){if(effect.blurType!=='NORMAL')throw new Error(`Layer "${node.name}" uses progressive blur, which schema 1.0 cannot preserve losslessly.`);return {type:'background-blur',blur:effect.radius};}
+        if(effect.type==='LAYER_BLUR'){if(effect.blurType==='PROGRESSIVE')return {type:'progressive-layer-blur',startRadius:effect.startRadius,endRadius:effect.radius,startOffset:{x:effect.startOffset.x,y:effect.startOffset.y},endOffset:{x:effect.endOffset.x,y:effect.endOffset.y}};return {type:'layer-blur',blur:effect.radius};}
+        if(effect.type==='BACKGROUND_BLUR'){if(effect.blurType==='PROGRESSIVE')return {type:'progressive-background-blur',startRadius:effect.startRadius,endRadius:effect.radius,startOffset:{x:effect.startOffset.x,y:effect.startOffset.y},endOffset:{x:effect.endOffset.x,y:effect.endOffset.y}};return {type:'background-blur',blur:effect.radius};}
         throw new Error(`Layer "${node.name}" has an unsupported effect type that cannot be exported losslessly.`);
       });
     }
