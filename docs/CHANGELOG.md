@@ -2,6 +2,7 @@
 
 ## Unreleased
 - Preserved native image crop/reposition transforms in the versioned design spec for standalone image nodes and image paint stacks; the renderer restores them and selected export emits them. Schema checks require CROP mode and an invertible bounded affine transform.
+- Added schema-backed TILE image fills with a bounded `scalingFactor` for standalone image nodes and layered paints; native image repetition now renders and round-trips through selected export.
 - Added reviewed FILL/FIT/CROP mode and affine image reposition patches for one selected image fill. Crop matrices are finite, invertible 2×3 transforms bounded to ±10; paint opacity, blend and source bytes are preserved, and patch undo restores the original paint. The Edit UI exposes a mode selector and transform editor when an image fill is selected.
 - Added reviewed replacement of exactly one existing selected image fill from a validated PNG/JPEG (128 KiB cap), preserving its scale/opacity and enabling patch undo. Live Figma crop appearance and rollback remain NOT TESTED.
 
