@@ -5,13 +5,13 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 ## Current release
 
 - Public repository: [Vertex-Systems-Network/ai-designer-no-figma](https://github.com/Vertex-Systems-Network/ai-designer-no-figma)
-- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (source changes may be newer; use `npm run package` to rebuild.)
+- GitHub package snapshot: [AI Designer No Figma 0.1.0 ZIP](artifacts/ai-designer-no-figma-0.1.0.zip) (built from the source at the latest release verification.)
 - Claude Desktop installer: [AI Designer No Figma `.mcpb`](artifacts/ai-designer-no-figma-claude.mcpb) (`npm run package:claude`)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
 ## Project progress
 
-**Overall completion: 93%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, bounded solid/linear-gradient/radial-gradient/image paints, native shape strokes, detailed typography including letter/paragraph spacing, case, decoration and text layout, shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
+**Overall completion: 94%** — rounded mean of the 11 phase estimates below. Schema-backed images, native Variables/text styles, responsive constraints/grids, bounded solid/linear-gradient/radial-gradient/image paints, native shape strokes, detailed typography including letter/paragraph spacing, case, decoration and text layout, shadow/blur/progressive-blur effects and affine gradient transforms, advanced layer export, and category-specific prompt recipes now have implementation and automated coverage; live desktop confirmation and remaining product gates are still open. It is not a release-readiness claim.
 
 | Phase | Progress | Status | Remaining gate |
 |---|---:|---|---|
@@ -20,7 +20,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 | 2 · Figma plugin and renderer | `███████████████████░` 99% | IN PROGRESS | Live native renderer verification; other unsupported effect variants |
 | 3 · Specification and validation | `███████████████████░` 99% | IN PROGRESS | Live image/render check and full metadata round-trip across supported gradient and progressive-blur variants |
 | 4 · AI integration | `████████████████░░░░` 80% | IN PROGRESS | Additional client interoperability and live local-model checks |
-| 5 · Selection editing | `███████████████████░` 95% | IN PROGRESS | Live crop/replacement, instance replacement, undo and preservation verification |
+| 5 · Selection editing | `███████████████████░` 96% | IN PROGRESS | Live crop/replacement, instance replacement, undo and preservation verification |
 | 6 · Design system | `███████████████████░` 93% | IN PROGRESS | Live verification of native Variables/styles and broader token round-trip |
 | 7 · Application UI | `██████████████████░░` 90% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
 | 8 · Testing and hardening | `███████████████████░` 99% | IN PROGRESS | Live Figma renderer/preservation and real local-model checks remain environment-dependent |
@@ -52,7 +52,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 |---|---|---|
 | Create/open a new Draft file and work after Figma/plugin closure | BLOCKED · NOT IMPLEMENTED | Current plugin sessions end when Figma or the open document closes. A supported desktop automation runner and a Windows Figma session are required. |
 | Export remaining paint/effect variants | OPEN | Image FILL/FIT/CROP transforms and TILE scaling factors are schema-backed and round-trip. Unsupported effect types and other unrepresented native metadata still fail explicitly; live visual round-trip is untested. |
-| Image crop/reposition controls | IMPLEMENTED · AUTOMATED VERIFIED | Edit supports Fill/Fit and a validated Figma 2×3 affine crop/reposition transform; the selected image paint is preserved, spec import/export round-trips it, and patch rollback restores prior fills. Live Figma visual verification remains NOT TESTED. |
+| Image scaling and crop controls | IMPLEMENTED · AUTOMATED VERIFIED | Edit supports Fill/Fit/Tile/custom Crop and a bounded tile scale or Figma 2×3 affine transform. Image bytes/paint metadata are preserved, spec import/export round-trips them, and patch rollback restores previous fills. Live Figma visual verification remains NOT TESTED. |
 | Verify generation with a real local Ollama model | NOT TESTED | No Ollama endpoint or installed model is available in this executor; the fake-server suite only verifies the stream contract. |
 | Run screenshot-based responsive/accessibility review | NOT TESTED | Needs a live Figma renderer or a browser build with realistic Figma host mocks; no rendered screenshot is claimed. |
 | Verify per-client MCP and generated-file access | NOT VERIFIED | Client-specific local MCP launch, file discovery, and tool use need separate tests in Claude/Codex/Cursor/Gemini. |
