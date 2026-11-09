@@ -6,6 +6,11 @@
 - Schema, renderer, export and host regression tests pass; live Figma visual round-trip remains NOT TESTED.
 - Extended schema 1.0 and the native renderer/exporter for up to four ordered drop shadows. Unsupported effect types and larger stacks fail with actionable errors; live Figma verification remains NOT TESTED.
 
+## 2026-11-09 — targeted component replacement
+
+- Added a validated `swap-component` patch requiring both the instance target and replacement component ID to appear in the current selection. The Figma host checks node types and snapshots the original component and properties for rollback.
+- Unit, prompt, host and integration suites pass; Figma override heuristics and live undo behavior remain NOT TESTED.
+
 ## 2026-11-09 — advanced native design nodes
 
 - Added schema 1.0 support and bounded validation for reusable components/instances, SVG path vectors, linear gradients, and drop shadows. Components must be declared before instances; unsafe path syntax and out-of-order gradient stops are rejected.
