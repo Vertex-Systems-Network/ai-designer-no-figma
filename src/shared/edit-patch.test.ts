@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { parseEditPatch } from './edit-patch';
 
 describe('parseEditPatch', () => {
+  it('accepts a bounded PNG image replacement and rejects invalid or oversized image bytes',()=>{
+    const data='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
+    const op={op:'replace-image',targetId:'image-1',value:{mimeType:'image/png',data}};
+    expect(parseEditPatch(JSON.stringify({operations:[op]}),new Set(['image-1'])).valid).toBe(true);
+    expect(parseEditPatch(JSON.stringify({operations:[op]}),new Set(['other']))).toMatchObject({valid:false,message:'operations[0].targetId is not present in the current selection.'});
+    for(const value of [{mimeType:'image/jpeg',data},{mimeType:'image/png',data:'not-base64'},{mimeType:'image/png',data:'A'.repeat(180_000)}])
+      expect(parseEditPatch(JSON.stringify({operations:[{...op,value}]})).valid).toBe(false);
+  });
   it('accepts bounded layout edits for a selected target', () => {
     const result = parseEditPatch(JSON.stringify({operations:[{op:'set-bounds',targetId:'frame-1',value:{x:-24,y:40,width:720,height:480}}]}),new Set(['frame-1']));
     expect(result.valid).toBe(true);
