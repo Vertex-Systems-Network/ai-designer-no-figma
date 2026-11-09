@@ -261,6 +261,14 @@
           "items": {
             "$ref": "#/$defs/paintStackItem"
           }
+        },
+        "shadows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/shadow"
+          }
         }
       }
     },
@@ -375,7 +383,8 @@
                 "shadow": false,
                 "fill": false,
                 "radius": false,
-                "paints": false
+                "paints": false,
+                "shadows": false
               }
             }
           ]
@@ -445,7 +454,8 @@
                 "radius": false,
                 "gradient": false,
                 "shadow": false,
-                "paints": false
+                "paints": false,
+                "shadows": false
               }
             }
           ]
