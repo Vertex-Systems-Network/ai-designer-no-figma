@@ -5,6 +5,7 @@ import { MAX_RASTER_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAss
 import { verifyAssetReadback } from '../shared/asset-readback';
 import { sha256 } from '../shared/sha256';
 import { decodeBase64, encodeBase64 } from '../shared/base64';
+import { MAX_PATCH_IMAGE_BYTES } from '../shared/edit-patch';
 import { fromFigmaLayoutMode, fromFigmaPrimaryAxisAlignment, toFigmaLayoutMode, toFigmaPrimaryAxisAlignment } from './compatibility';
 import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
@@ -269,13 +270,14 @@ type SelectionSummary = Extract<HostToUi,{type:'selection'}>['summary'];
 function getSelectionSummary(): SelectionSummary {
   const selected = figma.currentPage.selection[0];
   if (!selected || !('width' in selected) || !('height' in selected)) return null;
-  const nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string}> = [];
+  const nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean}> = [];
   const collect = (node: SceneNode, depth: number) => {
     if (nodes.length >= 100 || depth > 5) return;
     const logicalId = logicalIds.get(node.id) || node.id;
     {
-      const item: {id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string} = { id: logicalId, name: node.name, type: node.type, x: Math.round(node.x), y: Math.round(node.y), width: Math.round(node.width), height: Math.round(node.height) };
+      const item: {id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean} = { id: logicalId, name: node.name, type: node.type, x: Math.round(node.x), y: Math.round(node.y), width: Math.round(node.width), height: Math.round(node.height) };
       if (node.type === 'TEXT') item.text = node.characters.slice(0, 500);
+      if('fills' in node&&Array.isArray(node.fills))item.hasImageFill=node.fills.some(fill=>fill.type==='IMAGE'&&fill.visible!==false);
       if ('fills' in node && Array.isArray(node.fills) && node.fills[0]?.type === 'SOLID') {
         const c = node.fills[0].color; item.fill = `#${[c.r,c.g,c.b].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('')}`;
       }
@@ -307,6 +309,13 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     if(operation.op==='set-auto-layout'){
       if(target.type!=='FRAME')throw new Error(`Target ${operation.targetId} is not a frame and cannot receive Auto Layout.`);
       return{operation,target};
+    }
+    if(operation.op==='replace-image'){
+      if(!('fills' in target)||target.fills===figma.mixed)throw new Error(`Target ${operation.targetId} does not have readable image fills.`);
+      const fills=target.fills as readonly Paint[];const imageIndices=fills.flatMap((fill,index)=>fill.type==='IMAGE'&&fill.visible!==false?[index]:[]);
+      if(imageIndices.length!==1)throw new Error(`Target ${operation.targetId} must contain exactly one visible image fill to replace.`);
+      const bytes=decodeBase64(operation.value.data,MAX_PATCH_IMAGE_BYTES);const image=validateRasterAsset(bytes,operation.value.mimeType);const imageHash=figma.createImage(bytes).hash;
+      return{operation,target,imageHash,imageIndex:imageIndices[0],mimeType:image.mimeType};
     }
     if(operation.op==='swap-component'){
       if(target.type!=='INSTANCE')throw new Error(`Target ${operation.targetId} is not a component instance.`);
@@ -342,6 +351,7 @@ async function applyPatch(patch: EditPatch): Promise<void> {
       else if (operation.op === 'set-bounds' && 'resize' in target && 'x' in target && 'y' in target) { target.resize(operation.value.width, operation.value.height); target.x = operation.value.x; target.y = operation.value.y; }
       else if(operation.op==='set-auto-layout'&&target.type==='FRAME'){target.layoutMode=operation.value.mode;target.itemSpacing=operation.value.gap;target.paddingTop=target.paddingRight=target.paddingBottom=target.paddingLeft=operation.value.padding;target.primaryAxisAlignItems=operation.value.alignment;}
       else if(operation.op==='swap-component'&&target.type==='INSTANCE')target.swapComponent(item.source as ComponentNode);
+      else if(operation.op==='replace-image'&&'fills' in target&&item.imageHash&&item.imageIndex!==undefined&&target.fills!==figma.mixed){const fills=[...target.fills];const original=fills[item.imageIndex];if(!original||original.type!=='IMAGE')throw new Error('The target image fill changed before replacement.');fills[item.imageIndex]={...original,imageHash:item.imageHash};target.fills=fills;}
       else if (operation.op === 'set-fill' && 'fills' in target) target.fills = [paint(operation.value)];
       else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
     }
