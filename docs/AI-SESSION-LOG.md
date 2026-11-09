@@ -1,5 +1,11 @@
 # AI session log
 
+## 2026-11-09 — embedded image paint stacks
+
+- Added bounded PNG/JPEG image paints to schema 1.0 paint stacks, including validation of decoded size, image signature/MIME match, scale mode, and opacity.
+- Renderer now creates native Figma image paints in the declared stack order. Selected-tree export embeds supported PNG/JPEG fill bytes and preserves scale mode and opacity; legacy single rectangle image export remains supported.
+- Unit coverage passes for valid/invalid embedded paint bytes and paint order. Full release verification is running; live Figma image-fill round-trip remains NOT TESTED.
+
 ## 2026-11-09 — bounded paint-stack import/export
 
 - Added a schema-validated `paints` stack for solid and linear-gradient fills, preserving Figma paint order and independent opacity on import/export.
