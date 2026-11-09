@@ -26,9 +26,10 @@ Updated: 2026-11-09. Start with root [`AGENTS.md`](../AGENTS.md), then [project 
 3. Verify selection inspect, import, targeted patch, selected export, export/import round-trip, bounds edits, undo and unaffected siblings in Figma.
 4. Test Ollama only if a local runtime/model is actually available; otherwise record NOT TESTED.
 5. Verify native component/instance/vector/image/gradient/shadow rendering, Variables/Text Styles, responsive grids/constraints, SVG/raster insertion, selected export/import round-trip and Auto Layout patch/undo in Figma.
-6. Closed-file operation is still a separate product requirement: Figma plugin sessions stop with the host document. A local desktop runner must be designed to launch/select a Draft file and run the plugin before claiming that Claude can work with Figma fully closed.
-7. Compare generated output against Figma Agent only in a controlled live evaluation with the same briefs and visual review; no superiority claim is supported yet.
-8. In Figma, run Claude Desktop MCP: render a design, call `figma_capture_selection`, inspect the image in `figma_get_job_result`, apply a bounded patch, and capture again. Confirm image content reaches Claude, rendered text remains legible, and result-size limits behave as intended.
+6. Closed-file/new-Draft automation is not implemented: Figma plugin sessions stop with the host document. Build a supported desktop runner only with access to the native Figma session and verify it does not alter unrelated files.
+7. Extend safe editing with explicit component replacement and add selected-export coverage for additional fills/effects where the Figma API allows; keep unsupported cases explicit.
+8. Compare generated output against Figma Agent only in a controlled live evaluation with the same briefs and visual review; no superiority claim is supported yet.
+9. In Figma, run Claude Desktop MCP: render a design, call `figma_capture_selection`, inspect the image in `figma_get_job_result`, apply a bounded patch, and capture again. Confirm image content reaches Claude, rendered text remains legible, and result-size limits behave as intended.
 
 ## Constraints
 
