@@ -12,7 +12,7 @@ export type LayoutSpec = {
   primaryAxisSizing?: 'AUTO' | 'FIXED';
   counterAxisSizing?: 'AUTO' | 'FIXED';
 };
-export type GradientSpec = { direction: 'horizontal' | 'vertical'; stops: Array<{ position: number; color: string; opacity?: number }> };
+export type GradientSpec = { direction: 'horizontal' | 'vertical'; transform?: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
 export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'; opacity?:number };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 export type EffectSpec = { type: 'drop-shadow'|'inner-shadow'; color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number } | { type: 'layer-blur'|'background-blur'; blur: number };
