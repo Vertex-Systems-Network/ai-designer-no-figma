@@ -530,6 +530,9 @@
                     "$ref": "#/$defs/grid"
                   }
                 },
+                "clipsContent": {
+                  "type": "boolean"
+                },
                 "fillToken": {
                   "type": "string",
                   "minLength": 1,
@@ -570,6 +573,9 @@
                   "items": {
                     "$ref": "#/$defs/grid"
                   }
+                },
+                "clipsContent": {
+                  "type": "boolean"
                 },
                 "fillToken": {
                   "type": "string",
