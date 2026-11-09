@@ -128,7 +128,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     if(spec.fill||spec.gradient||spec.paints||spec.shadow||spec.shadows||spec.effects)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     node=vector;
   } else if(spec.type==='image') {
-    const bytes=decodeBase64(spec.data,MAX_EMBEDDED_IMAGE_BYTES);const image=figma.createImage(bytes);const rectangle=figma.createRectangle();rectangle.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:spec.scaleMode??'FIT'}];node=rectangle;
+    const bytes=decodeBase64(spec.data,MAX_EMBEDDED_IMAGE_BYTES);const image=figma.createImage(bytes);const rectangle=figma.createRectangle();rectangle.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:spec.scaleMode??'FIT',...(spec.scaleMode==='CROP'&&spec.imageTransform?{imageTransform:spec.imageTransform}:{})}];node=rectangle;
   } else if(spec.type==='instance') {
     const component=control.components.get(spec.componentRef);
     if(!component||component.removed)throw new Error(`COMPONENT_NOT_FOUND: Component "${spec.componentRef}" must be created before its instance.`);
@@ -426,7 +426,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP','COMPONENT','INSTANCE','VECTOR'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0.`);
     const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number };
     const id=logicalIds.get(node.id)||`figma-${node.id}`;
-    let fill:string|undefined;let gradient:GradientSpec|undefined;let paints:PaintStackItemSpec[]|undefined;let imageData:{mimeType:'image/png'|'image/jpeg';data:string;scaleMode:'FIT'|'FILL'|'CROP'}|undefined;
+    let fill:string|undefined;let gradient:GradientSpec|undefined;let paints:PaintStackItemSpec[]|undefined;let imageData:{mimeType:'image/png'|'image/jpeg';data:string;scaleMode:'FIT'|'FILL'|'CROP';imageTransform?:Transform}|undefined;
     if('fills' in node){
       const fills=node.fills;if(fills===figma.mixed)throw new Error(`Layer "${node.name}" has mixed fills and cannot be exported losslessly.`);
       const visible=fills.filter(item=>item.visible!==false&&(item.opacity??1)>0);
@@ -445,7 +445,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         const bytes=await image.getBytesAsync();if(bytes.length>MAX_EMBEDDED_IMAGE_BYTES)throw new Error(`Image "${node.name}" exceeds the embedded export size limit.`);
         const mimeType=bytes[0]===137?'image/png':'image/jpeg';const info=validateRasterAsset(bytes,mimeType);
         if(info.mimeType!==mimeType)throw new Error(`Image "${node.name}" must be PNG or JPEG for portable export.`);
-        return {type:'image',mimeType,data:encodeBase64(bytes),scaleMode:item.scaleMode==='FILL'||item.scaleMode==='CROP'?item.scaleMode:'FIT',...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+        return {type:'image',mimeType,data:encodeBase64(bytes),scaleMode:item.scaleMode==='FILL'||item.scaleMode==='CROP'?item.scaleMode:'FIT',...(item.scaleMode==='CROP'&&item.imageTransform?{imageTransform:item.imageTransform}:{}),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
       };
       if(visible.length>1){
         if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='GRADIENT_RADIAL'&&item.type!=='GRADIENT_ANGULAR'&&item.type!=='GRADIENT_DIAMOND'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
@@ -457,7 +457,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         else if(paintItem?.type==='GRADIENT_RADIAL'||paintItem?.type==='GRADIENT_ANGULAR'||paintItem?.type==='GRADIENT_DIAMOND')paints=[await toStackItem(paintItem)];
         else if(paintItem?.type==='IMAGE'){
           if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1&&paintItem.scaleMode!=='TILE'){
-            const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT'};
+            const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT',...(encoded.imageTransform?{imageTransform:encoded.imageTransform}:{})};
           }else paints=[await toStackItem(paintItem)];
         }
         else if(paintItem)throw new Error(`Layer "${node.name}" uses unsupported ${paintItem.type.toLowerCase()} paint.`);
