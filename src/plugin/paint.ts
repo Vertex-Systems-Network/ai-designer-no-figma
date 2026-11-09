@@ -6,7 +6,7 @@ function rgb(hex: string): RGB {
 }
 
 function linearGradient(spec:GradientSpec,opacity=1):GradientPaint {
-  const transform:Transform=spec.direction==='horizontal'?[[1,0,0],[0,1,0]]:[[0,-1,1],[1,0,0]];
+  const transform:Transform=spec.transform??(spec.direction==='horizontal'?[[1,0,0],[0,1,0]]:[[0,-1,1],[1,0,0]]);
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
 }
 
