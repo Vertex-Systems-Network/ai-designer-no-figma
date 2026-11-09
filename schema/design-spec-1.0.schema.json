@@ -377,6 +377,17 @@
         }
       }
     },
+    "cornerRadii": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topLeft", "topRight", "bottomRight", "bottomLeft"],
+      "properties": {
+        "topLeft": { "type": "number", "minimum": 0, "maximum": 10000 },
+        "topRight": { "type": "number", "minimum": 0, "maximum": 10000 },
+        "bottomRight": { "type": "number", "minimum": 0, "maximum": 10000 },
+        "bottomLeft": { "type": "number", "minimum": 0, "maximum": 10000 }
+      }
+    },
     "page": {
       "type": "object",
       "additionalProperties": false,
@@ -533,6 +544,8 @@
                 "clipsContent": {
                   "type": "boolean"
                 },
+                "cornerRadii": { "$ref": "#/$defs/cornerRadii" },
+                "cornerSmoothing": { "type": "number", "minimum": 0, "maximum": 1 },
                 "fillToken": {
                   "type": "string",
                   "minLength": 1,
@@ -577,6 +590,8 @@
                 "clipsContent": {
                   "type": "boolean"
                 },
+                "cornerRadii": { "$ref": "#/$defs/cornerRadii" },
+                "cornerSmoothing": { "type": "number", "minimum": 0, "maximum": 1 },
                 "fillToken": {
                   "type": "string",
                   "minLength": 1,
@@ -860,7 +875,9 @@
                     "CENTER",
                     "OUTSIDE"
                   ]
-                }
+                },
+                "cornerRadii": { "$ref": "#/$defs/cornerRadii" },
+                "cornerSmoothing": { "type": "number", "minimum": 0, "maximum": 1 }
               }
             }
           ]
