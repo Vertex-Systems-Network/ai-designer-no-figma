@@ -30,7 +30,7 @@ Last source audit: 2026-11-09. Implementation evidence is in [`FEATURE-REGISTRY.
 ## Planned / blocked
 
 - Live Figma pairing and MCP-driven mutation, screenshot/visual validation, universal Figma compatibility layer and client-specific setup verification remain open.
-- A Figma Desktop session cannot be driven by the current executor; user-confirmed UI is not evidence for newly added export/undo features.
+- A Figma Desktop session cannot be driven by the current executor; user-confirmed UI is not evidence for newly added export/undo features. Real Ollama and client-specific MCP/generated-file access are also not available here.
 - Hidden-panel background work is scoped to the currently open Figma document and live plugin session. Closing Figma or the document terminates it; creating/opening a new Draft file automatically requires a separate local desktop runner and is not implemented.
 - The compatibility adapter isolates schema Auto Layout modes and primary-axis alignment against the locked Figma typings; other API mappings, Figma-version behavior, token modes, visual accessibility screenshot QA and live renderer preservation still need verification.
 
