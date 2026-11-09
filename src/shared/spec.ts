@@ -15,6 +15,7 @@ export type LayoutSpec = {
 export type GradientSpec = { direction: 'horizontal' | 'vertical'; transform?: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
 export type RadialGradientSpec = { transform: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
 export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'radial-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'angular-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'diamond-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number; opacity?:number };
+export type CornerRadiiSpec = { topLeft:number; topRight:number; bottomRight:number; bottomLeft:number };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 export type EffectSpec = { type: 'drop-shadow'|'inner-shadow'; color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number } | { type: 'layer-blur'|'background-blur'; blur: number } | { type:'progressive-layer-blur'; startRadius:number; endRadius:number; startOffset:{x:number;y:number}; endOffset:{x:number;y:number} } | { type:'progressive-background-blur'; startRadius:number; endRadius:number; startOffset:{x:number;y:number}; endOffset:{x:number;y:number} };
 export type ConstraintsSpec = { horizontal: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE'; vertical: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE' };
@@ -58,12 +59,12 @@ export type TextNodeSpec = BaseNode & {
   align?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
   textStyleToken?: string;
 };
-export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean }) | (BaseNode & { type: 'group'; children: DesignNodeSpec[]; layout?: LayoutSpec });
-export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean };
+export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean; cornerRadii?:CornerRadiiSpec; cornerSmoothing?:number }) | (BaseNode & { type: 'group'; children: DesignNodeSpec[]; layout?: LayoutSpec });
+export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean; cornerRadii?:CornerRadiiSpec; cornerSmoothing?:number };
 export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: string };
 export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
 export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number };
-export type ShapeNodeSpec = BaseNode & { type: 'rectangle' | 'ellipse'; stroke?: string; strokeOpacity?: number; strokeWidth?: number; strokeAlign?: 'INSIDE'|'CENTER'|'OUTSIDE' };
+export type ShapeNodeSpec = BaseNode & ({ type:'rectangle'; cornerRadii?:CornerRadiiSpec; cornerSmoothing?:number; stroke?:string; strokeOpacity?:number; strokeWidth?:number; strokeAlign?:'INSIDE'|'CENTER'|'OUTSIDE' }|{type:'ellipse';stroke?:string;strokeOpacity?:number;strokeWidth?:number;strokeAlign?:'INSIDE'|'CENTER'|'OUTSIDE'});
 export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeOpacity?:number; strokeWidth?: number };
 export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ImageNodeSpec | ShapeNodeSpec | LineNodeSpec;
 export type DesignSystemSpec = { name?: string; colors?: ColorTokenSpec[]; typography?: TextStyleTokenSpec[] };
@@ -129,14 +130,14 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','constraints','fillToken'],
+    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
     group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','constraints','fillToken'],
-    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','constraints','fillToken'],
+    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
     instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
     vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
     image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','imageTransform','scalingFactor','constraints'],
     text: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
-    rectangle: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
+    rectangle: ['type','id','name','x','y','width','height','fill','radius','cornerRadii','cornerSmoothing','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     ellipse: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     line: ['type','id','name','x','y','width','height','fill','radius','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
   };
@@ -148,6 +149,9 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (depth > MAX_DEPTH) { issues.push({ path, message: `Layer depth exceeds ${MAX_DEPTH}.` }); return; }
     addId(node.id, `${path}.id`);
     for (const key of Object.keys(node)) if (!allowed[node.type].includes(key)) issues.push({ path: `${path}.${key}`, message: 'Unsupported property.' });
+    if(node.radius!==undefined&&'cornerRadii' in node&&node.cornerRadii!==undefined)issues.push({path:`${path}.cornerRadii`,message:'Use radius or cornerRadii, not both.'});
+    if('cornerRadii' in node&&node.cornerRadii&&Object.entries(node.cornerRadii).some(([,value])=>!Number.isFinite(value)||value<0||value>10000))issues.push({path:`${path}.cornerRadii`,message:'Corner radii must be between 0 and 10,000.'});
+    if('cornerSmoothing' in node&&node.cornerSmoothing!==undefined&&(!Number.isFinite(node.cornerSmoothing)||node.cornerSmoothing<0||node.cornerSmoothing>1))issues.push({path:`${path}.cornerSmoothing`,message:'Corner smoothing must be between 0 and 1.'});
     if ((node.type==='rectangle'||node.type==='ellipse'||node.type==='line') && node.strokeOpacity!==undefined && !node.stroke) issues.push({path:`${path}.strokeOpacity`,message:'strokeOpacity requires a stroke color.'});
     if (node.fillToken && !colors.has(node.fillToken)) issues.push({ path: `${path}.fillToken`, message: `Unknown color token: ${node.fillToken}` });
     if (node.paints && (node.fill !== undefined || node.gradient !== undefined)) issues.push({ path: `${path}.paints`, message: 'Use either paints or the legacy fill/gradient fields, not both.' });
