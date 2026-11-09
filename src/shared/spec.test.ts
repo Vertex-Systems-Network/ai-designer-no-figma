@@ -69,6 +69,15 @@ describe('design specification validation', () => {
     const conflicted=structuredClone(spec);const target=conflicted.pages[0]!.children[0]!.type==='frame'?conflicted.pages[0]!.children[0]!.children[0]:undefined;if(target?.type!=='rectangle')throw new Error('fixture rectangle expected');target.shadow={color:'#000000',opacity:.2,offsetX:0,offsetY:2,blur:6};
     expect(validateDesignSpec(conflicted).issues.some(issue=>issue.path.endsWith('.effects'))).toBe(true);
   });
+  it('validates bounded rectangle and ellipse stroke settings',()=>{
+    const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');
+    frame.children=[{type:'rectangle',id:'outlined-card',name:'Outlined card',width:120,height:80,stroke:'#087A55',strokeOpacity:.65,strokeWidth:2,strokeAlign:'INSIDE'},{type:'ellipse',id:'outlined-dot',name:'Outlined marker',width:24,height:24,stroke:'#111111',strokeAlign:'OUTSIDE'}];
+    expect(validateDesignSpec(spec).valid).toBe(true);
+    const invalid=structuredClone(spec);const rect=invalid.pages[0]!.children[0]!.type==='frame'?invalid.pages[0]!.children[0]!.children[0]:undefined;if(rect?.type!=='rectangle')throw new Error('shape fixture expected');rect.strokeOpacity=1.2;
+    expect(validateDesignSpec(invalid).valid).toBe(false);
+    const orphan=structuredClone(spec);const orphanRect=orphan.pages[0]!.children[0]!.type==='frame'?orphan.pages[0]!.children[0]!.children[0]:undefined;if(orphanRect?.type!=='rectangle')throw new Error('shape fixture expected');delete orphanRect.stroke;orphanRect.strokeOpacity=.4;
+    expect(validateDesignSpec(orphan).issues.some(issue=>issue.path.endsWith('.strokeOpacity'))).toBe(true);
+  });
   it('validates progressive blur radius and normalized endpoint bounds',()=>{
     const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');frame.children=[{type:'rectangle',id:'progressive-blur',name:'Progressive blur',width:120,height:80,effects:[{type:'progressive-layer-blur',startRadius:2,endRadius:18,startOffset:{x:.1,y:.2},endOffset:{x:.9,y:.8}}]}];
     expect(validateDesignSpec(spec).valid).toBe(true);
