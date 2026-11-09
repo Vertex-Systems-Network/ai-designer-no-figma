@@ -20,7 +20,7 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 | 2 · Figma plugin and renderer | `███████████████████░` 99% | IN PROGRESS | Live native renderer verification; other unsupported effect variants |
 | 3 · Specification and validation | `███████████████████░` 99% | IN PROGRESS | Live image/render check and full metadata round-trip across supported gradient and progressive-blur variants |
 | 4 · AI integration | `████████████████░░░░` 80% | IN PROGRESS | Additional client interoperability and live local-model checks |
-| 5 · Selection editing | `██████████████████░░` 90% | IN PROGRESS | Live instance replacement, undo and preservation verification |
+| 5 · Selection editing | `███████████████████░` 95% | IN PROGRESS | Live crop/replacement, instance replacement, undo and preservation verification |
 | 6 · Design system | `███████████████████░` 93% | IN PROGRESS | Live verification of native Variables/styles and broader token round-trip |
 | 7 · Application UI | `██████████████████░░` 90% | IN PROGRESS | Pairing/activity/asset UI needs Figma live confirmation and accessibility review |
 | 8 · Testing and hardening | `███████████████████░` 99% | IN PROGRESS | Live Figma renderer/preservation and real local-model checks remain environment-dependent |
@@ -52,7 +52,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 |---|---|---|
 | Create/open a new Draft file and work after Figma/plugin closure | BLOCKED · NOT IMPLEMENTED | Current plugin sessions end when Figma or the open document closes. A supported desktop automation runner and a Windows Figma session are required. |
 | Export unsupported gradient/effect variants | OPEN | Solid, linear, radial, angular and diamond gradients plus embedded PNG/JPEG paints (up to 8 ordered fills), four-entry drop/inner-shadow, normal and progressive blur effect stacks, and component swaps are implemented. Other unsupported effects still fail explicitly. |
-| Image crop/reposition controls | OPEN | Existing image fill replacement is implemented with scale/opacity preservation and patch rollback. Per-image crop/reposition editing remains unimplemented. |
+| Image crop/reposition controls | IMPLEMENTED · AUTOMATED VERIFIED | Edit supports Fill/Fit and a validated Figma 2×3 affine crop/reposition transform; the selected image paint is preserved and patch rollback restores its prior fills. Live Figma visual verification remains NOT TESTED. |
 | Verify generation with a real local Ollama model | NOT TESTED | No Ollama endpoint or installed model is available in this executor; the fake-server suite only verifies the stream contract. |
 | Run screenshot-based responsive/accessibility review | NOT TESTED | Needs a live Figma renderer or a browser build with realistic Figma host mocks; no rendered screenshot is claimed. |
 | Verify per-client MCP and generated-file access | NOT VERIFIED | Client-specific local MCP launch, file discovery, and tool use need separate tests in Claude/Codex/Cursor/Gemini. |
