@@ -41,7 +41,7 @@ Completed engineering rows have been removed. Remaining work is split between li
 | Pair Claude and run a hidden-panel job | NOT TESTED | Confirm background bridge response and Agent Activity in the signed-in desktop session. |
 | Export selected design and re-import it | NOT TESTED | Confirm supported node, paint, token and layout data round-trips in live Figma. |
 | Save, reload and reuse SVG/raster assets | NOT TESTED | Confirm local library persistence and native asset insertion in Figma. |
-| Patch, Auto Layout, instance replacement, undo and sibling preservation | NOT TESTED | Confirm only intended layers change and rollback restores the selection. |
+| Image replacement, patch, Auto Layout, instance replacement, undo and sibling preservation | NOT TESTED | Confirm only intended layers change and rollback restores the selection. |
 | Preview → AI review → patch → recapture | NOT TESTED | Confirm actual preview image reaches Claude and a repair cycle works. |
 
 Live rows are not treated as passes based on mocks. There are also unfinished engineering/environment tasks; they remain visible below rather than being counted as completed.
@@ -52,6 +52,7 @@ Live rows are not treated as passes based on mocks. There are also unfinished en
 |---|---|---|
 | Create/open a new Draft file and work after Figma/plugin closure | BLOCKED · NOT IMPLEMENTED | Current plugin sessions end when Figma or the open document closes. A supported desktop automation runner and a Windows Figma session are required. |
 | Export unsupported gradient/effect variants | OPEN | Solid, linear, radial, angular and diamond gradients plus embedded PNG/JPEG paints (up to 8 ordered fills), four-entry drop/inner-shadow, normal and progressive blur effect stacks, and component swaps are implemented. Other unsupported effects still fail explicitly. |
+| Image crop/reposition controls | OPEN | Existing image fill replacement is implemented with scale/opacity preservation and patch rollback. Per-image crop/reposition editing remains unimplemented. |
 | Verify generation with a real local Ollama model | NOT TESTED | No Ollama endpoint or installed model is available in this executor; the fake-server suite only verifies the stream contract. |
 | Run screenshot-based responsive/accessibility review | NOT TESTED | Needs a live Figma renderer or a browser build with realistic Figma host mocks; no rendered screenshot is claimed. |
 | Verify per-client MCP and generated-file access | NOT VERIFIED | Client-specific local MCP launch, file discovery, and tool use need separate tests in Claude/Codex/Cursor/Gemini. |
