@@ -52,9 +52,11 @@ describe('design specification validation', () => {
     frame.children=[{type:'rectangle',id:'paint-stack',name:'Layered accent',width:80,height:40,paints:[
       {type:'solid',color:'#0D8A60',opacity:.8},
       {type:'linear-gradient',gradient:{direction:'horizontal',stops:[{position:0,color:'#FFFFFF'},{position:1,color:'#000000'}]},opacity:.45},
-      {type:'image',mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'FILL',opacity:.9},
+      {type:'image',mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'CROP',imageTransform:[[.8,0,.1],[0,.8,-.1]],opacity:.9},
     ]}];
     expect(validateDesignSpec(spec).valid).toBe(true);
+    const singularPaint=structuredClone(spec);const painted=singularPaint.pages[0]!.children[0]!.type==='frame'?singularPaint.pages[0]!.children[0]!.children[0]:undefined;if(painted?.type!=='rectangle'||painted.paints?.[2]?.type!=='image')throw new Error('image paint fixture expected');painted.paints[2].imageTransform=[[1,0,0],[2,0,0]];
+    expect(validateDesignSpec(singularPaint).issues.some(issue=>issue.path.endsWith('imageTransform')&&issue.message.includes('invertible'))).toBe(true);
     const invalidImage=structuredClone(spec);const imageRect=invalidImage.pages[0]!.children[0]!.type==='frame'?invalidImage.pages[0]!.children[0]!.children[0]:undefined;if(imageRect?.type!=='rectangle')throw new Error('fixture rectangle expected');imageRect.paints![2]={type:'image',mimeType:'image/jpeg',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='};
     expect(validateDesignSpec(invalidImage).valid).toBe(false);
     const mixed=structuredClone(spec);const rect=mixed.pages[0]!.children[0]!.type==='frame'?mixed.pages[0]!.children[0]!.children[0]:undefined;if(rect?.type!=='rectangle')throw new Error('fixture rectangle expected');rect.fill='#FFFFFF';
@@ -129,7 +131,7 @@ describe('design specification validation', () => {
     const extended:DesignSpec={schemaVersion:'1.0',name:'Extended',designSystem:{name:'Acme',colors:[{name:'Brand/Primary',color:'#087A55'}],typography:[{name:'Heading',fontFamily:'Inter',fontSize:28,fontWeight:700,lineHeight:34,paragraphSpacing:6,letterSpacing:{unit:'PERCENT',value:2},textDecoration:'NONE',textCase:'TITLE'}]},pages:[{id:'p-ext',name:'Desktop',children:[
       {type:'frame',id:'frame-ext',name:'Responsive frame',width:1440,height:900,fillToken:'Brand/Primary',constraints:{horizontal:'STRETCH',vertical:'MIN'},layoutGrids:[{pattern:'COLUMNS',count:12,gutterSize:24,alignment:'STRETCH'},{pattern:'GRID',sectionSize:8}],children:[
         {type:'text',id:'heading-ext',name:'Page heading',width:500,height:40,text:'Overview',textStyleToken:'Heading',fontSize:28,fillToken:'Brand/Primary'},
-        {type:'image',id:'image-ext',name:'Product image',width:1,height:1,mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'FIT'},
+        {type:'image',id:'image-ext',name:'Product image',width:1,height:1,mimeType:'image/png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',scaleMode:'CROP',imageTransform:[[1,0,.1],[0,1,-.2]]},
       ]},
     ]}]};
     expect(validateDesignSpec(extended).valid).toBe(true);
@@ -138,6 +140,10 @@ describe('design specification validation', () => {
     expect(validateDesignSpec(invalid).issues.some(issue=>issue.message.includes('Unknown text style token'))).toBe(true);
     const mismatch=structuredClone(extended);const image=mismatch.pages[0]!.children[0]!.type==='frame'?mismatch.pages[0]!.children[0]!.children[1]:undefined;if(image?.type==='image')image.mimeType='image/jpeg';
     expect(validateDesignSpec(mismatch).issues.some(issue=>issue.message.includes('MIME type mismatch'))).toBe(true);
+    const singular=structuredClone(extended);const imageNode=singular.pages[0]!.children[0]!.type==='frame'?singular.pages[0]!.children[0]!.children[1]:undefined;if(imageNode?.type==='image')imageNode.imageTransform=[[1,0,0],[2,0,0]];
+    expect(validateDesignSpec(singular).issues.some(issue=>issue.path.endsWith('imageTransform')&&issue.message.includes('invertible'))).toBe(true);
+    const wrongMode=structuredClone(extended);const wrongImage=wrongMode.pages[0]!.children[0]!.type==='frame'?wrongMode.pages[0]!.children[0]!.children[1]:undefined;if(wrongImage?.type==='image')wrongImage.scaleMode='FIT';
+    expect(validateDesignSpec(wrongMode).issues.some(issue=>issue.path.endsWith('imageTransform')&&issue.message.includes('only for CROP'))).toBe(true);
   });
   it('reports invalid JSON syntax', () => expect(parseDesignSpec('{broken').issues[0]?.message).toMatch(/syntax/i));
   it('accepts a JSON code block pasted from an external AI chat', () => {
