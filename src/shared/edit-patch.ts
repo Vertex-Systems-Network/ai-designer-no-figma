@@ -24,7 +24,7 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
     const op = item as Record<string, unknown>;
     const allowedKeys = ['op', 'targetId', 'value'];
     if (Object.keys(op).some((key) => !allowedKeys.includes(key)) || Object.keys(op).length !== 3) return { valid: false, message: `${path} must contain only op, targetId, and value.` };
-    if (!['set-text', 'set-fill', 'rename', 'set-bounds', 'set-auto-layout','swap-component','replace-image'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
+    if (!['set-text', 'set-fill', 'rename', 'set-bounds', 'set-auto-layout','swap-component','replace-image','set-image-crop'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
     if (typeof op.targetId !== 'string' || !op.targetId || op.targetId.length > 200) return { valid: false, message: `${path}.targetId must be a non-empty string.` };
     if (allowedIds && !allowedIds.has(op.targetId)) return { valid: false, message: `${path}.targetId is not present in the current selection.` };
     if (op.op === 'set-bounds') {
@@ -48,6 +48,19 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
       const image=op.value as Record<string,unknown>;
       if(Object.keys(image).length!==2||!['mimeType','data'].every(key=>key in image)||!['image/png','image/jpeg'].includes(String(image.mimeType))||typeof image.data!=='string')return{valid:false,message:`${path}.value must contain only a PNG/JPEG mimeType and base64 data.`};
       try{const bytes=decodeBase64(image.data,MAX_PATCH_IMAGE_BYTES);validateRasterAsset(bytes,String(image.mimeType));}catch(error){return{valid:false,message:`${path}.value image is invalid: ${error instanceof Error?error.message:'invalid raster data'}`};}
+      continue;
+    }
+    if(op.op==='set-image-crop'){
+      if(!op.value||typeof op.value!=='object'||Array.isArray(op.value))return{valid:false,message:`${path}.value must contain a scaleMode and, for CROP, an imageTransform.`};
+      const crop=op.value as Record<string,unknown>;
+      if(!['FILL','FIT','CROP'].includes(String(crop.scaleMode)))return{valid:false,message:`${path}.value.scaleMode must be FILL, FIT, or CROP.`};
+      if(crop.scaleMode!=='CROP'){
+        if(Object.keys(crop).length!==1)return{valid:false,message:`${path}.value may contain only scaleMode for FILL or FIT.`};
+      }else{
+        if(Object.keys(crop).length!==2||!Array.isArray(crop.imageTransform)||crop.imageTransform.length!==2||!crop.imageTransform.every(row=>Array.isArray(row)&&row.length===3&&row.every(value=>typeof value==='number'&&Number.isFinite(value)&&Math.abs(value)<=10)))return{valid:false,message:`${path}.value.imageTransform must be a finite 2×3 matrix with values within ±10.`};
+        const matrix=crop.imageTransform as [[number,number,number],[number,number,number]];const determinant=matrix[0][0]*matrix[1][1]-matrix[0][1]*matrix[1][0];
+        if(Math.abs(determinant)<0.0001||Math.abs(determinant)>100)return{valid:false,message:`${path}.value.imageTransform must be invertible with a bounded scale.`};
+      }
       continue;
     }
     if(op.op==='swap-component'){
