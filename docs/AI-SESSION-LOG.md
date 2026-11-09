@@ -1,5 +1,10 @@
 # AI session log
 
+## 2026-11-09 — radial gradient stacks
+
+- Added schema-validated radial gradient paint items with bounded, invertible affine transforms. Figma rendering creates native radial gradient paints; selected-tree export preserves transform, ordered stops, stop alpha and paint opacity.
+- `npm run release:verify` passes with 70 unit and 17 integration tests, typecheck, lint, local audit, production build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. Angular/diamond gradients and live Figma visual round-trip remain NOT TESTED.
+
 ## 2026-11-09 — affine linear-gradient round-trip
 
 - Added bounded 2×3 affine transforms to linear-gradient specifications, preserving diagonal and rotated Figma linear gradients in paint stacks and legacy single-gradient fields. Renderer applies the supplied transform and exporter serializes it instead of rejecting transformed linear gradients.
