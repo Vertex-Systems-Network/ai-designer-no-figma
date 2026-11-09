@@ -59,6 +59,17 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('combines a paint type unsupported by portable export');
   });
 
+  it('imports and exports text case, decoration and letter spacing',()=>{
+    expect(hostSource).toContain('text.letterSpacing=spec.letterSpacing');
+    expect(hostSource).toContain('text.textDecoration=spec.textDecoration');
+    expect(hostSource).toContain('text.textCase=spec.textCase');
+    expect(hostSource).toContain('style.letterSpacing=token.letterSpacing');
+    expect(hostSource).toContain('style.textDecoration=token.textDecoration');
+    expect(hostSource).toContain('style.textCase=token.textCase');
+    expect(hostSource).toContain('has mixed character styling');
+    expect(hostSource).toContain('letterSpacing:{unit:node.letterSpacing.unit,value:node.letterSpacing.value}');
+  });
+
   it('renders solid rectangle/ellipse strokes and exports losslessly supported outline metadata',()=>{
     expect(hostSource).toContain('node.strokes=[paint(spec.stroke,spec.strokeOpacity??1)]');
     expect(hostSource).toContain("node.strokeAlign=spec.strokeAlign??'CENTER'");
