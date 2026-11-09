@@ -1,3 +1,8 @@
+## 2026-11-09 — text style fidelity
+
+- Added validated letter spacing in pixel/percent units, text case and text decoration to schema 1.0. Import applies native Figma typography properties; selected export preserves uniform values and rejects mixed per-character styling it cannot represent.
+- Prompt guidance and regression coverage updated. Release verification passes with 78 unit and 17 integration tests, typecheck, lint, local security audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256 recorded in artifacts/SHA256SUMS.txt. Live Figma typography rendering remains NOT TESTED.
+
 ## 2026-11-09 — native shape outlines
 
 - Added bounded rectangle/ellipse stroke color, opacity, weight, and alignment to schema 1.0. The Figma renderer creates native editable strokes and selected-tree export preserves a supported single solid stroke; unsupported multiple/blended strokes fail explicitly.
