@@ -13,7 +13,8 @@ export type LayoutSpec = {
   counterAxisSizing?: 'AUTO' | 'FIXED';
 };
 export type GradientSpec = { direction: 'horizontal' | 'vertical'; transform?: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
-export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'; opacity?:number };
+export type RadialGradientSpec = { transform: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
+export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'radial-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'; opacity?:number };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 export type EffectSpec = { type: 'drop-shadow'|'inner-shadow'; color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number } | { type: 'layer-blur'|'background-blur'; blur: number };
 export type ConstraintsSpec = { horizontal: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE'; vertical: 'MIN'|'CENTER'|'MAX'|'STRETCH'|'SCALE' };
@@ -158,7 +159,13 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (node.type === 'instance' && !componentIds.has(node.componentRef)) issues.push({ path: `${path}.componentRef`, message: `Component reference "${node.componentRef}" must point to a component declared earlier in the document.` });
     if (node.type === 'vector' && (!node.path.trim() || node.path.length > 8192 || !/^[\sMmLlHhVvCcSsQqTtAaZz0-9.,+\-]+$/.test(node.path) || !/[Mm]/.test(node.path))) issues.push({ path: `${path}.path`, message: 'Vector path must be a bounded SVG path using standard path commands and numbers only.' });
     if (node.gradient && (node.gradient.stops.length < 2 || node.gradient.stops.some((stop, index) => index > 0 && stop.position < node.gradient!.stops[index - 1]!.position))) issues.push({ path: `${path}.gradient.stops`, message: 'Gradient needs at least two stops ordered by position.' });
-    if (node.paints?.some((item) => item.type === 'linear-gradient' && (item.gradient.stops.length < 2 || item.gradient.stops.some((stop,index)=>index>0&&stop.position<item.gradient.stops[index-1]!.position)))) issues.push({ path: `${path}.paints`, message: 'Each linear gradient needs at least two stops ordered by position.' });
+    const validStops=(stops:Array<{position:number}>):boolean=>stops.length>=2&&!stops.some((stop,index)=>index>0&&stop.position<stops[index-1]!.position);
+    const validTransform=(matrix:[[number,number,number],[number,number,number]]):boolean=>Math.abs(matrix[0][0]*matrix[1][1]-matrix[0][1]*matrix[1][0])>1e-6;
+    if(node.gradient?.transform&&!validTransform(node.gradient.transform))issues.push({path:`${path}.gradient.transform`,message:'Gradient transform must be invertible.'});
+    node.paints?.forEach((item,index)=>{
+      if(item.type==='linear-gradient'&&(!validStops(item.gradient.stops)||(item.gradient.transform&&!validTransform(item.gradient.transform))))issues.push({path:`${path}.paints[${index}].gradient`,message:'Linear gradient needs ordered stops and an invertible optional transform.'});
+      if(item.type==='radial-gradient'&&(!validStops(item.gradient.stops)||!validTransform(item.gradient.transform)))issues.push({path:`${path}.paints[${index}].gradient`,message:'Radial gradient needs ordered stops and an invertible transform.'});
+    });
     node.paints?.forEach((item,index)=>{if(item.type!=='image')return;try{const bytes=decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES);const image=validateRasterAsset(bytes,item.mimeType);if(image.mimeType!==item.mimeType)issues.push({path:`${path}.paints[${index}].mimeType`,message:'Image MIME type does not match its data.'});}catch(error){issues.push({path:`${path}.paints[${index}].data`,message:error instanceof Error?error.message:'Invalid embedded image paint.'});}});
   };
   spec.pages.forEach((page, p) => {
