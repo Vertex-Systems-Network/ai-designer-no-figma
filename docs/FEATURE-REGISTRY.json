@@ -122,7 +122,7 @@
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "Live Figma round-trip is NOT TESTED. Export preserves solid and linear-gradient stacks up to eight layers; it rejects progressive blur, other unsupported gradients/effects, unresolved token modes and inaccessible component sources."
+        "Live Figma round-trip is NOT TESTED. Export preserves solid and linear-gradient stacks up to eight layers; it rejects other unsupported gradients/effects, unresolved token modes and inaccessible component sources."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
