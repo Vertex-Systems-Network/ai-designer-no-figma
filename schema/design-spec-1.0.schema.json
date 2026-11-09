@@ -91,6 +91,13 @@
             "vertical"
           ]
         },
+        "transform": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "items": {
+            "type": "array", "minItems": 3, "maxItems": 3,
+            "items": { "type": "number", "minimum": -100, "maximum": 100 }
+          }
+        },
         "stops": {
           "type": "array",
           "minItems": 2,
