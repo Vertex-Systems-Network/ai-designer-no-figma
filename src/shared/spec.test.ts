@@ -62,6 +62,13 @@ describe('design specification validation', () => {
     const oversized=structuredClone(spec);const oversizedRect=oversized.pages[0]!.children[0]!.type==='frame'?oversized.pages[0]!.children[0]!.children[0]:undefined;if(oversizedRect?.type!=='rectangle')throw new Error('fixture rectangle expected');oversizedRect.paints=Array.from({length:9},()=>({type:'solid' as const,color:'#FFFFFF'}));
     expect(validateDesignSpec(oversized).valid).toBe(false);
   });
+  it('accepts bounded native inner-shadow and blur effect stacks',()=>{
+    const spec=structuredClone(valid);const frame=spec.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');
+    frame.children=[{type:'rectangle',id:'native-effects',name:'Blurred card',width:120,height:80,effects:[{type:'inner-shadow',color:'#000000',opacity:.2,offsetX:0,offsetY:2,blur:6},{type:'layer-blur',blur:4},{type:'background-blur',blur:12}]}];
+    expect(validateDesignSpec(spec).valid).toBe(true);
+    const conflicted=structuredClone(spec);const target=conflicted.pages[0]!.children[0]!.type==='frame'?conflicted.pages[0]!.children[0]!.children[0]:undefined;if(target?.type!=='rectangle')throw new Error('fixture rectangle expected');target.shadow={color:'#000000',opacity:.2,offsetX:0,offsetY:2,blur:6};
+    expect(validateDesignSpec(conflicted).issues.some(issue=>issue.path.endsWith('.effects'))).toBe(true);
+  });
   it('rejects unknown component references and unsafe vector path content', () => {
     const bad = structuredClone(valid);
     bad.pages[0]!.children = [
