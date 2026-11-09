@@ -58,8 +58,8 @@ export type TextNodeSpec = BaseNode & {
   align?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED';
   textStyleToken?: string;
 };
-export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[] }) | (BaseNode & { type: 'group'; children: DesignNodeSpec[]; layout?: LayoutSpec });
-export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[] };
+export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean }) | (BaseNode & { type: 'group'; children: DesignNodeSpec[]; layout?: LayoutSpec });
+export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean };
 export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: string };
 export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
 export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number };
@@ -129,9 +129,9 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     seen.add(id);
   };
   const allowed: Record<DesignNodeSpec['type'], string[]> = {
-    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','constraints','fillToken'],
+    frame: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','constraints','fillToken'],
     group: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','constraints','fillToken'],
-    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','constraints','fillToken'],
+    component: ['type','id','name','x','y','width','height','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','constraints','fillToken'],
     instance: ['type','id','name','x','y','width','height','opacity','componentRef','constraints'],
     vector: ['type','id','name','x','y','width','height','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
     image: ['type','id','name','x','y','width','height','opacity','mimeType','data','scaleMode','imageTransform','scalingFactor','constraints'],
