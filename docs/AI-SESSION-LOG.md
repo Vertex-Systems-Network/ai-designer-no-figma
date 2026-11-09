@@ -1,5 +1,10 @@
 # AI session log
 
+## 2026-11-09 — bounded paint-stack import/export
+
+- Added a schema-validated `paints` stack for solid and linear-gradient fills, preserving Figma paint order and independent opacity on import/export.
+- Schema, renderer, export and host regression tests pass; live Figma visual round-trip remains NOT TESTED.
+
 ## 2026-11-09 — advanced native design nodes
 
 - Added schema 1.0 support and bounded validation for reusable components/instances, SVG path vectors, linear gradients, and drop shadows. Components must be declared before instances; unsafe path syntax and out-of-order gradient stops are rejected.
