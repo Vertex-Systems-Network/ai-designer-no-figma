@@ -25,6 +25,21 @@ function rgb(hex: string): RGB {
   const value = hex.replace('#', '');
   return { r: parseInt(value.slice(0, 2), 16) / 255, g: parseInt(value.slice(2, 4), 16) / 255, b: parseInt(value.slice(4, 6), 16) / 255 };
 }
+type CornerStyleSpec={radius?:number;cornerRadii?:{topLeft:number;topRight:number;bottomRight:number;bottomLeft:number};cornerSmoothing?:number};
+function applyCornerStyle(node:SceneNode,spec:CornerStyleSpec):void{
+  const target=node as SceneNode&{cornerRadius?:number|PluginAPI['mixed'];cornerSmoothing?:number;topLeftRadius?:number;topRightRadius?:number;bottomRightRadius?:number;bottomLeftRadius?:number};
+  if(spec.radius!==undefined&&'cornerRadius' in node)target.cornerRadius=spec.radius;
+  if(spec.cornerRadii&&target.topLeftRadius!==undefined&&target.topRightRadius!==undefined&&target.bottomRightRadius!==undefined&&target.bottomLeftRadius!==undefined){target.topLeftRadius=spec.cornerRadii.topLeft;target.topRightRadius=spec.cornerRadii.topRight;target.bottomRightRadius=spec.cornerRadii.bottomRight;target.bottomLeftRadius=spec.cornerRadii.bottomLeft;}
+  if(spec.cornerSmoothing!==undefined&&target.cornerSmoothing!==undefined)target.cornerSmoothing=spec.cornerSmoothing;
+}
+function exportCornerStyle(node:SceneNode):CornerStyleSpec{
+  const target=node as SceneNode&{cornerRadius?:number|PluginAPI['mixed'];cornerSmoothing?:number;topLeftRadius?:number;topRightRadius?:number;bottomRightRadius?:number;bottomLeftRadius?:number};
+  const result:CornerStyleSpec={};
+  if(typeof target.topLeftRadius==='number'&&typeof target.topRightRadius==='number'&&typeof target.bottomRightRadius==='number'&&typeof target.bottomLeftRadius==='number'){const topLeft=target.topLeftRadius,topRight=target.topRightRadius,bottomRight=target.bottomRightRadius,bottomLeft=target.bottomLeftRadius;if(topLeft===topRight&&topRight===bottomRight&&bottomRight===bottomLeft)result.radius=topLeft;else result.cornerRadii={topLeft,topRight,bottomRight,bottomLeft};}
+  else if(typeof target.cornerRadius==='number')result.radius=target.cornerRadius;
+  if(typeof target.cornerSmoothing==='number'&&target.cornerSmoothing!==0)result.cornerSmoothing=target.cornerSmoothing;
+  return result;
+}
 function paint(hex: string, opacity=1): SolidPaint { return { type: 'SOLID', color: rgb(hex), opacity }; }
 
 type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode>; colors: Map<string,{variable:Variable;color:string}>; textStyles: Map<string,TextStyle> };
@@ -112,7 +127,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   } else if (spec.type === 'rectangle') {
     node = figma.createRectangle();
     if (spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
-    if (spec.radius !== undefined) node.cornerRadius = spec.radius;
+    applyCornerStyle(node,spec);
     if (spec.stroke) { node.strokes=[paint(spec.stroke,spec.strokeOpacity??1)]; node.strokeWeight=spec.strokeWidth??1; node.strokeAlign=spec.strokeAlign??'CENTER'; }
   } else if (spec.type === 'ellipse') {
     node = figma.createEllipse();
@@ -154,7 +169,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   if (spec.type==='frame'||spec.type==='group'||spec.type==='component') {
     applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if(spec.type==='frame'||spec.type==='component')(node as FrameNode).clipsContent=spec.clipsContent??false;
-    if(spec.radius!==undefined)(node as FrameNode).cornerRadius=spec.radius;
+    applyCornerStyle(node,spec);
     if(spec.type==='component')control.components.set(spec.id,node as ComponentNode);
   }
   logicalIds.set(node.id, spec.id);
@@ -502,12 +517,12 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       return {...base,type:'instance',componentRef};
     }
     if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-      const radius = node.type === 'RECTANGLE' && typeof node.cornerRadius === 'number' ? node.cornerRadius : undefined;
+    const cornerStyle = node.type === 'RECTANGLE' ? exportCornerStyle(node) : {};
       const visibleStrokes=node.strokes.filter(item=>item.visible!==false&&(item.opacity??1)>0);
       if(visibleStrokes.length>1)throw new Error(`Layer "${node.name}" uses multiple strokes which schema 1.0 cannot preserve.`);
       const stroke=visibleStrokes[0];
       if(stroke&& (stroke.type!=='SOLID'||stroke.blendMode!=='NORMAL'))throw new Error(`Layer "${node.name}" uses a non-solid or blended stroke unsupported by portable export.`);
-      return { ...base, type:node.type === 'RECTANGLE'?'rectangle':'ellipse', ...(radius!==undefined?{radius}:{}), ...(stroke?.type==='SOLID'?{stroke:hexColor(stroke.color),...(stroke.opacity!==undefined&&stroke.opacity!==1?{strokeOpacity:stroke.opacity}:{})}:{}), ...(stroke&&typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}), ...(stroke?{strokeAlign:node.strokeAlign}:{}) };
+      return { ...base, type:node.type === 'RECTANGLE'?'rectangle':'ellipse', ...cornerStyle, ...(stroke?.type==='SOLID'?{stroke:hexColor(stroke.color),...(stroke.opacity!==undefined&&stroke.opacity!==1?{strokeOpacity:stroke.opacity}:{})}:{}), ...(stroke&&typeof node.strokeWeight==='number'?{strokeWidth:node.strokeWeight}:{}), ...(stroke?{strokeAlign:node.strokeAlign}:{}) };
     }
     if (node.type === 'LINE') {
       const visibleStrokes = node.strokes.filter((item) => item.visible !== false && (item.opacity ?? 1) > 0);
@@ -530,9 +545,9 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         if(semanticMode===undefined)throw new Error(`Frame "${node.name}" uses a Figma layout mode unknown to schema 1.0.`);
         if (frame.layoutMode !== 'NONE' && semanticAlignment===undefined) throw new Error(`Auto Layout frame "${node.name}" uses an alignment that schema 1.0 cannot preserve yet.`);
         const layout = frame.layoutMode === 'NONE' ? undefined : { mode:semanticMode==='horizontal'?'horizontal' as const:'vertical' as const, gap:frame.itemSpacing, padding:frame.paddingTop, alignment:semanticAlignment??'MIN', primaryAxisSizing:frame.primaryAxisSizingMode, counterAxisSizing:frame.counterAxisSizingMode };
-        const radius = typeof frame.cornerRadius === 'number' ? frame.cornerRadius : undefined;
+        const cornerStyle=exportCornerStyle(frame);
         const layoutGrids=node.type==='FRAME'?frame.layoutGrids.map(grid=>grid.pattern==='GRID'?{pattern:'GRID' as const,sectionSize:grid.sectionSize,...(grid.visible!==undefined?{visible:grid.visible}:{})}:{pattern:grid.pattern,...(grid.sectionSize!==undefined?{sectionSize:grid.sectionSize}:{}),gutterSize:grid.gutterSize,count:grid.count,...(grid.offset!==undefined?{offset:grid.offset}:{}),...(grid.alignment?{alignment:grid.alignment}:{}),...(grid.visible!==undefined?{visible:grid.visible}:{})}):undefined;
-        const frameBase={...base,...(layoutGrids?.length?{layoutGrids}:{}),...(radius!==undefined?{radius}:{}),...(frame.clipsContent?{clipsContent:true}:{})};
+        const frameBase={...base,...(layoutGrids?.length?{layoutGrids}:{}),...cornerStyle,...(frame.clipsContent?{clipsContent:true}:{})};
         if(node.type==='COMPONENT')return {...frameBase,type:'component',children,...(layout?{layout}:{})};
         return { ...frameBase, type:'frame', children, ...(layout?{layout}:{}) };
       }
