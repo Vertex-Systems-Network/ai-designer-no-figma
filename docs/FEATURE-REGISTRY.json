@@ -75,7 +75,7 @@
     {
       "id": "FIGMA-002",
       "name": "Selection inspection and edit patches",
-      "description": "Bounded selection inspection and targeted text, fill, rename, bounds and frame Auto Layout edits with up to 20 session undo checkpoints.",
+      "description": "Bounded selection inspection and targeted text, fill, rename, bounds, frame Auto Layout, and selected instance-to-component swaps with up to 20 session undo checkpoints.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
@@ -89,16 +89,18 @@
       "status": "PARTIAL",
       "testStatus": "VERIFIED",
       "tests": [
-        "src/shared/edit-patch.test.ts"
+        "src/shared/edit-patch.test.ts",
+        "src/shared/prompts.test.ts",
+        "src/plugin/host-runtime.test.ts"
       ],
       "knownIssues": [
-        "Live Figma preservation and Undo are not reverified."
+        "Live Figma preservation, component override behavior and Undo are not reverified."
       ],
       "priority": "P1",
       "releaseTarget": "0.2.0",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Reimport and verify targeted edits, Auto Layout, undo and unchanged sibling layers."
+      "lastModified": "2026-11-09",
+      "lastVerified": "2026-11-09",
+      "nextAction": "Reimport and verify targeted edits, component swap override/undo behavior and unchanged sibling layers."
     },
     {
       "id": "EXPORT-001",
