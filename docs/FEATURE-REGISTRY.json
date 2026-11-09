@@ -95,13 +95,13 @@
         "src/plugin/host-runtime.test.ts"
       ],
       "knownIssues": [
-        "Live Figma preservation, image replacement, component override behavior and Undo remain unverified; crop/reposition is not implemented."
+        "Live Figma preservation, image replacement/crop, component override behavior and Undo remain unverified."
       ],
       "priority": "P1",
       "releaseTarget": "0.2.0",
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
-      "nextAction": "Verify image replacement, targeted edits, component swap and Undo in live Figma; design safe crop/reposition semantics."
+      "nextAction": "Verify image replacement/crop, targeted edits, component swap and Undo in live Figma."
     },
     {
       "id": "EXPORT-001",
@@ -421,7 +421,7 @@
         "src/mcp/server.integration.test.ts"
       ],
       "knownIssues": [
-        "Live Figma insertion, paired bridge persistence and large MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred; replacement/crop operations are not implemented."
+        "Live Figma insertion, paired bridge persistence and large MCP transfer remain unverified; generated AI file retrieval varies by client and is not inferred. Image replacement/crop are targeted edit patches rather than standalone asset-import operations."
       ],
       "priority": "P1",
       "releaseTarget": "0.3.0",
