@@ -49,6 +49,7 @@
       "sourceFiles": [
         "src/plugin/code.ts",
         "src/plugin/paint.ts",
+        "src/plugin/export-compat.ts",
         "src/shared/spec.ts",
         "src/shared/assets.ts"
       ],
@@ -59,6 +60,7 @@
       "testStatus": "NOT TESTED",
       "tests": [
         "src/shared/assets.test.ts",
+        "src/plugin/export-compat.test.ts",
         "src/plugin/host-runtime.test.ts",
         "src/plugin/paint.test.ts",
         "src/shared/spec.test.ts"
@@ -106,10 +108,11 @@
     {
       "id": "EXPORT-001",
       "name": "Selected design export",
-      "description": "Export one selected supported layer tree to a validated design specification, preserving supported images, component references, vectors, gradients, effects, responsive layout and local token references.",
+      "description": "Export one selected supported layer tree to a validated design specification, preserving supported images, component references, vectors, gradients, effects, responsive layout and local token references; reject non-normal paint/effect/node blend modes that schema 1.0 cannot represent.",
       "module": "figma-plugin-adapter",
       "sourceFiles": [
         "src/plugin/code.ts",
+        "src/plugin/export-compat.ts",
         "src/ui/main.tsx",
         "src/shared/spec.ts"
       ],
@@ -120,10 +123,11 @@
       "testStatus": "NOT TESTED",
       "tests": [
         "src/plugin/host-runtime.test.ts",
+        "src/plugin/export-compat.test.ts",
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "Live Figma round-trip is NOT TESTED. Export preserves supported solid/gradient/image stacks up to eight layers, including crop transforms and tiled image scaling; it rejects unsupported effects, unresolved token modes and inaccessible component sources."
+        "Live Figma round-trip is NOT TESTED. Export preserves supported solid/gradient/image stacks up to eight layers, including crop transforms and tiled image scaling; unrepresented blend modes, unsupported effects, unresolved token modes and inaccessible component sources are rejected explicitly."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
