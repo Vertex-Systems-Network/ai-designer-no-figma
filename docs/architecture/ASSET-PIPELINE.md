@@ -10,7 +10,7 @@ Design prompts and AI responses are data. The plugin never evaluates model outpu
 - MCP bridge: a paired MCP client supplies SVG text or base64 image bytes. The server accepts raster files up to 5 MiB, sends files above 192 KiB as atomic batches of 64 KiB chunks, and validates before queueing. The plugin reassembles chunks, verifies SHA-256, validates again, inserts, and reads back the native node.
 - Results include the inserted node ID, media type, dimensions, and vector element count where applicable. The paired local bridge holds saved bytes and metadata in a private bounded file because this Figma runtime denies plugin and iframe storage.
 
-The supported import actions are standalone and are not design JSON schema nodes. Replacement, crop, direct vector path editing, resumable chunk uploads and automatic remote AI-client file access are not implemented.
+The supported import actions are standalone and are not design JSON schema nodes. Existing selected image fills support replacement and reviewed FILL/FIT/CROP mode changes. CROP accepts a bounded invertible 2×3 affine transform for position/scale; direct vector path editing, resumable chunk uploads and automatic remote AI-client file access are not implemented.
 
 ## SVG
 
