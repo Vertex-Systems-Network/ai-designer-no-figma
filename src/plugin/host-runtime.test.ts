@@ -16,6 +16,10 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('target.topLeftRadius=spec.cornerRadii.topLeft');
     expect(hostSource).toContain('target.cornerSmoothing=spec.cornerSmoothing');
   });
+  it('applies and exports native layer rotation',()=>{
+    expect(hostSource).toContain('if(spec.rotation!==undefined)node.rotation=spec.rotation');
+    expect(hostSource).toContain('supported.rotation!==0?{rotation:supported.rotation}:{}');
+  });
   it('preserves line stroke opacity and rejects lossy multiple strokes',()=>{
     expect(hostSource).toContain("assertSinglePortableStroke(node.name,visibleStrokes.length)");
     expect(hostSource).toContain("assertPortableBlendMode(node.name,'line stroke'");
