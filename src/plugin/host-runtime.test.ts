@@ -37,6 +37,11 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('must contain exactly one visible image fill to crop or reposition');
     expect(hostSource).toContain("else if(operation.op==='set-image-crop'&&'fills' in target");
   });
+  it('imports and exports image crop transforms through the design specification',()=>{
+    expect(hostSource).toContain("spec.scaleMode==='CROP'&&spec.imageTransform");
+    expect(hostSource).toContain("item.scaleMode==='CROP'&&item.imageTransform");
+    expect(hostSource).toContain('imageTransform:item.imageTransform');
+  });
 
   it('exports one selected frame as a bounded visual preview and selects the first rendered frame', () => {
     expect(hostSource).toContain("operation.type==='capture-selection'");
