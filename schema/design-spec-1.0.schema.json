@@ -865,7 +865,7 @@
           "type": "object", "additionalProperties": false,
           "required": ["type", "gradient"],
           "properties": {
-            "type": { "const": "radial-gradient" },
+            "type": { "enum": ["radial-gradient", "angular-gradient", "diamond-gradient"] },
             "gradient": { "$ref": "#/$defs/radialGradient" },
             "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
           }
