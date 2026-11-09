@@ -668,11 +668,17 @@
                   "enum": [
                     "FIT",
                     "FILL",
-                    "CROP"
+                    "CROP",
+                    "TILE"
                   ]
                 },
                 "imageTransform": {
                   "$ref": "#/$defs/imageTransform"
+                },
+                "scalingFactor": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 10
                 },
                 "fill": false,
                 "radius": false,
@@ -1200,11 +1206,17 @@
               "enum": [
                 "FIT",
                 "FILL",
-                "CROP"
+                "CROP",
+                "TILE"
               ]
             },
             "imageTransform": {
               "$ref": "#/$defs/imageTransform"
+            },
+            "scalingFactor": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10
             },
             "opacity": {
               "type": "number",
