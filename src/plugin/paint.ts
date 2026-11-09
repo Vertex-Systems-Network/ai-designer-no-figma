@@ -10,10 +10,12 @@ function linearGradient(spec:GradientSpec,opacity=1):GradientPaint {
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
 }
 
-export function buildPaintStack(specs:PaintStackItemSpec[]):Paint[] {
+export function buildPaintStack(specs:PaintStackItemSpec[],resolveImageHash?:(spec:Extract<PaintStackItemSpec,{type:'image'}>)=>string):Paint[] {
   return specs.map(spec=>spec.type==='solid'
     ?{type:'SOLID',color:rgb(spec.color),opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'}
-    :linearGradient(spec.gradient,spec.opacity??1));
+    :spec.type==='linear-gradient'
+      ?linearGradient(spec.gradient,spec.opacity??1)
+      :{type:'IMAGE',imageHash:(resolveImageHash??(()=>{throw new Error('An image paint resolver is required to render embedded image paints.');}))(spec),scaleMode:spec.scaleMode??'FIT',opacity:spec.opacity??1,visible:true,blendMode:'NORMAL'});
 }
 
 export function buildShadowStack(specs:ShadowSpec[]):Effect[] {
