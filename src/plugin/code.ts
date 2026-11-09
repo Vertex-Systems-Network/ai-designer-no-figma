@@ -270,14 +270,14 @@ type SelectionSummary = Extract<HostToUi,{type:'selection'}>['summary'];
 function getSelectionSummary(): SelectionSummary {
   const selected = figma.currentPage.selection[0];
   if (!selected || !('width' in selected) || !('height' in selected)) return null;
-  const nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:Transform}> = [];
+  const nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:Transform;imageScalingFactor?:number}> = [];
   const collect = (node: SceneNode, depth: number) => {
     if (nodes.length >= 100 || depth > 5) return;
     const logicalId = logicalIds.get(node.id) || node.id;
     {
-      const item: {id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:Transform} = { id: logicalId, name: node.name, type: node.type, x: Math.round(node.x), y: Math.round(node.y), width: Math.round(node.width), height: Math.round(node.height) };
+      const item: {id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:Transform;imageScalingFactor?:number} = { id: logicalId, name: node.name, type: node.type, x: Math.round(node.x), y: Math.round(node.y), width: Math.round(node.width), height: Math.round(node.height) };
       if (node.type === 'TEXT') item.text = node.characters.slice(0, 500);
-      if('fills' in node&&Array.isArray(node.fills)){const image=node.fills.find(fill=>fill.type==='IMAGE'&&fill.visible!==false);item.hasImageFill=Boolean(image);if(image?.type==='IMAGE'){item.imageScaleMode=image.scaleMode;if(image.scaleMode==='CROP'&&image.imageTransform)item.imageTransform=image.imageTransform;}}
+      if('fills' in node&&Array.isArray(node.fills)){const image=node.fills.find(fill=>fill.type==='IMAGE'&&fill.visible!==false);item.hasImageFill=Boolean(image);if(image?.type==='IMAGE'){item.imageScaleMode=image.scaleMode;if(image.scaleMode==='CROP'&&image.imageTransform)item.imageTransform=image.imageTransform;if(image.scaleMode==='TILE'&&image.scalingFactor!==undefined)item.imageScalingFactor=image.scalingFactor;}}
       if ('fills' in node && Array.isArray(node.fills) && node.fills[0]?.type === 'SOLID') {
         const c = node.fills[0].color; item.fill = `#${[c.r,c.g,c.b].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('')}`;
       }
@@ -358,7 +358,7 @@ async function applyPatch(patch: EditPatch): Promise<void> {
       else if(operation.op==='set-auto-layout'&&target.type==='FRAME'){target.layoutMode=operation.value.mode;target.itemSpacing=operation.value.gap;target.paddingTop=target.paddingRight=target.paddingBottom=target.paddingLeft=operation.value.padding;target.primaryAxisAlignItems=operation.value.alignment;}
       else if(operation.op==='swap-component'&&target.type==='INSTANCE')target.swapComponent(item.source as ComponentNode);
       else if(operation.op==='replace-image'&&'fills' in target&&item.imageHash&&item.imageIndex!==undefined&&target.fills!==figma.mixed){const fills=[...target.fills];const original=fills[item.imageIndex];if(!original||original.type!=='IMAGE')throw new Error('The target image fill changed before replacement.');fills[item.imageIndex]={...original,imageHash:item.imageHash};target.fills=fills;}
-      else if(operation.op==='set-image-crop'&&'fills' in target&&item.imageIndex!==undefined&&target.fills!==figma.mixed){const fills=[...target.fills];const original=fills[item.imageIndex];if(!original||original.type!=='IMAGE')throw new Error('The target image fill changed before crop update.');const {scaleMode,imageTransform}=operation.value;if(scaleMode==='CROP')fills[item.imageIndex]={...original,scaleMode,imageTransform:imageTransform as Transform};else{const {imageTransform:_previousTransform,...preserved}=original;void _previousTransform;fills[item.imageIndex]={...preserved,scaleMode};}target.fills=fills;}
+      else if(operation.op==='set-image-crop'&&'fills' in target&&item.imageIndex!==undefined&&target.fills!==figma.mixed){const fills=[...target.fills];const original=fills[item.imageIndex];if(!original||original.type!=='IMAGE')throw new Error('The target image fill changed before scale/crop update.');const {imageTransform:_oldTransform,scalingFactor:_oldScale,...preserved}=original;void _oldTransform;void _oldScale;const {scaleMode,imageTransform,scalingFactor}=operation.value;fills[item.imageIndex]=scaleMode==='CROP'?{...preserved,scaleMode,imageTransform:imageTransform as Transform}:scaleMode==='TILE'?{...preserved,scaleMode,...(scalingFactor!==undefined?{scalingFactor}:{})}:{...preserved,scaleMode};target.fills=fills;}
       else if (operation.op === 'set-fill' && 'fills' in target) target.fills = [paint(operation.value)];
       else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
     }
