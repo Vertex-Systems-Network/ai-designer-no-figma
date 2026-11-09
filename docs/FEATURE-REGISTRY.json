@@ -155,10 +155,12 @@
     {
       "id": "OLLAMA-001",
       "name": "Optional local Ollama adapter",
-      "description": "Discover installed local Ollama models and request bounded structured generation over loopback.",
+      "description": "Discover installed local Ollama models and stream bounded, category-specific schema 1.0 generation or safe selection patches over loopback.",
       "module": "local-runtime",
       "sourceFiles": [
         "src/runtime/server.ts",
+        "src/runtime/server.integration.test.ts",
+        "src/shared/prompts.ts",
         "src/ui/main.tsx"
       ],
       "dependencies": [
@@ -170,13 +172,13 @@
         "src/runtime/server.integration.test.ts"
       ],
       "knownIssues": [
-        "Integration suite uses a fake local server; no real model has been verified."
+        "Stream contract is integration-tested against a fake local server; no installed Ollama model or hardware has been exercised. Detailed CPU/GPU diagnostics and bounded automatic invalid-output repair are not implemented."
       ],
       "priority": "P2",
       "releaseTarget": "0.1.x",
-      "lastModified": "2026-11-08",
+      "lastModified": "2026-11-09",
       "lastVerified": "2026-11-08",
-      "nextAction": "Record actual Ollama/model results only when runtime is available."
+      "nextAction": "Verify streaming against an installed Ollama/model and add capability diagnostics without inferring unobservable hardware."
     },
     {
       "id": "UI-001",
@@ -312,23 +314,28 @@
     {
       "id": "COMPAT-001",
       "name": "Figma compatibility adapter and matrix",
-      "description": "Separate universal semantic properties from Figma-specific API mappings and capability evidence.",
+      "description": "Map schema Auto Layout modes and primary-axis alignments to and from the official Figma Plugin API typings; report unknown native values instead of silently coercing them.",
       "module": "compatibility-adapter",
-      "sourceFiles": [],
+      "sourceFiles": [
+        "src/plugin/compatibility.ts",
+        "src/plugin/code.ts"
+      ],
       "dependencies": [
         "FIGMA-001"
       ],
-      "status": "PLANNED",
-      "testStatus": "NOT TESTED",
-      "tests": [],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/plugin/compatibility.test.ts"
+      ],
       "knownIssues": [
-        "No dedicated compatibility adapter or automated changelog audit exists."
+        "Only Auto Layout mode and primary-axis alignment mappings are isolated so far; other Figma-specific paint, text, grid and variable APIs remain in the renderer. Live-version behavior is not tested."
       ],
       "priority": "P2",
       "releaseTarget": "0.3.0",
-      "lastModified": "2026-11-08",
-      "lastVerified": "2026-11-08",
-      "nextAction": "Extract semantic mappings and test against installed official typings."
+      "lastModified": "2026-11-09",
+      "lastVerified": "2026-11-09",
+      "nextAction": "Extract remaining schema-to-Figma mappings and verify behavior in the supported Figma editor versions."
     },
     {
       "id": "REPO-001",
