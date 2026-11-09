@@ -411,7 +411,9 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         if(item.type==='SOLID')return {type:'solid',color:hexColor(item.color),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
         if(item.type==='GRADIENT_LINEAR')return {type:'linear-gradient',gradient:toGradient(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
         if(item.type==='GRADIENT_RADIAL')return {type:'radial-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
-        if(item.type!=='IMAGE')throw new Error(`Layer "${node.name}" uses unsupported ${item.type.toLowerCase()} paint.`);
+        if(item.type==='GRADIENT_ANGULAR')return {type:'angular-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+        if(item.type==='GRADIENT_DIAMOND')return {type:'diamond-gradient',gradient:toRadial(item),...((item.opacity??1)<1?{opacity:item.opacity}:{})};
+        if(!('scaleMode' in item))throw new Error(`Layer "${node.name}" uses an unsupported paint type.`);
         if(item.scaleMode==='TILE')throw new Error(`Image "${node.name}" uses TILE scale mode, which is not supported for portable export.`);
         if(!item.imageHash)throw new Error(`Image hash for "${node.name}" is unavailable.`);
         const image=figma.getImageByHash(item.imageHash);if(!image)throw new Error(`Image bytes for "${node.name}" are unavailable.`);
@@ -421,13 +423,13 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
         return {type:'image',mimeType,data:encodeBase64(bytes),scaleMode:item.scaleMode==='FILL'||item.scaleMode==='CROP'?item.scaleMode:'FIT',...((item.opacity??1)<1?{opacity:item.opacity}:{})};
       };
       if(visible.length>1){
-        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='GRADIENT_RADIAL'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
+        if(visible.some(item=>item.type!=='SOLID'&&item.type!=='GRADIENT_LINEAR'&&item.type!=='GRADIENT_RADIAL'&&item.type!=='GRADIENT_ANGULAR'&&item.type!=='GRADIENT_DIAMOND'&&item.type!=='IMAGE'))throw new Error(`Layer "${node.name}" combines a paint type unsupported by portable export.`);
         paints=await Promise.all(visible.map(item=>toStackItem(item as SolidPaint|GradientPaint|ImagePaint)));
       }else {
         const paintItem=visible[0];
         if(paintItem?.type==='SOLID'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else fill=hexColor(paintItem.color);}
         else if(paintItem?.type==='GRADIENT_LINEAR'){if((paintItem.opacity??1)<1)paints=[await toStackItem(paintItem)];else gradient=toGradient(paintItem);}
-        else if(paintItem?.type==='GRADIENT_RADIAL')paints=[await toStackItem(paintItem)];
+        else if(paintItem?.type==='GRADIENT_RADIAL'||paintItem?.type==='GRADIENT_ANGULAR'||paintItem?.type==='GRADIENT_DIAMOND')paints=[await toStackItem(paintItem)];
         else if(paintItem?.type==='IMAGE'){
           if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1&&paintItem.scaleMode!=='TILE'){
             const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT'};
