@@ -1,5 +1,9 @@
 import type { EditPatch } from './protocol';
 import { utf8ByteLength } from './utf8';
+import { decodeBase64 } from './base64';
+import { validateRasterAsset } from './assets';
+
+export const MAX_PATCH_IMAGE_BYTES = 128 * 1024;
 
 export type PatchValidation = { valid: true; value: EditPatch } | { valid: false; message: string };
 
@@ -20,7 +24,7 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
     const op = item as Record<string, unknown>;
     const allowedKeys = ['op', 'targetId', 'value'];
     if (Object.keys(op).some((key) => !allowedKeys.includes(key)) || Object.keys(op).length !== 3) return { valid: false, message: `${path} must contain only op, targetId, and value.` };
-    if (!['set-text', 'set-fill', 'rename', 'set-bounds', 'set-auto-layout','swap-component'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
+    if (!['set-text', 'set-fill', 'rename', 'set-bounds', 'set-auto-layout','swap-component','replace-image'].includes(String(op.op))) return { valid: false, message: `${path}.op is unsupported.` };
     if (typeof op.targetId !== 'string' || !op.targetId || op.targetId.length > 200) return { valid: false, message: `${path}.targetId must be a non-empty string.` };
     if (allowedIds && !allowedIds.has(op.targetId)) return { valid: false, message: `${path}.targetId is not present in the current selection.` };
     if (op.op === 'set-bounds') {
@@ -37,6 +41,13 @@ export function parseEditPatch(json: string, allowedIds?: ReadonlySet<string>): 
       if(!['NONE','HORIZONTAL','VERTICAL'].includes(String(layout.mode)))return{valid:false,message:`${path}.value.mode must be NONE, HORIZONTAL, or VERTICAL.`};
       if(typeof layout.gap!=='number'||!Number.isFinite(layout.gap)||layout.gap<0||layout.gap>1000||typeof layout.padding!=='number'||!Number.isFinite(layout.padding)||layout.padding<0||layout.padding>1000)return{valid:false,message:`${path}.value gap and padding must be between 0 and 1,000.`};
       if(!['MIN','CENTER','MAX','SPACE_BETWEEN'].includes(String(layout.alignment)))return{valid:false,message:`${path}.value.alignment is unsupported.`};
+      continue;
+    }
+    if(op.op==='replace-image'){
+      if(!op.value||typeof op.value!=='object'||Array.isArray(op.value))return{valid:false,message:`${path}.value must contain mimeType and base64 data.`};
+      const image=op.value as Record<string,unknown>;
+      if(Object.keys(image).length!==2||!['mimeType','data'].every(key=>key in image)||!['image/png','image/jpeg'].includes(String(image.mimeType))||typeof image.data!=='string')return{valid:false,message:`${path}.value must contain only a PNG/JPEG mimeType and base64 data.`};
+      try{const bytes=decodeBase64(image.data,MAX_PATCH_IMAGE_BYTES);validateRasterAsset(bytes,String(image.mimeType));}catch(error){return{valid:false,message:`${path}.value image is invalid: ${error instanceof Error?error.message:'invalid raster data'}`};}
       continue;
     }
     if(op.op==='swap-component'){
