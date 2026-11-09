@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const hostSource = readFileSync('src/plugin/code.ts', 'utf8');
+const paintSource = readFileSync('src/plugin/paint.ts', 'utf8');
 const manifest = JSON.parse(readFileSync('manifest.json', 'utf8')) as { permissions?: string[] };
 
 describe('Figma plugin host compatibility', () => {
@@ -37,13 +38,19 @@ describe('Figma plugin host compatibility', () => {
     expect(hostSource).toContain('figma.createVector()');
     expect(hostSource).toContain('vector.vectorPaths=');
     expect(hostSource).toContain("type:'GRADIENT_LINEAR'");
-    expect(hostSource).toContain("type:'DROP_SHADOW'");
+    expect(paintSource).toContain("type:'DROP_SHADOW'");
   });
 
   it('renders and exports bounded solid and linear-gradient fill stacks',()=>{
     expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints)');
     expect(hostSource).toContain('paints=visible.map(item=>toStackItem');
     expect(hostSource).toContain('combines an image or unsupported paint with other fills');
+  });
+
+  it('renders and exports bounded native drop-shadow stacks',()=>{
+    expect(hostSource).toContain('buildShadowStack(effectSpecs)');
+    expect(hostSource).toContain('else if(exported.length>1)shadows=exported');
+    expect(hostSource).toContain('more than four drop shadows');
   });
 
   it('supports embedded images, responsive grids, native tokens/styles, and advanced export paths',()=>{
