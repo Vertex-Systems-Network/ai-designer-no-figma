@@ -13,7 +13,7 @@ let cancelActiveRender: (() => void) | undefined;
 // Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
 // for this plugin session and fall back to native Figma node IDs otherwise.
 const logicalIds = new Map<string, string>();
-type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined; layout?:{mode:FrameNode['layoutMode'];gap:number;paddingTop:number;paddingRight:number;paddingBottom:number;paddingLeft:number;alignment:FrameNode['primaryAxisAlignItems']} };
+type PatchSnapshot = { target: SceneNode; name: string; fills: readonly Paint[] | PluginAPI['mixed'] | undefined; text: string | undefined; x: number | undefined; y: number | undefined; width: number | undefined; height: number | undefined; mainComponent?:ComponentNode; componentProperties?:Record<string,string|boolean>; layout?:{mode:FrameNode['layoutMode'];gap:number;paddingTop:number;paddingRight:number;paddingBottom:number;paddingLeft:number;alignment:FrameNode['primaryAxisAlignItems']} };
 const patchCheckpoints: PatchSnapshot[][] = [];
 let bridgeSessionId = '';
 type PendingImageTransfer={name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number;bytes:Uint8Array;receivedBytes:number;updatedAt:number};
@@ -300,6 +300,12 @@ async function applyPatch(patch: EditPatch): Promise<void> {
       if(target.type!=='FRAME')throw new Error(`Target ${operation.targetId} is not a frame and cannot receive Auto Layout.`);
       return{operation,target};
     }
+    if(operation.op==='swap-component'){
+      if(target.type!=='INSTANCE')throw new Error(`Target ${operation.targetId} is not a component instance.`);
+      const source=targets.get(operation.value);
+      if(!source||source.type!=='COMPONENT')throw new Error(`Replacement source ${operation.value} is not a component present in the current selection.`);
+      return{operation,target,source};
+    }
     if (operation.op === 'set-fill') {
       if (!('fills' in target)) throw new Error(`Target ${operation.targetId} does not support fill.`);
       if (!/^#[0-9a-f]{6}$/i.test(operation.value)) throw new Error(`Invalid fill color for ${operation.targetId}.`);
@@ -315,12 +321,19 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     const font = text.fontName === figma.mixed ? { family: 'Inter', style: 'Regular' } : text.fontName;
     await figma.loadFontAsync(font as FontName);
   }
-  const snapshots: PatchSnapshot[] = resolved.map(({target}) => ({target, name: target.name, fills: 'fills' in target ? target.fills as readonly Paint[] | PluginAPI['mixed'] : undefined, text: target.type === 'TEXT' ? (target as TextNode).characters : undefined, x: 'x' in target ? target.x : undefined, y: 'y' in target ? target.y : undefined, width: 'width' in target ? target.width : undefined, height: 'height' in target ? target.height : undefined,...(target.type==='FRAME'?{layout:{mode:target.layoutMode,gap:target.itemSpacing,paddingTop:target.paddingTop,paddingRight:target.paddingRight,paddingBottom:target.paddingBottom,paddingLeft:target.paddingLeft,alignment:target.primaryAxisAlignItems}}:{})}));
+  const snapshots: PatchSnapshot[] = await Promise.all(resolved.map(async ({target,operation}) => {
+    const mainComponent=operation.op==='swap-component'&&target.type==='INSTANCE'?await target.getMainComponentAsync():undefined;
+    if(operation.op==='swap-component'&&!mainComponent)throw new Error(`The current main component for ${operation.targetId} is unavailable; component replacement cannot be rolled back safely.`);
+    const componentProperties=operation.op==='swap-component'&&target.type==='INSTANCE'?Object.fromEntries(Object.entries(target.componentProperties).map(([key,property])=>[key,property.value])) as Record<string,string|boolean>:undefined;
+    return {target,name:target.name,fills:'fills' in target?target.fills as readonly Paint[]|PluginAPI['mixed']:undefined,text:target.type==='TEXT'?target.characters:undefined,x:'x' in target?target.x:undefined,y:'y' in target?target.y:undefined,width:'width' in target?target.width:undefined,height:'height' in target?target.height:undefined,...(mainComponent?{mainComponent}:{}),...(componentProperties?{componentProperties}:{}),...(target.type==='FRAME'?{layout:{mode:target.layoutMode,gap:target.itemSpacing,paddingTop:target.paddingTop,paddingRight:target.paddingRight,paddingBottom:target.paddingBottom,paddingLeft:target.paddingLeft,alignment:target.primaryAxisAlignItems}}:{})};
+  }));
   try {
-    for (const {operation,target} of resolved) {
+    for (const item of resolved) {
+      const {operation,target}=item;
       if (operation.op === 'rename') target.name = operation.value;
       else if (operation.op === 'set-bounds' && 'resize' in target && 'x' in target && 'y' in target) { target.resize(operation.value.width, operation.value.height); target.x = operation.value.x; target.y = operation.value.y; }
       else if(operation.op==='set-auto-layout'&&target.type==='FRAME'){target.layoutMode=operation.value.mode;target.itemSpacing=operation.value.gap;target.paddingTop=target.paddingRight=target.paddingBottom=target.paddingLeft=operation.value.padding;target.primaryAxisAlignItems=operation.value.alignment;}
+      else if(operation.op==='swap-component'&&target.type==='INSTANCE')target.swapComponent(item.source as ComponentNode);
       else if (operation.op === 'set-fill' && 'fills' in target) target.fills = [paint(operation.value)];
       else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
     }
@@ -339,6 +352,7 @@ function restoreSnapshots(snapshots: PatchSnapshot[]): void {
     target.name = snapshot.name;
     if (snapshot.fills !== undefined && 'fills' in target) target.fills = snapshot.fills as typeof target.fills;
     if (snapshot.text !== undefined && target.type === 'TEXT') (target as TextNode).characters = snapshot.text;
+    if(snapshot.mainComponent&&target.type==='INSTANCE'){target.swapComponent(snapshot.mainComponent);if(snapshot.componentProperties&&Object.keys(snapshot.componentProperties).length)target.setProperties(snapshot.componentProperties);}
     if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
     if(snapshot.layout&&target.type==='FRAME'){target.layoutMode=snapshot.layout.mode;target.itemSpacing=snapshot.layout.gap;target.paddingTop=snapshot.layout.paddingTop;target.paddingRight=snapshot.layout.paddingRight;target.paddingBottom=snapshot.layout.paddingBottom;target.paddingLeft=snapshot.layout.paddingLeft;target.primaryAxisAlignItems=snapshot.layout.alignment;}
   }
