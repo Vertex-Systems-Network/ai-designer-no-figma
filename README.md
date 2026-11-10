@@ -15,10 +15,10 @@ There is no aggregate completion percentage: it hid the distinction between code
 
 | Gate | Progress | Evidence / remaining action |
 |---|---:|---|
-| Automated release checks | `██████████` 8/8 | Latest `npm run release:verify`: typecheck, lint, 105 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
+| Automated release checks | `██████████` 8/8 | Latest `npm run release:verify`: typecheck, lint, 107 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
 | Feature registry fully implemented | `█████░░░░░` 8/17 | Eight features are `IMPLEMENTED`; nine remain `PARTIAL`. Counts are registry entries, not product completion. |
 | Live Figma/client acceptance | `░░░░░░░░░░` 0/4 | Four named live checks are in [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md); current executor cannot drive the user's desktop session. |
-| Remaining local engineering tasks | `███░░░░░░░` 1/3 | `CODE-01` is verified. `CODE-02` export fidelity is active (4/5 criteria verified); `CODE-03` remains open. |
+| Remaining local engineering tasks | `██████░░░░` 2/3 | `CODE-01` and `CODE-02` are automated verified. `CODE-03` component properties/variants remains open. See the [schema fidelity matrix](docs/EXPORT-FIDELITY-MATRIX.md). |
 | Published binary matches verified source | `██████████` 1/1 | `PUB-01` LIVE VERIFIED: source/docs and ZIP are on `main`; uploaded blob equals the local archive bytes and the SHA-256 manifest passes. |
 
 The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages are not used for overall project completion; each task closes against its own evidence.
@@ -27,7 +27,7 @@ The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages
 
 | Task group | Status | Next action |
 |---|---|---|
-| Local code | IN PROGRESS | `CODE-02` criteria 4/5: host fixtures cover token definitions/bindings; geometry, text/layout/grids, vector, image/crop/tile, component/instance, gradient and shadow export; font weights; and explicit errors for unsupported/mixed data, instance overrides/scaling and compound vectors. Decorated image rectangles retain corners/strokes. Remaining: complete the schema-property fidelity matrix. |
+| Local code | IN PROGRESS | `CODE-01` and `CODE-02` are AUTOMATED VERIFIED. `CODE-02` now has a field-group matrix for every schema 1.0 node type, shared properties, imports, exports and explicit loss boundaries. `CODE-03` component properties/variants is next. |
 | Live Figma and AI clients | BLOCKED · USER DESKTOP | Run `LIVE-01` through `LIVE-04` against the exact built package; record app, build hash, and observed result. |
 | Repository publication | LIVE VERIFIED | `PUB-01`: source and exact verified ZIP/checksum are synced on `main`. |
 | Plugin-only closed-file/background operation | OUT OF SCOPE | `BLOCK-01`: requires a separate supported desktop runner; the current plugin session ends when its document closes. |

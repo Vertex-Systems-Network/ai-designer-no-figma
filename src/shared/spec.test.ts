@@ -48,6 +48,16 @@ describe('design specification validation', () => {
     const missingColor=structuredClone(lineSpec);const line=missingColor.pages[0]!.children[0]!;if(line.type!=='line')throw new Error('fixture line expected');delete line.stroke;
     expect(validateDesignSpec(missingColor).issues.some(issue=>issue.path.endsWith('.strokeOpacity'))).toBe(true);
   });
+  it('rejects schema fields that the renderer cannot apply to text and line nodes',()=>{
+    const textRadius=structuredClone(valid);const textFrame=textRadius.pages[0]!.children[0]!;if(textFrame.type!=='frame')throw new Error('fixture frame expected');const text=textFrame.children[0]!;if(text.type!=='text')throw new Error('fixture text expected');text.radius=6;
+    expect(validateDesignSpec(textRadius).valid).toBe(false);
+    const lineRadius:DesignSpec={schemaVersion:'1.0',name:'Line radius',pages:[{id:'line-radius-page',name:'Page',children:[{type:'line',id:'line-radius',name:'Rule',width:100,height:1,radius:4}]}]};
+    expect(validateDesignSpec(lineRadius).valid).toBe(false);
+  });
+  it('rejects ambiguous legacy and explicit text color fields',()=>{
+    const ambiguous=structuredClone(valid);const frame=ambiguous.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');const text=frame.children[0]!;if(text.type!=='text')throw new Error('fixture text expected');text.fill='#222222';
+    expect(validateDesignSpec(ambiguous).issues.some(issue=>issue.path.endsWith('.color')&&issue.message.includes('either color or fill'))).toBe(true);
+  });
   it('validates per-corner radii and smoothing only on supported native shapes',()=>{
     const custom:DesignSpec={schemaVersion:'1.0',name:'Corner fidelity',pages:[{id:'corner-page',name:'Page',children:[{type:'frame',id:'clip-frame',name:'Clipped frame',width:100,height:100,cornerRadii:{topLeft:8,topRight:12,bottomRight:20,bottomLeft:4},cornerSmoothing:.6,children:[{type:'rectangle',id:'shape',name:'Shape',width:40,height:20,cornerRadii:{topLeft:2,topRight:8,bottomRight:4,bottomLeft:10}}]}]}]};
     expect(validateDesignSpec(custom).valid).toBe(true);

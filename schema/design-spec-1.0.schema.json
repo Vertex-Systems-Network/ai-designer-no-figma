@@ -833,7 +833,8 @@
                     "HEIGHT",
                     "TRUNCATE"
                   ]
-                }
+                },
+                "radius": false
               }
             }
           ]
@@ -915,7 +916,8 @@
                   "minimum": 0,
                   "maximum": 100
                 },
-                "paints": false
+                "paints": false,
+                "radius": false
               }
             }
           ]

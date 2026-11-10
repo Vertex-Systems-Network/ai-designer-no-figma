@@ -110,8 +110,11 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     }
     if (!loaded) throw new Error('No supported font could be loaded. Install Inter or choose an available fallback font.');
     const text = figma.createText();
-    text.fontName = loadedFont;
     text.characters = spec.text;
+    // Apply a referenced style first; explicit per-layer fields in the spec are
+    // intentional overrides and must win over the style defaults.
+    if(spec.textStyleToken){const style=control.textStyles.get(spec.textStyleToken);if(!style)throw new Error(`TEXT_STYLE_NOT_FOUND: Unknown text style token "${spec.textStyleToken}".`);await text.setTextStyleIdAsync(style.id);}
+    text.fontName = loadedFont;
     text.fontSize = spec.fontSize ?? 16;
     text.textAlignHorizontal = spec.align ?? 'LEFT';
     if(spec.textAlignVertical)text.textAlignVertical=spec.textAlignVertical;
@@ -120,7 +123,6 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     if(spec.letterSpacing)text.letterSpacing=spec.letterSpacing;
     if(spec.textDecoration)text.textDecoration=spec.textDecoration;
     if(spec.textCase)text.textCase=spec.textCase;
-    if(spec.textStyleToken){const style=control.textStyles.get(spec.textStyleToken);if(!style)throw new Error(`TEXT_STYLE_NOT_FOUND: Unknown text style token "${spec.textStyleToken}".`);await text.setTextStyleIdAsync(style.id);}
     if (spec.color || spec.fill || spec.gradient || spec.paints || spec.shadow || spec.shadows || spec.effects) applyNodePaint(text,spec.color??spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if (spec.lineHeight) text.lineHeight = { value: spec.lineHeight, unit: 'PIXELS' };
     node = text;
@@ -520,7 +522,8 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
       const rawStyle=node.characters.length?node.getRangeTextStyleId(0,node.characters.length):null;let textStyleToken:string|undefined;
       if(typeof rawStyle==='string'&&rawStyle!==''){const style=await figma.getStyleByIdAsync(rawStyle);if(style?.type==='TEXT'){textStyleToken=style.name.startsWith('AI Designer · ')?style.name.slice(style.name.lastIndexOf(' / ')+3):style.name;exportedTypography.set(textStyleToken,{name:textStyleToken,fontFamily:style.fontName.family,fontSize:style.fontSize,fontWeight:fontStyleToWeight(style.fontName.style),...(typeof style.lineHeight==='object'&&style.lineHeight.unit==='PIXELS'?{lineHeight:style.lineHeight.value}:{}),...(typeof style.paragraphSpacing==='number'?{paragraphSpacing:style.paragraphSpacing}:{}),...(style.letterSpacing?{letterSpacing:{unit:style.letterSpacing.unit,value:style.letterSpacing.value}}:{}),...(style.textDecoration!=='NONE'?{textDecoration:style.textDecoration}:{}),...(style.textCase!=='ORIGINAL'?{textCase:style.textCase}:{})});}}
       if(node.letterSpacing===figma.mixed||node.textDecoration===figma.mixed||node.textCase===figma.mixed||node.paragraphSpacing===figma.mixed)throw new Error(`Text layer "${node.name}" has mixed character styling that selected export cannot preserve in schema 1.0.`);
-      return { ...base, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family,fontWeight:fontStyleToWeight(font.style)}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(typeof node.paragraphSpacing==='number'?{paragraphSpacing:node.paragraphSpacing}:{}), textAlignVertical:node.textAlignVertical, textAutoResize:node.textAutoResize, ...(node.letterSpacing?{letterSpacing:{unit:node.letterSpacing.unit,value:node.letterSpacing.value}}:{}), ...(node.textDecoration!=='NONE'?{textDecoration:node.textDecoration}:{}), ...(node.textCase!=='ORIGINAL'?{textCase:node.textCase}:{}), ...(fill?{color:fill}:{}), ...(textStyleToken?{textStyleToken}:{}), align:node.textAlignHorizontal };
+      const textBase={...base};delete textBase.fill;
+      return { ...textBase, type:'text', text:node.characters.slice(0,20_000), ...(font?{fontFamily:font.family,fontWeight:fontStyleToWeight(font.style)}:{}), ...(typeof node.fontSize==='number'?{fontSize:node.fontSize}:{}), ...(lineHeight!==undefined?{lineHeight}:{}), ...(typeof node.paragraphSpacing==='number'?{paragraphSpacing:node.paragraphSpacing}:{}), textAlignVertical:node.textAlignVertical, textAutoResize:node.textAutoResize, ...(node.letterSpacing?{letterSpacing:{unit:node.letterSpacing.unit,value:node.letterSpacing.value}}:{}), ...(node.textDecoration!=='NONE'?{textDecoration:node.textDecoration}:{}), ...(node.textCase!=='ORIGINAL'?{textCase:node.textCase}:{}), ...(fill?{color:fill}:{}), ...(textStyleToken?{textStyleToken}:{}), align:node.textAlignHorizontal };
     }
     if(node.type==='VECTOR'){
       if(node.vectorPaths.length!==1)throw new Error(`Vector "${node.name}" has ${node.vectorPaths.length} editable paths; schema 1.0 supports exactly one path per vector layer.`);

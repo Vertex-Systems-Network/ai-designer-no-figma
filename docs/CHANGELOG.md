@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Completed schema 1.0 import/export fidelity review. Text export now uses a single canonical color property; explicit typography overrides are applied after referenced text styles; unsupported text/line corner radius and conflicting text color aliases are rejected. Added the field-group fidelity matrix and regression coverage. Release verification: 107 unit + 17 integration tests, build/package, strict docs audit, ZIP integrity and SHA-256 pass. Live Figma round-trip remains NOT TESTED.
 - Fixed selected-tree export dropping bound color variable and text-style definitions because async traversal was snapshotted too early; added host behavior regression coverage. Release verification passed with 101 unit and 17 integration tests, strict docs audit (0 findings), ZIP integrity and SHA-256.
 - Expanded selected-export behavior coverage for geometry, rotation, clipping, Auto Layout, typography and constraints alongside tokens.
 - Added actual plugin-host export fixtures for editable vectors, detached component/instance references, embedded raster crop metadata, gradients, shadows, and explicit rejection of unsupported effects/node types/multiple strokes. Mixed font/line-height styles and multiple text color tokens now fail safely instead of being silently dropped.

@@ -72,7 +72,7 @@
       "releaseTarget": "0.3.0",
       "lastModified": "2026-11-10",
       "lastVerified": "2026-11-10",
-      "nextAction": "Finish the CODE-02 schema-property fidelity matrix; verify native behavior in a live Figma editor when the desktop is available."
+      "nextAction": "Implement deterministic component property/variant support under CODE-03; verify native behavior in a live Figma editor when the desktop is available."
     },
     {
       "id": "FIGMA-002",
@@ -127,13 +127,13 @@
         "src/shared/spec.test.ts"
       ],
       "knownIssues": [
-        "A schema-property fidelity matrix is still being completed under CODE-02. Live Figma round-trip is NOT TESTED. Unrepresented blend/stroke/effect/node types, mixed text styles/tokens, component overrides, scale-tool instance factors, compound vector paths, unresolved token modes, and inaccessible component sources are rejected explicitly."
+        "Schema 1.0 import/export behavior and loss boundaries are mapped in docs/EXPORT-FIDELITY-MATRIX.md. Live Figma round-trip is NOT TESTED. Unrepresented blend/stroke/effect/node types, mixed text styles/tokens, component overrides, scale-tool instance factors, compound vector paths, unresolved token modes, and inaccessible component sources are rejected explicitly."
       ],
       "priority": "P2",
       "releaseTarget": "0.2.0",
       "lastModified": "2026-11-10",
       "lastVerified": "2026-11-10",
-      "nextAction": "Complete the CODE-02 field-by-field schema matrix and close each remaining export-property evidence gap; run the live Figma export/import smoke test separately."
+      "nextAction": "Assess component properties and variants under CODE-03; run the live Figma export/import smoke test separately."
     },
     {
       "id": "AI-001",

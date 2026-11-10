@@ -15,7 +15,7 @@ This is the persistent resume point for an AI coding agent. It records verified 
 - **Repository:** `Vertex-Systems-Network/ai-designer-no-figma` (public, `main`).
 - **Product workflow:** user-operated provider-neutral prompt/JSON handoff; Ollama is optional.
 - **Current evidence:** see `docs/PROJECT-STATUS.md` and `docs/FEATURE-REGISTRY.json`; automated and live evidence remain separate.
-- **Execution order:** `PLAN-01` docs audit/reconciliation, `CODE-01` host behavior tests are now verified; next is `CODE-02` export fidelity audit, followed by `CODE-03` component property support assessment, then `CODE-03` component property support assessment. Run `LIVE-*` only against the user's desktop and exact build; finish `PUB-01` only when remote ZIP hash matches the tested local artifact.
+- **Execution order:** `PLAN-01` docs audit/reconciliation, `CODE-01` host behavior tests, and `CODE-02` schema 1.0 export fidelity are automated verified. Next is `CODE-03` component property/variant support assessment and implementation. Run `LIVE-*` only against the user's desktop and exact build; finish `PUB-01` only when remote ZIP hash matches the tested local artifact.
 - **Environment boundary:** this executor cannot control the user's installed Figma app. No latest live Figma result is claimed.
 
 ## Evidence log

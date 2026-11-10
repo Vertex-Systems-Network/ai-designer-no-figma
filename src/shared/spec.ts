@@ -137,10 +137,10 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     instance: ['type','id','name','x','y','width','height','rotation','opacity','componentRef','constraints'],
     vector: ['type','id','name','x','y','width','height','rotation','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
     image: ['type','id','name','x','y','width','height','rotation','opacity','mimeType','data','scaleMode','imageTransform','scalingFactor','constraints'],
-    text: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
+    text: ['type','id','name','x','y','width','height','rotation','fill','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
     rectangle: ['type','id','name','x','y','width','height','rotation','fill','radius','cornerRadii','cornerSmoothing','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     ellipse: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
-    line: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
+    line: ['type','id','name','x','y','width','height','rotation','fill','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
   };
   const colors = new Set((spec.designSystem?.colors ?? []).map((token) => token.name));
   const typography = new Set((spec.designSystem?.typography ?? []).map((token) => token.name));
@@ -160,6 +160,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (node.shadows && node.shadow !== undefined) issues.push({ path: `${path}.shadows`, message: 'Use either shadows or the legacy shadow field, not both.' });
     if (node.effects && (node.shadow !== undefined || node.shadows !== undefined)) issues.push({ path: `${path}.effects`, message: 'Use either effects or the legacy shadow/shadows fields, not both.' });
     if (node.type === 'text' && node.textStyleToken && !typography.has(node.textStyleToken)) issues.push({ path: `${path}.textStyleToken`, message: `Unknown text style token: ${node.textStyleToken}` });
+    if (node.type === 'text' && node.color !== undefined && node.fill !== undefined) issues.push({ path: `${path}.color`, message: 'Use either color or fill for text color, not both.' });
     if(node.type==='group'&&'layoutGrids' in node)issues.push({path:`${path}.layoutGrids`,message:'Layout grids can only be attached to frames or components.'});
     if (node.type === 'image') {
       try {
