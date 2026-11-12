@@ -66,36 +66,36 @@ export function buildComponentKit(options: KitOptions): DesignSpec {
     { name: 'Type/Caption', fontFamily: font, fontSize: caption, fontWeight: 400, lineHeight: lh(caption) },
   ];
   const t = (id: string, name: string, value: string, style: string, color: string, width: number, extra: Record<string, unknown> = {}): DesignNodeSpec =>
-    ({ type: 'text', id, name, text: value, textStyleToken: style, fillToken: color, width, height: lh(typography.find((s) => s.name === style)!.fontSize), ...extra }) as DesignNodeSpec;
+    ({ type: 'text', id, name, text: value, textStyleToken: style, fillToken: color, textAutoResize: 'HEIGHT', width, height: lh(typography.find((s) => s.name === style)!.fontSize), ...extra }) as DesignNodeSpec;
 
   const buttonH = lh(label) + md * 2;
   const button = (id: string, name: string, fill: string, ink: string, labelText: string): DesignNodeSpec => ({
     type: 'component', id, name, width: 140, height: buttonH, fillToken: fill, radius,
-    layout: { mode: 'horizontal', gap: xs, padding: md, alignment: 'CENTER' },
+    layout: { mode: 'horizontal', gap: xs, padding: md, alignment: 'CENTER', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' },
     children: [t(`${id}-label`, 'Label', labelText, 'Type/Label', ink, 140 - md * 2, { align: 'CENTER' })],
   } as DesignNodeSpec);
   const inputW = 320, inputH = lh(body) + md * 2;
   const components: DesignNodeSpec[] = [
     button('kit-button-primary', 'Button/Primary', 'Color/Primary', 'Color/On primary', 'Continue'),
     button('kit-button-secondary', 'Button/Secondary', 'Color/Primary subtle', 'Color/Primary', 'Cancel'),
-    { type: 'component', id: 'kit-input', name: 'Input/Text', width: inputW, height: lh(caption) + xs + inputH, layout: { mode: 'vertical', gap: xs, padding: 0, alignment: 'MIN' }, children: [
+    { type: 'component', id: 'kit-input', name: 'Input/Text', width: inputW, height: lh(caption) + xs + inputH, layout: { mode: 'vertical', gap: xs, padding: 0, alignment: 'MIN', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' }, children: [
       t('kit-input-label', 'Field label', 'Email address', 'Type/Caption', 'Color/Muted', inputW),
-      { type: 'frame', id: 'kit-input-field', name: 'Field', width: inputW, height: inputH, fillToken: 'Color/Surface', radius, effects: [{ type: 'inner-shadow', color: border, opacity: 1, offsetX: 0, offsetY: 0, blur: 1 }], layout: { mode: 'horizontal', gap: sm, padding: md, alignment: 'MIN' }, children: [
+      { type: 'frame', id: 'kit-input-field', name: 'Field', width: inputW, height: inputH, fillToken: 'Color/Surface', radius, effects: [{ type: 'inner-shadow', color: border, opacity: 1, offsetX: 0, offsetY: 0, blur: 1 }], layout: { mode: 'horizontal', gap: sm, padding: md, alignment: 'MIN', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' }, children: [
         t('kit-input-placeholder', 'Placeholder', 'name@company.com', 'Type/Body', 'Color/Muted', inputW - md * 2),
       ] },
     ] } as DesignNodeSpec,
-    { type: 'component', id: 'kit-card', name: 'Card/Metric', width: 280, height: lg * 2 + lh(caption) + lh(heading) + lh(caption) + sm * 2, fillToken: 'Color/Surface', radius: radius + 4, effects: [{ type: 'drop-shadow', color: '#000000', opacity: dark ? 0.4 : 0.06, offsetX: 0, offsetY: 2, blur: 8 }], layout: { mode: 'vertical', gap: sm, padding: lg, alignment: 'MIN' }, children: [
+    { type: 'component', id: 'kit-card', name: 'Card/Metric', width: 280, height: lg * 2 + lh(caption) + lh(heading) + lh(caption) + sm * 2, fillToken: 'Color/Surface', radius: radius + 4, effects: [{ type: 'drop-shadow', color: '#000000', opacity: dark ? 0.4 : 0.06, offsetX: 0, offsetY: 2, blur: 8 }], layout: { mode: 'vertical', gap: sm, padding: lg, alignment: 'MIN', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' }, children: [
       t('kit-card-label', 'Metric label', 'Monthly revenue', 'Type/Caption', 'Color/Muted', 280 - lg * 2),
       t('kit-card-value', 'Metric value', '$48,290', 'Type/Heading', 'Color/Text', 280 - lg * 2),
       t('kit-card-delta', 'Metric change', '+12.4% vs last month', 'Type/Caption', 'Color/Primary', 280 - lg * 2),
     ] } as DesignNodeSpec,
-    { type: 'component', id: 'kit-nav', name: 'Navigation/Top bar', width: 1200, height: lh(title) + md * 2, fillToken: 'Color/Surface', layout: { mode: 'horizontal', gap: lg * 2, padding: md, alignment: 'CENTER' }, children: [
+    { type: 'component', id: 'kit-nav', name: 'Navigation/Top bar', width: 1200, height: lh(title) + md * 2, fillToken: 'Color/Surface', layout: { mode: 'horizontal', gap: lg * 2, padding: md, alignment: 'CENTER', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' }, children: [
       t('kit-nav-brand', 'Product name', options.name ?? 'Product', 'Type/Title', 'Color/Text', 200),
       t('kit-nav-link-1', 'Nav link', 'Overview', 'Type/Label', 'Color/Primary', 100),
       t('kit-nav-link-2', 'Nav link', 'Reports', 'Type/Label', 'Color/Muted', 100),
       t('kit-nav-link-3', 'Nav link', 'Settings', 'Type/Label', 'Color/Muted', 100),
     ] } as DesignNodeSpec,
-    { type: 'component', id: 'kit-table-row', name: 'Table/Row', width: 720, height: lh(body) + md * 2, fillToken: 'Color/Surface', layout: { mode: 'horizontal', gap: lg, padding: md, alignment: 'CENTER' }, children: [
+    { type: 'component', id: 'kit-table-row', name: 'Table/Row', width: 720, height: lh(body) + md * 2, fillToken: 'Color/Surface', layout: { mode: 'horizontal', gap: lg, padding: md, alignment: 'CENTER', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' }, children: [
       t('kit-row-name', 'Cell name', 'Acme Corporation', 'Type/Body', 'Color/Text', 260),
       t('kit-row-status', 'Cell status', 'Active', 'Type/Label', 'Color/Primary', 120),
       t('kit-row-amount', 'Cell amount', '$12,400', 'Type/Body', 'Color/Text', 140, { align: 'RIGHT' }),
@@ -103,7 +103,7 @@ export function buildComponentKit(options: KitOptions): DesignSpec {
   ];
   let y = lg * 2;
   const placed = components.map((node) => { const at = { ...node, x: lg * 2, y } as DesignNodeSpec; y += (node as { height: number }).height + lg * 2; return at; });
-  const usage: DesignNodeSpec = { type: 'frame', id: 'kit-usage', name: 'Usage example', x: 1300, y: lg * 2, width: 1280, height: 720, fillToken: 'Color/Canvas', radius, layout: { mode: 'vertical', gap: lg, padding: lg * 2, alignment: 'MIN' }, children: [
+  const usage: DesignNodeSpec = { type: 'frame', id: 'kit-usage', name: 'Usage example', x: 1300, y: lg * 2, width: 1280, height: 720, fillToken: 'Color/Canvas', radius, layout: { mode: 'vertical', gap: lg, padding: lg * 2, alignment: 'MIN', primaryAxisSizing: 'FIXED', counterAxisSizing: 'FIXED' }, children: [
     { type: 'instance', id: 'kit-usage-nav', name: 'Top bar', componentRef: 'kit-nav', width: 1200, height: (components[4] as { height: number }).height },
     { type: 'instance', id: 'kit-usage-card', name: 'Revenue card', componentRef: 'kit-card', width: 280, height: (components[3] as { height: number }).height },
     { type: 'instance', id: 'kit-usage-row', name: 'Customer row', componentRef: 'kit-table-row', width: 720, height: (components[5] as { height: number }).height },

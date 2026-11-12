@@ -21,3 +21,13 @@ describe('reusable component kit',()=>{
     expect(()=>buildComponentKit({brandColor:'#000000',spacing:[4,8]})).toThrow(/four/);
   });
 });
+describe('component kit sizing (found in live Figma, 2026-11-12)',()=>{
+  it('keeps every Auto Layout container at its declared size and text at fixed width',()=>{
+    const spec=buildComponentKit({brandColor:'#0D8A60'});
+    type N={type:string;layout?:unknown;textAutoResize?:string;children?:N[]};
+    const walk=(n:N):N[]=>[n,...(n.children??[]).flatMap(walk)];
+    const nodes=(spec.pages[0]!.children as unknown as N[]).flatMap(walk);
+    for(const n of nodes.filter(n=>n.layout))expect(n.layout).toMatchObject({primaryAxisSizing:'FIXED',counterAxisSizing:'FIXED'});
+    for(const n of nodes.filter(n=>n.type==='text'))expect(n.textAutoResize).toBe('HEIGHT');
+  });
+});
