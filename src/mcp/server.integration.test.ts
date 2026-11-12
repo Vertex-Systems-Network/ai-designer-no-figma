@@ -65,9 +65,10 @@ describe('official MCP stdio server',()=>{
     const result=await client.callTool({name:'figma_get_capabilities',arguments:{}});
     expect(result.structuredContent).toMatchObject({designSchemaVersion:'1.0',operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'}});
     expect((result.structuredContent as {supportedDesignNodeTypes:string[]}).supportedDesignNodeTypes).toEqual(expect.arrayContaining(['component','instance','vector']));
-    expect((result.structuredContent as {supportedDesignPaints:string[]}).supportedDesignPaints).toEqual(expect.arrayContaining(['linear-gradient','drop-shadow','image-fill']));
+    expect((result.structuredContent as {supportedDesignPaints:string[]}).supportedDesignPaints).toEqual(expect.arrayContaining(['linear-gradient','radial-gradient','image-fill']));
+    expect((result.structuredContent as {supportedDesignEffects:string[]}).supportedDesignEffects).toEqual(expect.arrayContaining(['drop-shadow','inner-shadow']));
     expect((result.structuredContent as {supportedDesignFeatures:string[]}).supportedDesignFeatures).toEqual(expect.arrayContaining(['local-color-variables','local-text-styles','responsive-constraints','layout-grids']));
-    expect((result.structuredContent as {exportLimitations:string[]}).exportLimitations).toContain('token binding metadata is not round-tripped');
+    expect((result.structuredContent as {exportLimitations:string[]}).exportLimitations).toContain('token mode/theme metadata is not round-tripped');
   });
   it('exposes evidence-bound visual repair tools and rejects unknown jobs',async()=>{
     const listed=await client.listTools();expect(listed.tools.map(tool=>tool.name)).toEqual(expect.arrayContaining(['figma_prepare_visual_repair','figma_verify_visual_repair']));

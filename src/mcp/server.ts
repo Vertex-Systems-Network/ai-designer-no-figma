@@ -36,11 +36,12 @@ function decodeAssetBase64(value:string,maxBytes=MAX_MCP_ASSET_BYTES):Uint8Array
   return new Uint8Array(bytes);
 }
 
-export function createMcpServer(broker:JobBroker):McpServer{
-  const server=new McpServer({name:'ai-designer-no-figma',version:'0.2.0'});
+export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>string}={}):McpServer{
+  const server=new McpServer({name:'ai-designer-no-figma',version:'0.3.0'});
+  if(options.pairingCode){const read=options.pairingCode;server.registerTool('figma_get_pairing_code',{description:'Return the 6-digit code the user must type into the AI Designer Figma plugin (Settings → Connect) to pair it with this local bridge. Show it to the user; never send it anywhere else.',inputSchema:z.object({})},async()=>textResult({pairingCode:read(),instructions:'Open the AI Designer plugin in Figma, go to Settings, type this code and press Connect.'}));}
   server.registerTool('figma_get_connection_status',{description:'Return paired Figma plugin sessions currently heartbeat-active on the local bridge.',inputSchema:z.object({})},async()=>textResult({connected:broker.getSessions().length>0,sessions:broker.getSessions(),transport:'loopback-http'}));
   server.registerTool('figma_get_agent_sessions',{description:'List currently connected plugin sessions. Session IDs are required when more than one session is active.',inputSchema:z.object({})},async()=>textResult({sessions:broker.getSessions()}));
-  server.registerTool('figma_get_capabilities',{description:'Report the plugin operations actually wired to the local bridge and current schema limitations.',inputSchema:z.object({})},async()=>textResult({protocolVersion:'1.0',designSchemaVersion:'1.0',bridge:{transport:'HTTP polling',bind:'127.0.0.1',tokenRequired:true},operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{capture:'bounded JPEG preview of one selected frame',agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'},supportedDesignNodeTypes:['frame','group','component','instance','vector','image','text','rectangle','ellipse','line'],supportedDesignPaints:['solid','linear-gradient','drop-shadow','image-fill'],supportedDesignFeatures:['local-color-variables','local-text-styles','responsive-constraints','layout-grids'],patchOperations:['set-text','set-fill','rename','set-bounds','set-auto-layout','swap-component','replace-image','set-image-crop'],supportedAssetImports:['sanitized-svg','png','jpeg','gif'],exportLimitations:['component instances require their main component to precede them in the exported tree','multiple fills and non-drop-shadow effects fail explicitly','token binding metadata is not round-tripped'],unsupported:['full-document export','remote library-variable import']}));
+  server.registerTool('figma_get_capabilities',{description:'Report the plugin operations actually wired to the local bridge and current schema limitations.',inputSchema:z.object({})},async()=>textResult({protocolVersion:'1.0',designSchemaVersion:'1.0',bridge:{transport:'HTTP polling',bind:'127.0.0.1',tokenRequired:true},operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{capture:'bounded JPEG preview of one selected frame',agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'},supportedDesignNodeTypes:['frame','group','component','instance','vector','image','text','rectangle','ellipse','line'],supportedDesignPaints:['solid','linear-gradient','radial-gradient','angular-gradient','diamond-gradient','image-fill','up to 8 stacked fills'],supportedDesignEffects:['drop-shadow','inner-shadow','layer-blur','background-blur','up to 4 effects'],supportedDesignFeatures:['local-color-variables','local-text-styles','responsive-constraints','layout-grids','per-corner-radius','rotation','clips-content'],patchOperations:['set-text','set-fill','rename','set-bounds','set-rotation','set-auto-layout','swap-component','replace-image','set-image-crop'],supportedAssetImports:['sanitized-svg','png','jpeg','gif'],exportLimitations:['component instances require an accessible main component','non-normal blend modes, mixed text styling, compound vector paths and unsupported effects fail explicitly instead of being dropped','token mode/theme metadata is not round-tripped'],cancellation:'queued jobs can be cancelled; a running render is cancelled at the next node boundary when the plugin receives cancel',unsupported:['full-document export','remote library-variable import']}));
   server.registerTool('figma_get_asset_capabilities',{description:'Report actual local asset import support separately from AI generation or client file-access claims.',inputSchema:z.object({})},async()=>textResult({vector:{svgMarkup:true,editableImport:true,maxBytes:MAX_SVG_BYTES,allowedElements:['svg','g','path','rect','circle','ellipse','line','polyline','polygon']},raster:{formats:['image/png','image/jpeg','image/gif'],maxBytes:MAX_RASTER_BYTES,maxDimension:4096,mcpTransferLimitBytes:MAX_RASTER_BYTES,mcpDirectLimitBytes:MAX_MCP_ASSET_BYTES,mcpChunkBytes:MCP_ASSET_CHUNK_BYTES},clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',automaticClientAssetTransfer:'NOT_VERIFIED',officialFigmaMcp:false}));
   server.registerTool('figma_validate_vector',{description:'Sanitize and validate geometric SVG markup without inserting it or executing its contents.',inputSchema:z.object({svg:z.string().min(1).max(MAX_SVG_BYTES)})},async({svg})=>{
     try{const asset=sanitizeSvg(svg);return textResult({valid:true,width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size,sanitizedSvg:asset.svg});}catch(error){return faultResult(error);}
@@ -122,19 +123,19 @@ export function createMcpServer(broker:JobBroker):McpServer{
   server.registerTool('figma_verify_visual_repair',{description:'Compare completed before/patch/after jobs from the same session and frame, reporting screenshot hashes and whether pixels changed. A vision-capable reviewer must still judge if the defect was fixed.',inputSchema:z.object({beforeJobId:z.string().uuid(),patchJobId:z.string().uuid(),afterJobId:z.string().uuid()})},async(args)=>{
     try{const result=verifyVisualRepair(broker.getJob(args.beforeJobId),broker.getJob(args.patchJobId),broker.getJob(args.afterJobId));return textResult(result,!result.valid);}catch(error){return faultResult(error);}
   });
-  server.registerTool('figma_cancel_job',{description:'Cancel an operation only while it is still queued. Running Figma Plugin API operations are not interruptible yet.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
+  server.registerTool('figma_cancel_job',{description:'Cancel a queued operation immediately, or request a stop for a running one. A running render stops at the next layer and removes its partial page; short operations finish normally.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
     try{return textResult(summary(broker.cancel(jobId)));}catch(error){return faultResult(error);}
   });
   return server;
 }
 
 async function main():Promise<void>{
-  const bridge=await startBridgeServer();
+  const bridge=await startBridgeServer({autoPort:true});
   const address=bridge.address();
   const tokenPath=process.env.BRIDGE_TOKEN?'configured by BRIDGE_TOKEN':join(homedir(),'.ai-designer-no-figma','bridge-token');
-  console.error(`[ai-designer] loopback plugin bridge listening on http://${address.host}:${address.port}; pairing token: ${tokenPath}`);
+  console.error(`[ai-designer] loopback plugin bridge listening on http://${address.host}:${address.port}; token file: ${tokenPath}; Figma pairing code: ${bridge.pairing.current()}`);
   const handle=serveStdio(()=>{
-    const server=createMcpServer(bridge.broker);
+    const server=createMcpServer(bridge.broker,{pairingCode:()=>bridge.pairing.current()});
     server.server.onclose=()=>{void bridge.close();};
     return server;
   });
@@ -143,9 +144,10 @@ async function main():Promise<void>{
   process.once('SIGTERM',()=>{void handle.close();void bridge.close();});
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) void main().catch((error)=>{
+// remote.ts bundles this module too; its import.meta.url then equals the hub entry, so skip the stdio main there.
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href&&!/remote/i.test(process.argv[1])) void main().catch((error)=>{
   const code=error&&typeof error==='object'&&'code'in error?(error as NodeJS.ErrnoException).code:undefined;
-  if(code==='EADDRINUSE')console.error('[ai-designer] Bridge port 8788 is already in use. Close any older AI Designer MCP process, then restart Claude Desktop.');
+  if(code==='EADDRINUSE')console.error('[ai-designer] All AI Designer bridge ports (8788-8798) are in use. Close older AI Designer MCP processes, then restart your AI app.');
   else console.error(error);
   process.exitCode=1;
 });

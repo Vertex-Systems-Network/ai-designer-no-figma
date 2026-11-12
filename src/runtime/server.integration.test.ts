@@ -46,7 +46,7 @@ beforeAll(async () => {
   const ollamaPort = (fakeOllama.address() as {port:number}).port;
   const port = await freePort(); serviceUrl = `http://127.0.0.1:${port}`;
   child = spawn(process.execPath,['--import','tsx','src/runtime/server.ts'],{
-    cwd:process.cwd(),env:{...process.env,HOST:'127.0.0.1',PORT:String(port),OLLAMA_URL:`http://127.0.0.1:${ollamaPort}`,MAX_BODY_BYTES:'262144'},stdio:'ignore',
+    cwd:process.cwd(),env:{...process.env,HOST:'127.0.0.1',PORT:String(port),OLLAMA_URL:`http://127.0.0.1:${ollamaPort}`,MAX_BODY_BYTES:'262144',AI_DESIGNER_PROVIDERS:'/nonexistent/providers.json',OPENAI_API_KEY:''},stdio:'ignore',
   });
   const deadline = Date.now()+8000;
   while(Date.now()<deadline){
