@@ -2,6 +2,12 @@
 
 
 
+
+## Unreleased: permanent browser-mode tunnel
+
+- `npm run mcp:browser` now supervises its own tunnel: a permanent address (a saved localtunnel subdomain or an ngrok static domain), automatic reconnects with back-off, and `auto` provider fallback (ngrok, then localtunnel, then Cloudflare). It warns when the address changes. Settings: `~/.ai-designer-no-figma/browser-mode.json`; per-run override `--tunnel=<provider>`.
+- New dependency: `localtunnel` (run `npm install` after pulling).
+
 ## Unreleased: agent loader and naming
 
 - While an MCP job runs with the panel hidden, the plugin pops up a small branded loader (AI Designer logo and spinner, "<agent> is working"), then hides again. With the panel open, a status bar shows the same.

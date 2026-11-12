@@ -246,6 +246,7 @@
       "sourceFiles": [
         "src/mcp/server.ts",
         "src/mcp/remote.ts",
+        "src/mcp/tunnel.ts",
         "src/ui/bridge-discovery.ts",
         "src/shared/component-family.ts",
         "src/plugin/component-family.ts",
@@ -265,6 +266,8 @@
       "testStatus": "VERIFIED",
       "tests": [
         "src/mcp/server.integration.test.ts",
+        "src/mcp/tunnel.test.ts",
+        "src/mcp/agent-name.test.ts",
         "src/mcp/remote.integration.test.ts",
         "src/ui/bridge-discovery.test.ts",
         "src/shared/component-family.test.ts",
