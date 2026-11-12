@@ -27,7 +27,7 @@ Updated: 2026-11-12. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 
 ## Exact next tasks
 
-Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` and `CODE-02` are AUTOMATED VERIFIED; the full schema 1.0 import/export mapping and rejection boundaries are in [`EXPORT-FIDELITY-MATRIX.md`](EXPORT-FIDELITY-MATRIX.md). Next start `CODE-03` component property/variant feasibility and implementation. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED only for the previously published source snapshot; republish after the current verification succeeds.
+Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` and `CODE-02` are AUTOMATED VERIFIED; the full schema 1.0 import/export mapping and rejection boundaries are in [`EXPORT-FIDELITY-MATRIX.md`](EXPORT-FIDELITY-MATRIX.md). Next start `AGENT-02` bounded local design-system inventory, then `AGENT-03` plan contract and `CODE-03` component property/variant implementation. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED only for the previously published source snapshot; republish after the current verification succeeds.
 
 ## Constraints
 
@@ -39,8 +39,12 @@ No Git CLI/GitHub CLI, official Figma MCP, paid model API, public bind, hidden t
 
 ## 2026-11-12 official Figma guide audit
 
-`INTEROP-01` adds an optional user-supplied Figma reference field to the external handoff only. The official guide is a remote MCP configuration/skills repository, not a server package; no automatic Figma MCP connectivity or live client verification is claimed. See [`OFFICIAL-FIGMA-MCP-INTEROP.md`](integrations/OFFICIAL-FIGMA-MCP-INTEROP.md). `CODE-03` remains next.
+`INTEROP-01` adds an optional user-supplied Figma reference field to the external handoff only. The official guide is a remote MCP configuration/skills repository, not a server package; no automatic Figma MCP connectivity or live client verification is claimed. See [`OFFICIAL-FIGMA-MCP-INTEROP.md`](integrations/OFFICIAL-FIGMA-MCP-INTEROP.md). `AGENT-02` is next, then `AGENT-03` and `CODE-03`.
 
 ## 2026-11-12 local-agent correction
 
 User intent is to learn from Figma Agent techniques while keeping our own local MCP, Plugin API, optional local AI and no Figma hosted token. `AGENT-01` adds the token-free schema audit MCP tool and geometry findings. See [`LOCAL-DESIGN-AGENT-ROADMAP.md`](integrations/LOCAL-DESIGN-AGENT-ROADMAP.md). `CODE-03` is next; live screenshot/agent loop remains unverified.
+
+## 2026-11-12 README task table
+
+README now presents one goal-driven task table with status, acceptance and next actions; the canonical execution plan includes `AGENT-02`–`AGENT-06` and `EVAL-01`. No new design capability is claimed by this documentation update.
