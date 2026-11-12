@@ -241,7 +241,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
       if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
       const page = figma.createPage();
       createdPages.push(page);
-      page.name = uniquePageName(pageSpec.name, (figma.root?.children ?? []).filter((p) => p !== page).map((p) => p.name));
+      page.name = uniquePageName(pageSpec.name, ((page.parent as DocumentNode | null)?.children ?? []).filter((p) => p !== page).map((p) => p.name));
       await page.loadAsync();
       for (const childSpec of pageSpec.children) await renderNode(childSpec, page, control, fontFallback);
     }
