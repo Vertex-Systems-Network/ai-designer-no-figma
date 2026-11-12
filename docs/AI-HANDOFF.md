@@ -80,3 +80,7 @@ Added a host-behavior regression that renders the exact smoke-test frame through
 ## 2026-11-12 optional remote AI MCP tunnel
 
 Added `npm run mcp:remote`: shared local pairing bridge (8788) plus a separate loopback Streamable HTTP MCP endpoint (8790/mcp), authenticated by an independently generated bearer secret. A tunnel exposes only 8790 to a compatible cloud AI client; the Figma plugin remains local and open. Protocol tests cover unauthorized/origin rejection, loopback binding and remote call → paired plugin simulation → returned job result. Live browser Figma, Cloudflare/ngrok transport, and actual online AI client authentication are NOT TESTED. See [`REMOTE-MCP-TUNNEL.md`](integrations/REMOTE-MCP-TUNNEL.md). Next: live pairing/tunnel acceptance with a compatible client; no Figma hosted MCP token.
+
+## 2026-11-12 remote startup collision
+
+User's Windows run of `npm run mcp:remote` hit `EADDRINUSE 127.0.0.1:8788`. Existing Claude/Desktop MCP likely owns the bridge; the remote process cannot share that in-memory broker. Remote startup now reports the single-owner requirement and the setup guide identifies/ends only the owning process before restarting remote mode, then reconnects the plugin. This is a startup guidance fix, not hot attachment to the old process. Live Windows retry remains unobserved.
