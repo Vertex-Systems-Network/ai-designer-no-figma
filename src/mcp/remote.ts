@@ -77,22 +77,26 @@ export async function startRemoteServices(){
 }
 /** Kept for compatibility: build a connector URL from Cloudflare output. */
 export function connectorUrl(tunnelOutput:string,secret:string):string|undefined{const url=findTunnelUrl(tunnelOutput,'cloudflare');return url?`${url}/mcp/${secret}`:undefined;}
+const wantsTunnel=process.argv.some(arg=>arg==='--tunnel'||arg.startsWith('--tunnel='));
 async function main(){
   const {bridge,remote}=await startRemoteServices();
   console.error(`[ai-designer] Figma pairing bridge on ${bridge.address().host}:${bridge.address().port}; remote MCP on http://${remote.address().host}:${remote.address().port}/mcp`);
   console.error(`[ai-designer] Remote bearer secret stored at ${tokenPath()}; tunnel only port ${remote.address().port}, never the pairing bridge.`);
-  if(!process.argv.includes('--tunnel'))console.error('[ai-designer] Browser AIs: run npm run mcp:browser to get a connector URL (path /mcp/<secret from remote-mcp-token>).');
+  if(!wantsTunnel)console.error('[ai-designer] Browser AIs: run npm run mcp:browser to get a connector URL (path /mcp/<secret from remote-mcp-token>).');
   console.error(`[ai-designer] Figma pairing code: ${bridge.pairing.current()} (also in ~/.ai-designer-no-figma/pairing-code-${bridge.address().port}). Press Enter here for a new code.`);
   await writeHubInfo(`http://${remote.address().host}:${remote.address().port}/mcp`);
   if(process.stdin.isTTY){process.stdin.on('data',()=>{void bridge.pairing.reset().then(code=>console.error(`[ai-designer] New Figma pairing code: ${code}`));});}
   let tunnel:{stop:()=>void}|undefined;
-  if(process.argv.some(arg=>arg==='--tunnel'||arg.startsWith('--tunnel='))){
-    const stored=await loadTunnelConfig();const override=providerOverride(process.argv);const config=override?{...stored,provider:override}:stored;
-    console.error(`[ai-designer] Browser mode: tunnel provider ${config.provider} (settings: ${configPath()}). The tunnel reconnects by itself while this window stays open.`);
-    tunnel=superviseTunnel({config,secret:await remoteToken(),openers:defaultOpeners(remote.address().port,config),
-      log:line=>console.error(`[ai-designer] ${line}`),
-      onReady:(url,changed)=>console.error(`\n[ai-designer] ${changed?'TUNNEL ADDRESS CHANGED, update the connector URL in ChatGPT / Claude.ai:':'BROWSER MODE READY. Connector URL for ChatGPT (Developer mode → Create) or Claude.ai (Settings → Connectors → Add custom connector):'}\n\n    ${url}\n\n[ai-designer] This URL is a password for your paired Figma file. Do not share or open it in a browser. Stop with Ctrl+C.\n`)});
+  const shutdown=()=>{tunnel?.stop();void remote.close().then(()=>bridge.close());};
+  if(wantsTunnel){
+    try{
+      const stored=await loadTunnelConfig();const override=providerOverride(process.argv);const config=override?{...stored,provider:override}:stored;
+      console.error(`[ai-designer] Browser mode: tunnel provider ${config.provider} (settings: ${configPath()}). The tunnel reconnects by itself while this window stays open.`);
+      tunnel=superviseTunnel({config,secret:await remoteToken(),openers:defaultOpeners(remote.address().port,config),
+        log:line=>console.error(`[ai-designer] ${line}`),
+        onReady:(url,changed)=>console.error(`\n[ai-designer] ${changed?'TUNNEL ADDRESS CHANGED, update the connector URL in ChatGPT / Claude.ai:':'BROWSER MODE READY. Connector URL for ChatGPT (Developer mode → Create) or Claude.ai (Settings → Connectors → Add custom connector):'}\n\n    ${url}\n\n[ai-designer] This URL is a password for your paired Figma file. Do not share or open it in a browser. Stop with Ctrl+C.\n`)});
+    }catch(error){console.error(`[ai-designer] Browser mode could not start: ${error instanceof Error?error.message:String(error)}`);shutdown();process.exitCode=1;return;}
   }
-  const shutdown=()=>{tunnel?.stop();void remote.close().then(()=>bridge.close());};process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);
+  process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)void main().catch(error=>{console.error(error);process.exitCode=1;});

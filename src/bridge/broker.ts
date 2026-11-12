@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { utf8ByteLength } from '../shared/utf8';
 import type { BridgeError, BridgeJob, BridgeOperation, BridgeSession } from '../shared/bridge-contract';
 
+export type DesignRequest = { id: string; sessionId: string; kind: 'generate' | 'edit'; prompt: string; createdAt: number };
+
 export class BridgeFault extends Error {
   constructor(readonly code: string, message: string) { super(message); this.name = 'BridgeFault'; }
 }
@@ -22,6 +24,17 @@ export class JobBroker {
     this.jobTtlMs = options.jobTtlMs ?? 300_000;
     this.maxJobs = options.maxJobs ?? 100;
   }
+
+  private requests: DesignRequest[] = [];
+  /** Briefs typed in the plugin for the paired AI agent; agents read them with figma_get_design_requests. */
+  addRequest(sessionId: string, kind: DesignRequest['kind'], prompt: string): DesignRequest {
+    if (!this.sessions.has(sessionId)) throw new BridgeFault('SESSION_NOT_FOUND', 'Reconnect the plugin before sending a request.');
+    const request: DesignRequest = { id: randomUUID(), sessionId, kind, prompt: prompt.slice(0, 60_000), createdAt: this.now() };
+    this.requests = [...this.requests.slice(-19), request];
+    return request;
+  }
+  takeRequests(): DesignRequest[] { const taken = this.requests; this.requests = []; return taken; }
+  pendingRequestCount(): number { return this.requests.length; }
 
   connect(sessionId: string, pluginVersion: string): BridgeSession {
     this.validateSessionId(sessionId);

@@ -36,7 +36,7 @@ describe('browser-mode tunnel', () => {
     const a = fakeTunnel('https://one.loca.lt'); const b = fakeTunnel('https://two.loca.lt');
     const queue = [a.tunnel, b.tunnel]; const ready: Array<[string, boolean]> = [];
     const openers: Openers = { localtunnel: async () => queue.shift()!, cloudflare: async () => { throw new Error('unused'); }, ngrok: async () => { throw new Error('unused'); } };
-    const supervisor = superviseTunnel({ config: { provider: 'localtunnel', subdomain: 'adnf-x1' }, secret, openers, log: () => {}, onReady: (url, changed) => ready.push([url, changed]), wait: async () => {} });
+    const supervisor = superviseTunnel({ config: { provider: 'localtunnel', subdomain: 'adnf-x1' }, secret, openers, log: () => {}, onReady: (url, changed) => ready.push([url, changed]), wait: async () => {}, stableMs: 0 });
     await flush(); a.drop(); await flush(); await flush();
     expect(ready).toEqual([[`https://one.loca.lt/mcp/${secret}`, false], [`https://two.loca.lt/mcp/${secret}`, true]]);
     supervisor.stop(); await supervisor.done;
@@ -49,5 +49,33 @@ describe('browser-mode tunnel', () => {
     expect(ready).toEqual([`https://x.trycloudflare.com/mcp/${secret}`]);
     expect(logs.some((line) => line.includes('Trying cloudflare'))).toBe(true);
     supervisor.stop(); await supervisor.done;
+  });
+});
+
+describe('browser-mode tunnel hardening', () => {
+  it('times out a stalled opener and falls back', async () => {
+    const c = fakeTunnel('https://x.trycloudflare.com').tunnel;
+    const ready: string[] = [];
+    const openers: Openers = { localtunnel: () => new Promise(() => {}), cloudflare: async () => c, ngrok: async () => { throw new Error('unused'); } };
+    const s = superviseTunnel({ config: { provider: 'auto', subdomain: 'adnf-x1' }, secret, openers, log: () => {}, onReady: (url) => ready.push(url), wait: async () => {}, openTimeoutMs: 5 });
+    await new Promise((done) => setTimeout(done, 40));
+    expect(ready).toEqual([`https://x.trycloudflare.com/mcp/${secret}`]);
+    s.stop(); await s.done;
+  });
+  it('treats a tunnel that drops right after opening as a failure and falls back', async () => {
+    const logs: string[] = [];
+    const flappy = () => { const t = fakeTunnel('https://flap.loca.lt'); setTimeout(() => t.drop('reset'), 0); return Promise.resolve(t.tunnel); };
+    const c = fakeTunnel('https://x.trycloudflare.com').tunnel;
+    const ready: string[] = [];
+    const s = superviseTunnel({ config: { provider: 'auto', subdomain: 'adnf-x1' }, secret, openers: { localtunnel: flappy, cloudflare: async () => c, ngrok: async () => { throw new Error('unused'); } }, log: (l) => logs.push(l), onReady: (url) => ready.push(url), wait: async () => {} });
+    await new Promise((done) => setTimeout(done, 20));
+    expect(ready.at(-1)).toBe(`https://x.trycloudflare.com/mcp/${secret}`);
+    s.stop(); await s.done;
+  });
+  it('stops promptly during a back-off wait', async () => {
+    const s = superviseTunnel({ config: { provider: 'localtunnel', subdomain: 'adnf-x1' }, secret, openers: { localtunnel: async () => { throw new Error('down'); }, cloudflare: async () => { throw new Error('x'); }, ngrok: async () => { throw new Error('x'); } }, log: () => {}, onReady: () => {} });
+    await new Promise((done) => setTimeout(done, 5));
+    const started = Date.now(); s.stop(); await s.done;
+    expect(Date.now() - started).toBeLessThan(500);
   });
 });

@@ -17,6 +17,8 @@ This guide covers everything from installation to daily use, in order. If you ar
 
 ## 1. What it is
 
+![How AI Designer works](images/architecture.svg)
+
 AI Designer No Figma is a Figma plugin plus a small local server. Any AI agent that speaks MCP (Model Context Protocol) can use it to create and edit **real, editable Figma layers** in the file you have open. It needs no Figma API token, no official Figma MCP and no paid Figma AI.
 
 ```
@@ -57,6 +59,8 @@ To update later, run `git pull` and `npm run build`. Re-run the plugin to pick u
 
 ## 4. Local mode: desktop AI apps
 
+![Local mode](images/local-mode.svg)
+
 ### 4.1 Register the server with your AI app
 
 See which apps are installed and configured:
@@ -92,6 +96,14 @@ The panel hides and the status shows **Connected**. Pairing is remembered, so re
 
 ### 4.3 Ask for designs
 
+![Sending a brief from the plugin](images/agent-requests.svg)
+
+You can ask in two ways:
+
+- **In the AI chat:** describe the design to Claude, ChatGPT or another agent as usual.
+- **In the plugin:** when an agent is paired, **Generate** and **Edit selection** show **Send to AI agent** instead of producing a copy-paste prompt. The brief is queued on the bridge. The agent reads it with `figma_get_design_requests`, and its instructions tell it to check at the start of a conversation. A chat AI only acts when it runs, so if it is idle, say **"do my Figma request"** in the chat. With no agent paired, the plugin prepares a prompt to copy, as before.
+
+
 Keep Figma open on the file and talk to the AI app normally, for example:
 
 > Use AI Designer to make a login screen in Figma with email and password fields and a Sign in button.
@@ -99,6 +111,8 @@ Keep Figma open on the file and talk to the AI app normally, for example:
 While the agent works, a small AI Designer window with the logo and a spinner pops up if the panel was hidden. If the panel is open, a bar appears at the top of it. Figma also shows a toast **🤖 Claude is working in this file: …** until the job is done. Figma's avatar row at the top right only lists real Figma accounts, and plugins cannot add to it. The toast and the plugin's **Agent Activity** list are where the agent shows up.
 
 ## 5. Browser mode: ChatGPT and Claude.ai on the web
+
+![Browser mode](images/browser-mode.svg)
 
 Web chats run on the provider's servers. They cannot reach your `localhost`, so browser mode publishes **only the MCP port** through an HTTPS tunnel with a long secret in the URL. The Figma pairing bridge is never exposed.
 

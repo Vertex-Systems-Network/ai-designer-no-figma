@@ -100,7 +100,7 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,to
   const supplied=authorization.startsWith('Bearer ')?authorization.slice(7):'';
   const isPluginCredential=constantTimeEqual(supplied,pluginToken);
   if(!isPluginCredential&&!constantTimeEqual(supplied,token))throw new BridgeFault('UNAUTHORIZED','Bridge pairing is no longer valid. Connect Claude again in Figma Settings.');
-  if(isPluginCredential&&!['/bridge/health','/bridge/sessions/connect','/bridge/sessions/heartbeat','/bridge/assets'].includes(url.pathname)&&!/^\/bridge\/assets\/[a-f0-9]{64}$/i.test(url.pathname)&&!/^\/bridge\/sessions\/[a-zA-Z0-9:_-]+\/jobs\/next$/.test(url.pathname)&&!/^\/bridge\/jobs\/[0-9a-f-]{36}\/result$/i.test(url.pathname))throw new BridgeFault('FORBIDDEN','This pairing only allows the Figma plugin transport and local asset library.');
+  if(isPluginCredential&&!['/bridge/health','/bridge/sessions/connect','/bridge/sessions/heartbeat','/bridge/sessions/requests','/bridge/assets'].includes(url.pathname)&&!/^\/bridge\/assets\/[a-f0-9]{64}$/i.test(url.pathname)&&!/^\/bridge\/sessions\/[a-zA-Z0-9:_-]+\/jobs\/next$/.test(url.pathname)&&!/^\/bridge\/jobs\/[0-9a-f-]{36}\/result$/i.test(url.pathname))throw new BridgeFault('FORBIDDEN','This pairing only allows the Figma plugin transport and local asset library.');
   if(req.method==='GET'&&url.pathname==='/bridge/assets'){sendJson(res,200,{assets:await assetLibrary.list()});return;}
   if(req.method==='POST'&&url.pathname==='/bridge/assets'){
     const data=await readBody(req);const asset=validateAssetInput(data.asset);
@@ -122,6 +122,11 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,to
     const data=await readBody(req) as {sessionId?:unknown};
     if(typeof data.sessionId!=='string')throw new BridgeFault('INVALID_SESSION','sessionId is required.');
     sendJson(res,200,{session:broker.heartbeat(data.sessionId),cancel:broker.cancellationsFor(data.sessionId)});return;
+  }
+  if(req.method==='POST'&&url.pathname==='/bridge/sessions/requests'){
+    const data=await readBody(req) as {sessionId?:unknown;kind?:unknown;prompt?:unknown};
+    if(typeof data.sessionId!=='string'||(data.kind!=='generate'&&data.kind!=='edit')||typeof data.prompt!=='string'||!data.prompt.trim())throw new BridgeFault('INVALID_REQUEST','sessionId, kind (generate|edit) and prompt are required.');
+    sendJson(res,200,{request:broker.addRequest(data.sessionId,data.kind,data.prompt)});return;
   }
   const nextMatch=url.pathname.match(/^\/bridge\/sessions\/([a-zA-Z0-9:_-]+)\/jobs\/next$/);
   if(req.method==='GET'&&nextMatch){sendJson(res,200,{job:broker.takeNext(nextMatch[1]!)});return;}
