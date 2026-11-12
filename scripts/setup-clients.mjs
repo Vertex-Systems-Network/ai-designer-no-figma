@@ -9,7 +9,7 @@
 // --mode stdio (default): the app starts the MCP server itself.
 // --mode http: one shared hub (npm run mcp:remote) serves several apps at once.
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,10 +29,15 @@ if (!['stdio', 'http'].includes(mode)) fail('--mode must be stdio or http');
 
 const serverScript = join(repo, 'dist', 'mcp.mjs');
 const stdio = { command: process.execPath, args: [serverScript] };
-const hubUrl = option('url', 'http://127.0.0.1:8790/mcp');
-async function hubToken() {
-  const file = join(home, '.ai-designer-no-figma', 'remote-mcp-token');
-  try { return (await readFile(file, 'utf8')).trim(); } catch { return '<run "npm run mcp:remote" once, then re-run this command>'; }
+const state = join(home, '.ai-designer-no-figma');
+// The hub publishes the port it actually bound (it falls back from 8790 when busy).
+async function publishedHubUrl() { try { return JSON.parse(await readFile(join(state, 'hub.json'), 'utf8')).url; } catch { return undefined; } }
+const hubUrl = option('url', (await publishedHubUrl()) ?? 'http://127.0.0.1:8790/mcp');
+const PLACEHOLDER = '<start "npm run mcp:hub" first>';
+async function hubToken({ required = false } = {}) {
+  try { const value = (await readFile(join(state, 'remote-mcp-token'), 'utf8')).trim(); if (/^[a-f0-9]{64}$/i.test(value)) return value; } catch { /* missing */ }
+  if (required) fail('The hub has not created its token yet. Run "npm run mcp:hub" once, then run this command again.');
+  return PLACEHOLDER;
 }
 
 /** Each client: config file, JSON key, and how a stdio/http entry looks. Formats follow each app's MCP documentation. */
@@ -55,7 +60,7 @@ function fail(message) { console.error(`\n✖ ${message}`); process.exit(1); }
 async function entryFor(client) {
   if (mode === 'http') {
     if (!client.http) fail(`${client.label} supports only --mode stdio here.`);
-    return client.http(hubUrl, await hubToken());
+    return client.http(hubUrl, await hubToken({ required: flag('write') }));
   }
   return client.stdio(stdio);
 }
@@ -79,7 +84,7 @@ async function show(id) {
   if (client.command) { console.log(`  Run:\n    ${client.command(mode, await hubToken())}`); return; }
   if (client.toml) {
     console.log(`  Add to ${client.toml}:\n${codexBlock()}`);
-    if (mode === 'http') console.log('  (Codex is configured with stdio here; it starts its own server.)');
+    if (mode === 'http') fail('Codex is configured with --mode stdio only (Codex starts its own server). Re-run without --mode http.');
     return;
   }
   const entry = await entryFor(client);
@@ -96,6 +101,7 @@ async function write(id) {
   const client = clients[id];
   if (client.custom || client.command || client.printOnly) { await show(id); console.log('\n  Nothing written: copy the settings above into the app.'); return; }
   if (client.toml) {
+    if (mode === 'http') fail('Codex is configured with --mode stdio only. Re-run without --mode http.');
     const current = existsSync(client.toml) ? await readFile(client.toml, 'utf8') : '';
     if (current.includes(`[mcp_servers.${NAME}]`)) { console.log(`\n✔ ${client.label}: ${client.toml} already has [mcp_servers.${NAME}]; left unchanged.`); return; }
     await backupAndWrite(client.toml, `${current}${current && !current.endsWith('\n') ? '\n' : ''}\n${codexBlock().replace(/^ {4}/gm, '')}`);
@@ -108,14 +114,17 @@ async function write(id) {
     catch { fail(`${client.file} is not plain JSON (it may contain comments). Add the block shown by "--client ${id}" by hand.`); }
   }
   data[client.key] = { ...(data[client.key] ?? {}), [NAME]: await entryFor(client) };
-  await backupAndWrite(client.file, `${JSON.stringify(data, null, 2)}\n`);
+  await backupAndWrite(client.file, `${JSON.stringify(data, null, 2)}\n`, mode === 'http');
   console.log(`\n✔ ${client.label}: wrote "${NAME}" into ${client.file}. Restart the app.`);
 }
 
-async function backupAndWrite(file, content) {
+/** Files that carry the hub bearer token (and their backups) are written owner-only. */
+async function backupAndWrite(file, content, secret = false) {
   await mkdir(dirname(file), { recursive: true });
-  if (existsSync(file)) await copyFile(file, `${file}.bak-ai-designer`);
-  await writeFile(file, content, 'utf8');
+  const backup = `${file}.bak-ai-designer`;
+  if (existsSync(file)) { await copyFile(file, backup); if (secret || content.includes('Bearer ')) await chmod(backup, 0o600).catch(() => {}); }
+  await writeFile(file, content, { encoding: 'utf8', ...(secret ? { mode: 0o600 } : {}) });
+  if (secret) await chmod(file, 0o600).catch(() => {});
 }
 
 const id = option('client');

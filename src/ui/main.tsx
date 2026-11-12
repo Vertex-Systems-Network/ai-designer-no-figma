@@ -69,6 +69,9 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [pairingCode, setPairingCode] = useState('');
   const [agentSteps, setAgentSteps] = useState<string[]>([]);
+  const [runtimeToken, setRuntimeToken] = useState(() => load<string>('adnf-runtime-token',''));
+  const [runtimeCode, setRuntimeCode] = useState('');
+  const runtimeAuth = runtimeToken ? { Authorization: `Bearer ${runtimeToken}` } : {};
   const [figmaReference, setFigmaReference] = useState('');
   const [preparedPrompt, setPreparedPrompt] = useState('');
   const [preparedPatchPrompt, setPreparedPatchPrompt] = useState('');
@@ -204,8 +207,10 @@ function App() {
     setAgentStatus({type:'agent-status',status:'connecting',message:'Connecting Claude to this Figma file…'});
     setError('');setNotice('Connecting Claude to Figma…');
     try{
-      const reused=!pairingCode&&bridgeToken?await findBridgeWithToken(bridgeToken,bridgeUrl):undefined;
-      const result=reused?{endpoint:reused,token:bridgeToken}:await discoverBridge(pairingCode);setPairingCode('');
+      const savedInstance=load<string>('adnf-bridge-instance','');
+      const reused=!pairingCode&&bridgeToken?await findBridgeWithToken(bridgeToken,savedInstance,bridgeUrl):undefined;
+      if(!pairingCode&&!reused)throw new Error('The paired AI app is no longer running (or restarted). Ask it for the current pairing code and connect again.');
+      const result=reused?{endpoint:reused,token:bridgeToken,instanceId:savedInstance}:await discoverBridge(pairingCode);setPairingCode('');save('adnf-bridge-instance',result.instanceId);
       setBridgeUrl(result.endpoint);setBridgeToken(result.token);
       configureStoredAssetBridge(result.endpoint,result.token);
       save('adnf-bridge-url',result.endpoint);save('adnf-bridge-token',result.token);
@@ -277,12 +282,14 @@ function App() {
     setRuntime('checking');
     try {
       const health=await fetch(`${baseUrl}/api/health`,{signal:AbortSignal.timeout(2500)}); if(!health.ok)throw new Error('Local service is not responding.');
-      const listed=await fetch(`${baseUrl}/api/providers`,{signal:AbortSignal.timeout(3500)}).then(r=>r.ok?r.json() as Promise<{providers?:ProviderInfo[]}>:{providers:[]}).catch(()=>({providers:[] as ProviderInfo[]}));
+      if(!runtimeToken)throw new Error('Local runtime found. Pair it once: Settings → Local model runtime → type the code shown in the npm run runtime terminal.');
+      const listed=await fetch(`${baseUrl}/api/providers`,{headers:runtimeAuth,signal:AbortSignal.timeout(3500)}).then(r=>r.ok?r.json() as Promise<{providers?:ProviderInfo[]}>:{providers:[]}).catch(()=>({providers:[] as ProviderInfo[]}));
       setProviders(listed.providers??[]);
       const chosen=listed.providers?.find(p=>p.id===provider);
       const label=chosen?.label??'Ollama';
       if(chosen&&!chosen.ready)throw new Error(`${label} is not configured: ${chosen.reason??'missing API key.'}`);
-      const response=await fetch(`${baseUrl}/api/models?provider=${encodeURIComponent(provider)}`,{signal:AbortSignal.timeout(6000)});
+      const response=await fetch(`${baseUrl}/api/models?provider=${encodeURIComponent(provider)}`,{headers:runtimeAuth,signal:AbortSignal.timeout(6000)});
+      if(response.status===401){setRuntimeToken('');save('adnf-runtime-token','');throw new Error('Runtime pairing expired. Enter the code shown in the npm run runtime terminal.');}
       if(!response.ok){const data=await response.json().catch(()=>({})) as {error?:{message?:string}};throw new Error(data.error?.message??`Runtime connected, but ${label} is unavailable.`);}
       const result=await response.json() as {models?:Model[]}; const found=result.models??[]; setModels(found); setRuntime('connected');
       setModel(current=>current&&found.some(m=>m.name===current)?current:found[0]?.name??'');
@@ -293,14 +300,14 @@ function App() {
     save('adnf-generation-mode',generationMode);save('adnf-provider',provider);
     if(generationMode==='ollama')void refreshModels();
     else{setRuntime('disconnected');setModels([]);setError('');setNotice('External AI handoff is ready. No API key or Ollama runtime required.');}
-  },[baseUrl,generationMode,provider]);
+  },[baseUrl,generationMode,provider,runtimeToken]);
   async function callModel(input:{prompt:string;mode?:'design'|'patch'}) {
     if(!model)throw new Error('Choose a model first.');
     const controller=new AbortController();activeController.current=controller;const timeout=setTimeout(()=>controller.abort(),185000);
     try {
       const resolvedCanvas=canvasSize==='custom'?`${customWidth}x${customHeight}`:canvasSize;
       if((input.mode??'design')==='design')setAgentSteps([]);
-      const response=await fetch(`${baseUrl}/api/${(input.mode??'design')==='design'?'agent':'generate'}`,{method:'POST',headers:{'Content-Type':'application/json','X-AI-Designer-Local':'1'},body:JSON.stringify({provider,model,prompt:input.prompt,category,style,mode:input.mode??'design',platform,canvasSize:resolvedCanvas,brandColor,density,typography,complexity}),signal:controller.signal});
+      const response=await fetch(`${baseUrl}/api/${(input.mode??'design')==='design'?'agent':'generate'}`,{method:'POST',headers:{'Content-Type':'application/json','X-AI-Designer-Local':'1',...runtimeAuth},body:JSON.stringify({provider,model,prompt:input.prompt,category,style,mode:input.mode??'design',platform,canvasSize:resolvedCanvas,brandColor,density,typography,complexity}),signal:controller.signal});
       if(!response.ok){const data=await response.json() as {error?:{message?:string}};throw new Error(data.error?.message??`Generation failed (${response.status}).`);}
       if(response.headers.get('content-type')?.includes('application/json')){const data=await response.json() as {response?:string;error?:{message?:string}};if(data.error)throw new Error(data.error.message??'Local model request failed.');return data.response??'';}
       if(!response.body)throw new Error('The local model did not return a response stream.');
@@ -473,7 +480,7 @@ function App() {
       </>}
       {tab==='Settings'&&<>
         <div className="section-heading"><div><p className="eyebrow">OPTIONAL LOCAL MODEL</p><h1>Settings</h1><p className="muted">External AI handoff works without a local runtime or API key.</p></div></div>
-        <div className="settings-card"><div className="preview-head"><strong>Optional local model runtime</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed for the model-provider workflow. Start it with npm run runtime, then use http://localhost:8787 (it binds only to loopback). Add any OpenAI-compatible, Anthropic or Gemini endpoint in providers.json.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test provider</button></div></div>
+        <div className="settings-card"><div className="preview-head"><strong>Optional local model runtime</strong><span className={`status status-${runtime}`}><i/>{runtime}</span></div><label className="field-label">Loopback endpoint URL<input value={endpointDraft} onChange={e=>setEndpointDraft(e.target.value)}/></label><p className="hint">Only needed for the model-provider workflow. Start it with npm run runtime, then use http://localhost:8787 (it binds only to loopback). Add any OpenAI-compatible, Anthropic or Gemini endpoint in providers.json.</p><div className="button-row"><button className="primary-button small" onClick={()=>{try{const u=new URL(endpointDraft);if(u.hostname!=='localhost'||u.protocol!=='http:'||u.port!=='8787')throw new Error('Use http://localhost:8787.');const value=endpointDraft.replace(/\/$/,'');setBaseUrl(value);save('adnf-endpoint',value);setNotice('Optional local endpoint saved.');setError('');}catch(err){setError(err instanceof Error?err.message:'Invalid endpoint.');}}}>Save endpoint</button><button className="secondary-button small" onClick={()=>{setGenerationMode('ollama');void refreshModels();}}>Test provider</button></div><label className="field-label">Runtime pairing code<input inputMode="numeric" maxLength={6} placeholder={runtimeToken?'Paired':'6 digits from the runtime terminal'} value={runtimeCode} onChange={e=>setRuntimeCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><div className="button-row"><button className="secondary-button small" disabled={runtimeCode.length!==6} onClick={()=>void (async()=>{try{const response=await fetch(`${baseUrl}/api/pair`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:runtimeCode})});const data=await response.json() as {token?:string;error?:{message?:string}};if(!response.ok||!data.token)throw new Error(data.error?.message??'Pairing failed.');setRuntimeToken(data.token);save('adnf-runtime-token',data.token);setRuntimeCode('');setNotice('Local runtime paired.');setError('');}catch(err){setError(err instanceof Error?err.message:'Pairing failed.');}})()}>Pair runtime</button></div></div>
         <div className="settings-card"><strong>Font fallback</strong><label className="field-label">Preferred fallback<select value={fontFallback} onChange={e=>{setFontFallback(e.target.value);save('adnf-font-fallback',e.target.value);}}><option>Inter</option><option>Arial</option><option>Roboto</option></select></label><p className="hint">The renderer substitutes a safe font when the preferred face is unavailable.</p></div>
         <div className="settings-card"><div className="preview-head"><strong>AI agent connection</strong><span className={`status status-${agentStatus.status==='connected'||agentStatus.status==='working'?'connected':agentStatus.status==='connecting'?'checking':'disconnected'}`}><i/>{agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':agentStatus.status==='connecting'?'Connecting':'Not connected'}</span></div><p className="hint">Connect any MCP-capable AI app (Claude, Cursor, VS Code, Codex, Gemini CLI, Windsurf or a custom client) to the open Figma file. Ask the AI app for “the AI Designer pairing code”, type it here once, then connect. Keep Figma Desktop and this document open.</p>{!bridgeToken&&<label className="field-label">Pairing code<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 digits" value={pairingCode} onChange={e=>setPairingCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>}<div className="button-row"><button className="primary-button small" onClick={()=>void connectLocalAgent()} disabled={['connecting','connected','working'].includes(agentStatus.status)||(!bridgeToken&&pairingCode.length!==6)}>{agentStatus.status==='connecting'?'Connecting…':agentStatus.status==='connected'||agentStatus.status==='working'?'Connected':'Connect & hide panel'}</button>{(agentStatus.status==='connected'||agentStatus.status==='working')&&<button className="secondary-button small" onClick={()=>post({type:'hide-ui'})}>Hide panel</button>}{bridgeToken&&<button className="secondary-button small" disabled={agentStatus.status==='working'} onClick={()=>{bridgeEpoch.current++;setBridgeToken('');save('adnf-bridge-token','');configureStoredAssetBridge(bridgeUrl,'');setAgentStatus({type:'agent-status',status:'disconnected',message:'Claude disconnected.'});post({type:'configure-bridge',endpoint:bridgeUrl,token:'',sessionId:bridgeSession.current||'disconnect-session'});setNotice('Claude disconnected.');setError('');}}>Disconnect</button>}</div><details className="advanced-pairing"><summary>Connection troubleshooting</summary><p className="hint">If the code is rejected, ask the AI app for the current code again (it changes after 5 wrong tries) or read ~/.ai-designer-no-figma/pairing-code. Setup for each AI app: run npm run setup:clients.</p></details></div>
         <div className="privacy-note"><strong>Privacy</strong><p>No telemetry is included. Prompt history and tokens remain in local browser storage. External AI handoff sends no prompt from this plugin; you choose what to copy into the AI app. The optional companion service binds to loopback and contacts a local Ollama endpoint only.</p></div>

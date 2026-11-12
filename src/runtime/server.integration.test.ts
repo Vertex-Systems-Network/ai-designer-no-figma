@@ -7,6 +7,7 @@ import { createServer as createNetServer } from 'node:net';
 let fakeOllama: Server;
 let child: ChildProcess;
 let serviceUrl = '';
+let runtimeToken = '';
 let requestsSeen = 0;
 let lastModelPrompt = '';
 let streamModeRequested = false;
@@ -46,11 +47,15 @@ beforeAll(async () => {
   const ollamaPort = (fakeOllama.address() as {port:number}).port;
   const port = await freePort(); serviceUrl = `http://127.0.0.1:${port}`;
   child = spawn(process.execPath,['--import','tsx','src/runtime/server.ts'],{
-    cwd:process.cwd(),env:{...process.env,HOST:'127.0.0.1',PORT:String(port),OLLAMA_URL:`http://127.0.0.1:${ollamaPort}`,MAX_BODY_BYTES:'262144',AI_DESIGNER_PROVIDERS:'/nonexistent/providers.json',OPENAI_API_KEY:''},stdio:'ignore',
+    cwd:process.cwd(),env:{...process.env,HOST:'127.0.0.1',PORT:String(port),OLLAMA_URL:`http://127.0.0.1:${ollamaPort}`,MAX_BODY_BYTES:'262144',AI_DESIGNER_PROVIDERS:'/nonexistent/providers.json',OPENAI_API_KEY:'',RUNTIME_PAIRING_CODE:'424242',AI_DESIGNER_HOME:`/tmp/adnf-runtime-test-${process.pid}`},stdio:'ignore',
   });
   const deadline = Date.now()+8000;
   while(Date.now()<deadline){
-    try{const response=await fetch(`${serviceUrl}/api/health`);if(response.ok)return;}catch{}
+    try{const response=await fetch(`${serviceUrl}/api/health`);if(response.ok){
+      const paired=await fetch(`${serviceUrl}/api/pair`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:'424242'})});
+      runtimeToken=((await paired.json()) as {token:string}).token;
+      const raw=globalThis.fetch;globalThis.fetch=((input:RequestInfo|URL,init:RequestInit={})=>String(input).startsWith(serviceUrl)&&!String(input).endsWith('/api/pair')&&!(init.headers as Record<string,string>|undefined)?.['X-No-Auth']?raw(input,{...init,headers:{Authorization:`Bearer ${runtimeToken}`,...(init.headers as Record<string,string>??{})}}):raw(input,init)) as typeof fetch;
+      return;}}catch{}
     await new Promise(resolve=>setTimeout(resolve,100));
   }
   throw new Error('Local runtime did not start for integration tests.');
@@ -62,6 +67,13 @@ afterAll(async () => {
 });
 
 describe('loopback runtime HTTP integration',()=>{
+  it('refuses model endpoints without the paired runtime token, even from the Figma null origin',async()=>{
+    const response=await fetch(`${serviceUrl}/api/providers`,{headers:{Origin:'null','X-No-Auth':'1'}});
+    expect(response.status).toBe(401);
+    const wrong=await fetch(`${serviceUrl}/api/pair`,{method:'POST',headers:{Origin:'null'},body:JSON.stringify({code:'000000'})});
+    expect(wrong.status).toBe(401);
+    expect(runtimeToken).toMatch(/^[a-f0-9]{64}$/);
+  });
   it('reports a local health response',async()=>{
     const response=await fetch(`${serviceUrl}/api/health`);
     expect(response.status).toBe(200);

@@ -5,7 +5,7 @@ AI Designer works with any AI tool in one of four ways. None of them need a Figm
 | Way | Use it for | Start |
 |---|---|---|
 | **MCP (stdio)** | One AI app drives Figma directly (plans, builds, takes screenshots, fixes) | `npm run build`, then `npm run setup:clients -- --client <app> --write` |
-| **MCP hub (HTTP)** | Several AI apps at once, or any client that supports Streamable HTTP | `npm run mcp:hub`, then `npm run setup:clients -- --client <app> --mode http --write` |
+| **MCP hub (HTTP)** | Several AI apps at once, or any client that supports Streamable HTTP | `npm run mcp:hub` (it records its real URL in `hub.json`), then `npm run setup:clients -- --client <app> --mode http --write`. The written config holds a token, so it is saved owner-only (0600). Codex supports stdio only |
 | **Model provider** | The plugin calls a model itself (local or cloud API) | `npm run runtime`, pick a provider in the plugin |
 | **Copy prompt** | Any chat AI with no setup | Choose "Any AI app (copy prompt)" in the plugin |
 
@@ -20,12 +20,14 @@ AI Designer works with any AI tool in one of four ways. None of them need a Figm
 ## Pairing the Figma plugin (security)
 
 1. Open the plugin in Figma, then go to **Settings → AI agent connection**.
-2. Ask your AI app: *"Give me the AI Designer pairing code."* The app calls the `figma_get_pairing_code` tool. You can also read `~/.ai-designer-no-figma/pairing-code`.
+2. Ask your AI app: *"Give me the AI Designer pairing code."* The app calls the `figma_get_pairing_code` tool. You can also read `~/.ai-designer-no-figma/pairing-code-<port>` (each running bridge has its own code).
 3. Type the 6 digits, then press **Connect**.
 
-The code exists because any web page can send `Origin: null`, the same origin the Figma plugin uses. Without the code, a web page could take the bridge token. After 5 wrong codes, pairing locks for one minute and the code changes. After pairing, the plugin reuses its token and needs no code until you disconnect.
+The code exists because any web page can send `Origin: null`, the same origin the Figma plugin uses. Without the code, a web page could take the bridge token. After 5 wrong codes, pairing locks for one minute and the code changes. Asking the AI app for the code again unlocks it at once; in the hub terminal, press Enter. After pairing, the plugin reconnects only to the same bridge instance. If the AI app restarts, you need a new code.
 
 ## Model providers (`npm run runtime`)
+
+The runtime prints its own **runtime pairing code** in the terminal. Type it once under **Settings → Local model runtime → Pair runtime**. Every model request then needs the token it issues, so no web page can spend your API keys. Press Enter in the runtime terminal for a new code.
 
 Built-in presets:
 

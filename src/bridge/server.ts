@@ -1,4 +1,4 @@
-import { timingSafeEqual, randomBytes } from 'node:crypto';
+import { timingSafeEqual, randomBytes, randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { isIP } from 'node:net';
 import { homedir } from 'node:os';
@@ -16,10 +16,14 @@ type ServerOptions = { host?: string; port?: number; autoPort?:boolean; pairingM
 export class PairingGate{
   private failures=0;
   private lockedUntil=0;
-  constructor(private code:string,private readonly file?:string){}
+  constructor(private code:string,private file?:string){}
   static async create(file:string|undefined,fixed?:string):Promise<PairingGate>{const gate=new PairingGate(fixed??PairingGate.generate(),file);if(!fixed)await gate.persist();return gate;}
   static generate():string{return String(randomBytes(4).readUInt32BE(0)%1_000_000).padStart(6,'0');}
   current():string{return this.code;}
+  /** Called from a trusted local channel (the MCP tool or the terminal): clears a lockout caused by someone else's guesses. */
+  async reveal():Promise<string>{if(Date.now()<this.lockedUntil){this.lockedUntil=0;this.failures=0;this.code=PairingGate.generate();await this.persist();}return this.code;}
+  async reset():Promise<string>{this.lockedUntil=0;this.failures=0;this.code=PairingGate.generate();await this.persist();return this.code;}
+  async attachFile(file:string):Promise<void>{this.file=file;await this.persist();}
   async verify(input:unknown):Promise<boolean>{
     if(Date.now()<this.lockedUntil)throw new BridgeFault('PAIRING_LOCKED','Too many wrong pairing codes. Wait one minute, then use the new code.');
     if(typeof input==='string'&&/^\d{6}$/.test(input.trim())&&constantTimeEqual(input.trim(),this.code)){this.failures=0;return true;}
@@ -30,9 +34,10 @@ export class PairingGate{
   }
   private async persist():Promise<void>{if(!this.file)return;await mkdir(dirname(this.file),{recursive:true,mode:0o700});await writeFile(this.file,`${this.code}\n`,{encoding:'utf8',mode:0o600});await chmod(this.file,0o600);}
 }
-export const defaultPairingCodeFile=()=>join(homedir(),'.ai-designer-no-figma','pairing-code');
+/** One file per bridge port, so several running bridges never overwrite each other's code. */
+export const defaultPairingCodeFile=(port:number)=>join(homedir(),'.ai-designer-no-figma',`pairing-code-${port}`);
 
-export async function startBridgeServer(options: ServerOptions = {}): Promise<{server:Server;broker:JobBroker;token:string;pairing:PairingGate;close:()=>Promise<void>;address:()=>{host:string;port:number}}>{
+export async function startBridgeServer(options: ServerOptions = {}): Promise<{server:Server;broker:JobBroker;token:string;pairing:PairingGate;instanceId:string;close:()=>Promise<void>;address:()=>{host:string;port:number}}>{
   if(options.autoPort){let last:unknown;for(const candidate of BRIDGE_DISCOVERY_PORTS){try{return await startBridgeServer({...options,autoPort:false,port:candidate});}catch(error){if((error as NodeJS.ErrnoException).code!=='EADDRINUSE')throw error;last=error;}}throw new Error('All allowed Figma pairing ports are occupied.',{cause:last});}
   const host=options.host??process.env.BRIDGE_HOST??'127.0.0.1';
   const port=options.port??Number(process.env.BRIDGE_PORT??8788);
@@ -45,9 +50,11 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   const pluginToken=await readOrCreateToken(undefined,options.pluginTokenFile??join(homedir(),'.ai-designer-no-figma','plugin-token'));
   const assetLibrary=createAssetLibrary(createFileStorage(options.assetLibraryFile??join(homedir(),'.ai-designer-no-figma','asset-library.json')));
   const broker=options.broker??new JobBroker();
-  const pairing=await PairingGate.create(options.pairingCodeFile??(options.pairingCode?undefined:defaultPairingCodeFile()),options.pairingCode??process.env.BRIDGE_PAIRING_CODE);
+  const pairing=await PairingGate.create(undefined,options.pairingCode??process.env.BRIDGE_PAIRING_CODE);
+  // Identifies this broker so a reconnecting plugin never silently attaches to a different process.
+  const instanceId=randomUUID();
   const server=createServer(async(req,res)=>{
-    try { await handle(req,res,broker,token,pluginToken,assetLibrary,server.address(),options.pairingMode??'local',pairing); }
+    try { await handle(req,res,broker,token,pluginToken,assetLibrary,server.address(),options.pairingMode??'local',pairing,instanceId); }
     catch(error){
       const fault=error instanceof BridgeFault?error:new BridgeFault('BRIDGE_INTERNAL_ERROR',error instanceof Error?error.message:'Bridge request failed.');
       sendJson(res,fault.code==='INVALID_JSON'?400:fault.code==='BODY_TOO_LARGE'?413:fault.code==='UNAUTHORIZED'||fault.code==='PAIRING_CODE_INVALID'?401:fault.code==='ORIGIN_DENIED'?403:fault.code==='PAIRING_LOCKED'?429:fault.code==='NOT_FOUND'?404:409,{error:{code:fault.code,message:fault.message}});
@@ -57,6 +64,8 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   await new Promise<void>((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject);});
   const actual=server.address();
   if (!actual||typeof actual==='string') throw new Error('Bridge server did not expose a TCP address.');
+  const codeFile=options.pairingCodeFile??(options.pairingCode?undefined:defaultPairingCodeFile(actual.port));
+  if(codeFile)await pairing.attachFile(codeFile);
   let closePromise:Promise<void>|undefined;
   const close=():Promise<void>=>{
     if(closePromise)return closePromise;
@@ -69,10 +78,10 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
     });
     return closePromise;
   };
-  return {server,broker,token,pairing,close,address:()=>({host:actual.address,port:actual.port})};
+  return {server,broker,token,pairing,instanceId,close,address:()=>({host:actual.address,port:actual.port})};
 }
 
-async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string,pluginToken:string,assetLibrary:ReturnType<typeof createAssetLibrary>,address:ReturnType<Server['address']>,pairingMode:'local'|'remote',pairing:PairingGate):Promise<void>{
+async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string,pluginToken:string,assetLibrary:ReturnType<typeof createAssetLibrary>,address:ReturnType<Server['address']>,pairingMode:'local'|'remote',pairing:PairingGate,instanceId:string):Promise<void>{
   const origin=req.headers.origin;
   if (origin&&!allowedOrigins.has(origin)) throw new BridgeFault('ORIGIN_DENIED','Request origin is not allowed.');
   if (origin) res.setHeader('Access-Control-Allow-Origin',origin);
@@ -82,9 +91,9 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,to
   if(req.method==='POST'&&req.url==='/bridge/pair'){
     if(!origin||!allowedOrigins.has(origin))throw new BridgeFault('ORIGIN_DENIED','Pairing is only available from the Figma plugin UI.');
     const body=await readBody(req);
-    if(!await pairing.verify(body.code))throw new BridgeFault('PAIRING_CODE_INVALID','Pairing code is missing or wrong. Ask your AI client for the AI Designer pairing code (tool figma_get_pairing_code) or read ~/.ai-designer-no-figma/pairing-code.');
+    if(!await pairing.verify(body.code))throw new BridgeFault('PAIRING_CODE_INVALID','Pairing code is missing or wrong. Ask your AI client for the AI Designer pairing code (tool figma_get_pairing_code) or read ~/.ai-designer-no-figma/pairing-code-<port>.');
     const port=address&&typeof address!=='string'?address.port:8788;
-    sendJson(res,200,{ok:true,endpoint:`http://localhost:${port}`,token:pluginToken,mode:pairingMode});return;
+    sendJson(res,200,{ok:true,endpoint:`http://localhost:${port}`,token:pluginToken,mode:pairingMode,instanceId});return;
   }
   const url=new URL(req.url??'/','http://127.0.0.1');
   const authorization=req.headers.authorization??'';
@@ -102,7 +111,7 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,to
   if(assetMatch&&req.method==='GET'){const asset=await assetLibrary.read(assetMatch[1]!);sendJson(res,200,{...(asset?{asset:encodeStoredAsset(asset)}:{})});return;}
   if(assetMatch&&req.method==='DELETE'){await assetLibrary.delete(assetMatch[1]!);sendJson(res,200,{ok:true});return;}
   if(req.method==='GET'&&url.pathname==='/bridge/health'){
-    sendJson(res,200,{ok:true,service:'local-figma-bridge',activeSessions:broker.getSessions().length});return;
+    sendJson(res,200,{ok:true,service:'local-figma-bridge',instanceId,activeSessions:broker.getSessions().length});return;
   }
   if(req.method==='POST'&&url.pathname==='/bridge/sessions/connect'){
     const data=await readBody(req) as {sessionId?:unknown;pluginVersion?:unknown};

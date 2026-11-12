@@ -2,6 +2,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { isIP } from 'node:net';
 import { buildDesignPrompt } from '../shared/prompts';
 import { runDesignAgent } from './design-agent';
+import { PairingGate } from '../bridge/server';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { listModels, loadProviders, ProviderError, publicProvider, streamText, type ProviderConfig } from './providers';
 
 const host = process.env.HOST ?? '127.0.0.1';
@@ -13,6 +18,19 @@ const maxModelOutputBytes = 512_000;
 // Generation also requires the X-AI-Designer-Local header (forces a CORS preflight) and only one job runs at a time.
 const allowedOrigins = new Set(['https://www.figma.com', 'https://figma.com', 'null', 'http://127.0.0.1:5173', 'http://localhost:5173']);
 const maxConcurrent = 1;
+// Origin and the X-AI-Designer-Local header are not authentication (any page can send Origin: null),
+// so every model endpoint needs a bearer token issued only after the user types the terminal's pairing code.
+const stateDir = process.env.AI_DESIGNER_HOME ?? join(homedir(), '.ai-designer-no-figma');
+async function runtimeToken(): Promise<string> {
+  const path = join(stateDir, 'runtime-token');
+  try { const value = (await readFile(path, 'utf8')).trim(); if (/^[a-f0-9]{64}$/.test(value)) return value; } catch { /* create below */ }
+  const value = randomBytes(32).toString('hex');
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 }); await writeFile(path, `${value}\n`, { mode: 0o600 }); await chmod(path, 0o600);
+  return value;
+}
+const token = await runtimeToken();
+const pairing = await PairingGate.create(process.env.RUNTIME_PAIRING_CODE ? undefined : join(stateDir, 'runtime-pairing-code'), process.env.RUNTIME_PAIRING_CODE);
+const authorized = (header: string | undefined) => { const supplied = Buffer.from(header?.startsWith('Bearer ') ? header.slice(7) : ''); const expected = Buffer.from(token); return supplied.length === expected.length && timingSafeEqual(supplied, expected); };
 let active = 0;
 async function findProvider(id: string): Promise<ProviderConfig> {
   const provider = (await loadProviders()).find((item) => item.id === id);
@@ -28,7 +46,7 @@ function headers(res: ServerResponse, origin: string | undefined): void {
   if (origin && allowedOrigins.has(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-AI-Designer-Local');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-AI-Designer-Local');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
 }
@@ -51,6 +69,13 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1');
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { ok: true, runtime: 'local', ollamaUrl });
+    if (req.method === 'POST' && url.pathname === '/api/pair') {
+      const input = JSON.parse(await body(req)) as { code?: unknown };
+      try { if (!await pairing.verify(input.code)) return json(res, 401, { error: { code: 'PAIRING_CODE_INVALID', message: 'Wrong runtime pairing code. Use the code printed in the npm run runtime terminal.' } }); }
+      catch { return json(res, 429, { error: { code: 'PAIRING_LOCKED', message: 'Too many wrong codes. Press Enter in the runtime terminal for a new code.' } }); }
+      return json(res, 200, { ok: true, token });
+    }
+    if (!authorized(req.headers.authorization)) return json(res, 401, { error: { code: 'RUNTIME_UNAUTHORIZED', message: 'Pair the plugin with the local runtime first (Settings → runtime pairing code).' } });
     if (req.method === 'GET' && url.pathname === '/api/providers') {
       const providers = await loadProviders();
       return json(res, 200, { providers: providers.map((provider) => publicProvider(provider)), configFile: 'providers.json in ~/.ai-designer-no-figma (or AI_DESIGNER_PROVIDERS)' });
@@ -120,5 +145,6 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(port, host, () => console.log(`AI Designer local service listening on http://${host}:${port}`));
+server.listen(port, host, () => console.log(`AI Designer local service listening on http://${host}:${port}\nRuntime pairing code: ${pairing.current()} (type it in the plugin Settings; press Enter here for a new code)`));
+if (process.stdin.isTTY) process.stdin.on('data', () => { void pairing.reset().then((code) => console.log(`New runtime pairing code: ${code}`)); });
 server.on('error', (error) => { console.error(error.message); process.exitCode = 1; });

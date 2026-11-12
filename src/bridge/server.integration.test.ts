@@ -63,3 +63,13 @@ describe('authenticated local plugin bridge',()=>{
     expect((await beat.json()).cancel).toEqual([job.jobId]);
   });
 });
+describe('pairing gate recovery',()=>{
+  it('lets the trusted MCP channel clear a lockout caused by a hostile page',async()=>{
+    const { PairingGate }=await import('./server');
+    const gate=await PairingGate.create(undefined,'111111');
+    for(let i=0;i<5;i++)expect(await gate.verify('000000')).toBe(false);
+    await expect(gate.verify(gate.current())).rejects.toThrow(/Too many/);
+    const fresh=await gate.reveal();
+    expect(await gate.verify(fresh)).toBe(true);
+  });
+});
