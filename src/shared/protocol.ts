@@ -3,6 +3,7 @@ import type { AssetSummary, StoredAsset } from './asset-library';
 import type { BridgeJob } from './bridge-contract';
 
 export type HostToUi =
+  | { type: 'storage-snapshot'; values: Record<string, unknown> }
   | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:[[number,number,number],[number,number,number]];imageScalingFactor?:number}> } | null }
   | { type: 'render-result'; ok: boolean; message: string; created?: number }
   | { type: 'export-result'; ok: boolean; message: string; spec?: DesignSpec }
@@ -16,6 +17,8 @@ export type HostToUi =
   | { type: 'error'; code: string; message: string };
 
 export type UiToHost =
+  | { type: 'storage-request' }
+  | { type: 'storage-set'; key: string; value: unknown }
   | { type: 'resize-ui'; width: number; height: number }
   | { type: 'ui-ready' }
   | { type: 'inspect-selection' }

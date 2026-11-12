@@ -234,6 +234,18 @@ describe('Figma host patch behavior',()=>{
     expect(title.characters).toBe('Revenue');
   });
 
+  it('persists UI settings in figma.clientStorage so pairing survives a plugin restart (found live)',async()=>{
+    const store=new Map<string,unknown>([['adnf-bridge-token','a'.repeat(64)],['other-plugin-key','x']]);
+    const clientStorage={keysAsync:vi.fn(async()=>[...store.keys()]),getAsync:vi.fn(async(key:string)=>store.get(key)),setAsync:vi.fn(async(key:string,value:unknown)=>{store.set(key,value);})};
+    const {ui}=await loadHostWithSelection([],{clientStorage});
+    await ui.onmessage?.({type:'storage-set',key:'adnf-bridge-instance',value:'instance-1'});
+    await ui.onmessage?.({type:'storage-set',key:'not-ours',value:'ignored'});
+    expect(store.get('adnf-bridge-instance')).toBe('instance-1');
+    expect(store.has('not-ours')).toBe(false);
+    await ui.onmessage?.({type:'storage-request'});
+    expect(ui.postMessage).toHaveBeenCalledWith({type:'storage-snapshot',values:{'adnf-bridge-token':'a'.repeat(64),'adnf-bridge-instance':'instance-1'}});
+  });
+
   it('applies only selected-tree edits, preserves siblings, and restores edits on undo',async()=>{
     const title=mockTextNode('title','Title','Revenue');
     const sibling=mockTextNode('sibling','Sibling','Untouched');
