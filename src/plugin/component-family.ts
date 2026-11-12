@@ -1,4 +1,5 @@
 import type { ComponentFamily } from '../shared/component-family';
+import { uniquePageName } from '../shared/page-names';
 
 const color=(hex:string):RGB=>({r:parseInt(hex.slice(1,3),16)/255,g:parseInt(hex.slice(3,5),16)/255,b:parseInt(hex.slice(5,7),16)/255});
 const toHex=(rgb:RGB):string=>`#${[rgb.r,rgb.g,rgb.b].map(value=>Math.round(value*255).toString(16).padStart(2,'0')).join('').toUpperCase()}`;
@@ -8,7 +9,8 @@ const solid=(hex:string):SolidPaint=>({type:'SOLID',color:color(hex)});
 export async function renderComponentFamily(spec:ComponentFamily,api:Pick<PluginAPI,'createPage'|'setCurrentPageAsync'|'createComponent'|'createText'|'combineAsVariants'|'createFrame'|'loadFontAsync'|'currentPage'>){
   const page=api.createPage();
   try{
-    page.name=`AI Designer · ${spec.name}`;
+    // A new page's parent is the document, so sibling names come from it without needing figma.root.
+    page.name=uniquePageName(`AI Designer · ${spec.name}`,((page.parent as DocumentNode|null)?.children??[]).filter(p=>p!==page).map(p=>p.name));
     await page.loadAsync();
     await api.loadFontAsync({family:'Inter',style:'Regular'});
     const components:ComponentNode[]=[];
