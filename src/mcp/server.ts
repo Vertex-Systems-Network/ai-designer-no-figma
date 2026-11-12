@@ -5,6 +5,7 @@ import { BridgeFault, JobBroker } from '../bridge/broker';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { parseEditPatch } from '../shared/edit-patch';
 import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
+import { parseDesignPlan } from '../shared/design-plan';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
 import { homedir } from 'node:os';
@@ -64,6 +65,13 @@ export function createMcpServer(broker:JobBroker):McpServer{
   });
   server.registerTool('figma_get_selection',{description:'Queue a selection inspection on a paired Figma plugin. Poll figma_get_job_status/result for the real response.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     try{return textResult(summary(broker.enqueue({type:'inspect-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_validate_design_plan',{description:'Validate a versioned section plan against its embedded editable schema 1.0 design, and optionally against a supplied bounded local inventory. Exact frame, component candidate, token and asset references are checked. Returns the validated native design specification for the existing import tool. Candidate components are planning metadata, not imported instances. No Figma or provider token required.',inputSchema:z.object({json:z.string().min(1).max(640_000),inventory:z.string().max(64_000).optional()})},async({json,inventory})=>{
+    let parsedInventory:unknown;try{parsedInventory=inventory?JSON.parse(inventory):undefined;}catch{return textResult({valid:false,error:{code:'INVALID_INVENTORY',message:'Inventory JSON is invalid.'}},true);}
+    if(parsedInventory!==undefined&&(!parsedInventory||typeof parsedInventory!=='object'||!Array.isArray((parsedInventory as {components?:unknown}).components)||(parsedInventory as {components:unknown[]}).components.length>80))return textResult({valid:false,error:{code:'INVALID_INVENTORY',message:'Inventory must contain at most 80 component identities.'}},true);
+    const result=parseDesignPlan(json,parsedInventory as Parameters<typeof parseDesignPlan>[1]);
+    if(!result.valid)return textResult({valid:false,error:{code:'INVALID_DESIGN_PLAN',issues:result.issues}},true);
+    return textResult({valid:true,planVersion:'1.0',sectionCount:result.value!.sections.length,designSpec:result.design,componentCandidatesArePlanningOnly:true});
   });
   server.registerTool('figma_audit_design_schema',{description:'Validate a schema 1.0 design and return deterministic, advisory design-quality findings before insertion. Checks contrast, semantic naming, Auto Layout, explicit layer overflow and text-bounds collisions. No Figma session or token required; screenshot review remains necessary.',inputSchema:z.object({json:z.string().min(1).max(512_000)})},async({json})=>{
     const checked=parseDesignSpec(json);
