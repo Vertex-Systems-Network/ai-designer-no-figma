@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { isIP } from 'node:net';
 import { buildDesignPrompt } from '../shared/prompts';
+import { runDesignAgent } from './design-agent';
 import { listModels, loadProviders, ProviderError, publicProvider, streamText, type ProviderConfig } from './providers';
 
 const host = process.env.HOST ?? '127.0.0.1';
@@ -58,7 +59,7 @@ const server = createServer(async (req, res) => {
       const provider = await findProvider(url.searchParams.get('provider') ?? 'ollama');
       return json(res, 200, { provider: provider.id, models: await listModels(provider) });
     }
-    if (req.method === 'POST' && url.pathname === '/api/generate') {
+    if (req.method === 'POST' && (url.pathname === '/api/generate' || url.pathname === '/api/agent')) {
       if (req.headers['x-ai-designer-local'] !== '1') return json(res, 403, { error: { code: 'MISSING_LOCAL_HEADER', message: 'Required local request marker is missing.' } });
       const input = JSON.parse(await body(req)) as { provider?: string; model?: string; prompt?: string; category?: string; style?: string; mode?: 'design' | 'patch'; platform?: string; canvasSize?: string; brandColor?: string; density?: string; typography?: string; complexity?: string };
       if (!input.model || !/^[\w.:/@-]{1,160}$/.test(input.model)) return json(res, 400, { error: { code: 'INVALID_MODEL', message: 'Choose a model reported by the selected provider.' } });
@@ -82,6 +83,21 @@ const server = createServer(async (req, res) => {
       const timeout = setTimeout(() => controller.abort(), 180_000);
       active++;
       try {
+        if (url.pathname === '/api/agent' && input.mode !== 'patch') {
+          res.statusCode = 200; res.setHeader('Content-Type','application/x-ndjson; charset=utf-8'); res.setHeader('X-Content-Type-Options','nosniff');
+          const complete = async (call: { system?: string; prompt: string }) => {
+            let out = '';
+            for await (const text of streamText(provider, { model: input.model!, ...call, json: true, signal: controller.signal })) {
+              out += text; if (Buffer.byteLength(out) > maxModelOutputBytes) throw new Error('Model output exceeds the 500 KB limit.');
+            }
+            return out;
+          };
+          for await (const event of runDesignAgent(input.prompt, settings, complete)) {
+            if (event.type === 'result') res.write(`${JSON.stringify({ response: event.json, findings: event.findings, rounds: event.rounds, done: true })}\n`);
+            else res.write(`${JSON.stringify({ agent: event, done: false })}\n`);
+          }
+          return res.end();
+        }
         const stream = streamText(provider, { model: input.model, ...request, json: true, signal: controller.signal });
         let outputBytes = 0; let started = false;
         for await (const text of stream) {
