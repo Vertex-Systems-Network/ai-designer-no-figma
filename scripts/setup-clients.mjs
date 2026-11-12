@@ -20,6 +20,8 @@ const os = platform();
 const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
 const userConfig = os === 'darwin' ? join(home, 'Library', 'Application Support') : os === 'win32' ? appData : (process.env.XDG_CONFIG_HOME ?? join(home, '.config'));
 const NAME = 'ai-designer';
+// A plain substring test also matched unrelated text such as the ~/.ai-designer-no-figma folder path.
+const hasEntry = (text, client) => { try { const data = JSON.parse(text); return Boolean(client.key && data?.[client.key]?.[NAME]); } catch { return new RegExp(`[\\["']?${NAME}[\\]"']?\\s*[=:{]|mcp_servers\\.${NAME}\\b`).test(text); } };
 // Claude Desktop may be installed standalone (%APPDATA%\\Claude) and/or from the Microsoft Store (MSIX),
 // whose AppData is virtualised under %LOCALAPPDATA%\\Packages\\<Claude package>\\LocalCache\\Roaming\\Claude.
 // The package folder alone identifies a Store install (the app may not have created Roaming\\Claude yet),
@@ -156,11 +158,11 @@ async function status() {
   console.log('\nAI app status (config files only; this does not inspect running apps):');
   for (const [key, client] of Object.entries(clients)) {
     const file = targetsOf(client)[0] ?? client.toml;
-    if (targetsOf(client).length > 1) { for (const f of targetsOf(client)) { const t = existsSync(f) ? await readFile(f, 'utf8').catch(() => '') : ''; console.log(`  ${client.label.padEnd(40)} ${!existsSync(f) ? 'no config yet' : t.includes(NAME) ? '✔ configured' : 'installed, not configured'}  (${f})`); } continue; }
+    if (targetsOf(client).length > 1) { for (const f of targetsOf(client)) { const t = existsSync(f) ? await readFile(f, 'utf8').catch(() => '') : ''; console.log(`  ${client.label.padEnd(40)} ${!existsSync(f) ? 'no config yet' : hasEntry(t, client) ? '✔ configured' : 'installed, not configured'}  (${f})`); } continue; }
     if (!file) { console.log(`  ${client.label.padEnd(40)} ${client.custom ? 'manual (custom client)' : 'use the command shown by --client ' + key}`); continue; }
     if (!existsSync(file)) { console.log(`  ${client.label.padEnd(40)} not found (${file})`); continue; }
     const text = await readFile(file, 'utf8').catch(() => '');
-    console.log(`  ${client.label.padEnd(40)} ${text.includes(NAME) ? '✔ configured' : 'installed, not configured'}  (${file})`);
+    console.log(`  ${client.label.padEnd(40)} ${hasEntry(text, client) ? '✔ configured' : 'installed, not configured'}  (${file})`);
   }
 }
 if (flag('status')) { await status(); process.exit(0); }
