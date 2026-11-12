@@ -17,7 +17,7 @@ One phase is implemented per development run. “Automated verified” means cod
 |---|---|---|---|
 | 1 | Read-only local design-system inventory | Exact component/variable/style IDs, bounded output and preserved selection; host behavior and MCP protocol tests | **AUTOMATED VERIFIED**; live Figma pending Phase 6 |
 | 2 | Validated agent design plan | Bounded sections, component/token/asset references and plan-to-schema tests | **AUTOMATED VERIFIED**; native candidate reuse remains Phase 3 |
-| 3 | Native component variants and instance properties | Import/export/rollback tests; no silent unsupported data loss | OPEN |
+| 3 | Native component variants and instance properties | Import/export/rollback tests; no silent unsupported data loss | **AUTOMATED VERIFIED** for family 1.0 subset; live editor pending Phase 6 |
 | 4 | Responsive layout and actual asset composition | Two-width structural/visual checks and supplied asset placement | OPEN |
 | 5 | Agent screenshot critique and targeted repair | Real vision-capable client sees capture, patches a measured defect and recaptures | OPEN |
 | 6 | Live Figma acceptance and same-brief comparison | Recorded editor/client versions, build hash, actual native editability, screenshots, review rubric and defects | BLOCKED on user desktop/client environment |
@@ -34,7 +34,7 @@ The goal is an independent design agent that creates editable Figma layers throu
 | `AGENT-01` | P1 | Local MCP preflight for schema and measurable design issues | **AUTOMATED VERIFIED** | `figma_audit_design_schema` reports validation, contrast, naming, layout, overflow and text collision findings. |
 | `AGENT-02` | P1 | Discover reusable components, variables and styles in the open Figma file | **AUTOMATED VERIFIED** | `figma_get_local_design_system` returns current-page component identities and local variable/style identities with bounds and truncation flags. Live Figma result is Phase 6. |
 | `AGENT-03` | P1 | Plan sections, component roles, tokens and assets before native creation | **AUTOMATED VERIFIED** | `figma_validate_design_plan` checks all top-level frames, token usage, supplied assets and candidate IDs against a supplied inventory snapshot; returns validated schema 1.0. Candidate reuse is Phase 3. |
-| `CODE-03` | P1 | Native component variants and properties with instance binding | **OPEN** | Schema/API mapping, capped variant matrix, import/export/rollback tests; unsupported properties fail explicitly. |
+| `CODE-03` | P1 | Native component variants and properties with instance binding | **AUTOMATED VERIFIED** for family 1.0 subset | Separate contract creates 2–8 Style variants with Label TEXT property and native instances; readback, portable export and page rollback tested. Existing library reuse and schema 1.0 instance linkage are outside this subset. |
 | `AGENT-04` | P1 | Rendered design review and targeted repair loop | **PARTIAL** | Existing JPEG capture and selected-ID patch work in automation. A real AI client must inspect the image, fix a measured issue, recapture and record before/after evidence in Figma. |
 | `AGENT-05` | P2 | Responsive layout and typography fidelity | **OPEN** | Supported sizing/wrapping rules tested at two widths with real text; no clipped actions or unintended overlap in screenshots. |
 | `AGENT-06` | P2 | Reuse real local image/vector assets in generated compositions | **PARTIAL** | Existing bounded SVG/raster import and storage need live save/reload/reuse and visual asset placement checks; never fabricate bytes. |
@@ -44,7 +44,7 @@ The goal is an independent design agent that creates editable Figma layers throu
 | `PUB-01` | P1 | Publish tested source with matching ZIP and checksums | **LIVE VERIFIED** | Verify archive hash, Git blob and required files for each release-bound change. |
 | `BLOCK-01`–`BLOCK-02` | — | Closed-document automation and arbitrary client file/identity access | **OUT OF PLUGIN SCOPE / NOT VERIFIED** | Requires separate authenticated desktop/client capabilities; do not advertise as plugin features. |
 
-**Current release evidence:** `npm run release:verify` passed typecheck, lint, 115 unit tests, 20 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. The next implementation task is Phase 3 (`CODE-03`); real editor observations remain in Phase 6.
+**Current release evidence:** `npm run release:verify` passed typecheck, lint, 120 unit tests, 21 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. The next implementation task is Phase 4 (`AGENT-05`/`AGENT-06`); real editor observations remain in Phase 6.
 
 ## Requirements
 
@@ -78,6 +78,10 @@ The Edit tab follows the same handoff for selection-aware patch JSON. The plugin
 The Claude Desktop extension package is `artifacts/ai-designer-no-figma-claude.mcpb`. Install it through **Settings → Desktop app → Manage extensions → Advanced settings → Install Extension**, then open Figma plugin **Settings** and click **Connect Claude**. The plugin pairs with the local bridge and confirms when the connection is active. No config-file editing, terminal commands, API key, or manual token copying is part of this user flow. Build the extension with `npm run package:claude`.
 
 For visual refinement, ask Claude to generate/import the design, then use its Figma tools to capture the selected frame. The `figma_get_job_result` response includes the actual bounded JPEG image. Claude can inspect the result, propose a safe patch to existing selected IDs, apply it, and capture again. The tool loop is available to an AI client; the plugin itself does not perform automatic screenshot critique. Live Figma rendering still needs verification.
+
+## Native component families
+
+The local MCP can create and export a [bounded native component family](docs/integrations/COMPONENT-FAMILY-1.0.md): Style variants, editable Label property and review instances on a new page. This separate contract leaves design-spec 1.0 unchanged. Other component property types and existing library reuse are not claimed.
 
 ## Local agent design plan
 

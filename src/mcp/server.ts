@@ -6,6 +6,7 @@ import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { parseEditPatch } from '../shared/edit-patch';
 import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
 import { parseDesignPlan } from '../shared/design-plan';
+import { parseComponentFamily } from '../shared/component-family';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
 import { homedir } from 'node:os';
@@ -59,6 +60,13 @@ export function createMcpServer(broker:JobBroker):McpServer{
       operations.push({type:'finish-image-transfer',transferId});const jobs=broker.enqueueBatch(operations,queueOptions(args));
       return textResult({transferId,status:'queued',chunkCount,jobIds:jobs.map(job=>job.jobId),sessionId:jobs[0]?.sessionId,agentLabel:jobs[0]?.agentLabel,asset:{kind:'image',...info,sha256:checksum}});
     }catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_export_component_family',{description:'Export one selected native component set if it fits portable familyVersion 1.0: 2–8 Style variants, one Label text property, single solid fills and equal sizes. Unsupported native data fails explicitly.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{return textResult(summary(broker.enqueue({type:'export-component-family'},queueOptions(args))));}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_create_component_family',{description:'Create a bounded native component set on a new Figma page with 2–8 Style variants, a TEXT Label property on each variant, and real review instances. Validates the separate familyVersion 1.0 contract, reads native properties back, and removes the new page on failure. Existing document content is untouched. Requires an open paired plugin session.',inputSchema:z.object({json:z.string().min(1).max(16_384),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    const checked=parseComponentFamily(args.json);if(!checked.valid)return textResult({error:{code:'INVALID_COMPONENT_FAMILY',issues:checked.issues}},true);
+    try{return textResult(summary(broker.enqueue({type:'render-component-family',family:checked.value},queueOptions(args))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_get_local_design_system',{description:'Read-only bounded inventory of components on the current Figma page and local document variables/text/paint/effect styles. Returns exact IDs, names, types and counts without changing selection. Requires an open paired plugin session; no hosted Figma MCP or REST token.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     try{return textResult(summary(broker.enqueue({type:'inspect-design-system'},queueOptions(args))));}catch(error){return faultResult(error);}

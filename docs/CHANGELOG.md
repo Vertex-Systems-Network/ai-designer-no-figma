@@ -108,3 +108,5 @@
 - 2026-11-12: Added `figma_get_local_design_system` with bounded read-only inventory of current-page components and local variables/styles.
 
 - 2026-11-12: Added versioned design plan validator and `figma_validate_design_plan` MCP tool.
+
+- 2026-11-12: Added native component family 1.0 create/export MCP tools with bounded variants, text property, instances and rollback.

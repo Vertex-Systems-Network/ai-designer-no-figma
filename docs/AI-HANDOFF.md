@@ -18,7 +18,7 @@ Updated: 2026-11-12. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 - Selection-aware `set-rotation` edits are bounded to -180°–180° and restore rotation on undo.
 - Native node rotation is accepted between -180° and 180° and is applied on render/export; live Figma transform behavior remains NOT TESTED.
 - Design-system color, typography and spacing scales remain locally persisted with up to 20 presets. Design-spec 1.0 now supports bounded PNG/JPEG image nodes, color and text-style tokens, responsive constraints and row/column/grid definitions. Rendering creates native image fills, local Figma color Variables and Text Styles, applies supported constraints/grids, and binds declared tokens.
-- `npm run release:verify` passes for the current change set: 115 unit tests and 20 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. `npm run compatibility:check` reports metadata/typing only and does not certify a live Figma session.
+- `npm run release:verify` passes for the current change set: 120 unit tests and 21 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. `npm run compatibility:check` reports metadata/typing only and does not certify a live Figma session.
 - Added a non-blocking `auditDesignQuality()` pass after successful JSON validation. It flags measurable contrast issues (when solid fills are known), generic names, missing explicit font sizes and repeated containers without Auto Layout. The prompt now directs the connected AI app to produce coherent, semantically named and readable design systems. Unit tests cover the audit; it cannot prove rendered visual quality or superiority to Figma Agent.
 - Implemented `figma_capture_selection`: the plugin host exports one selected frame as a JPEG using progressive 1024/768/512 px widths, a 700 KiB byte cap, and strict selection/aspect/height bounds. Generated pages select their first root frame. The local MCP server returns a completed preview job as an image content block so an AI client can visually inspect it and then call targeted patch tools. The plugin does not autonomously invoke the AI or choose repeated repairs; live Figma + Claude test remains open.
 - Figma compatibility mapping isolates schema Auto Layout modes and primary-axis alignment, with round-trip unit tests against installed Plugin API types. Other API mappings and live versions remain unverified.
@@ -51,8 +51,12 @@ README now presents one goal-driven task table with status, acceptance and next 
 
 ## 2026-11-12 Phase 1 checkpoint
 
-Implemented bounded current-page component and local document variable/style identity inventory via `figma_get_local_design_system`; unit, host behavior and MCP protocol tests pass. It returns mode IDs, not fully resolved token values or library imports. Live editor observation remains Phase 6. Next run: Phase 3 / `CODE-03` native component variants and properties.
+Implemented bounded current-page component and local document variable/style identity inventory via `figma_get_local_design_system`; unit, host behavior and MCP protocol tests pass. It returns mode IDs, not fully resolved token values or library imports. Live editor observation remains Phase 6. Next run: Phase 4 / `AGENT-05` responsive layout and `AGENT-06` asset composition.
 
 ## 2026-11-12 Phase 2 checkpoint
 
 Plan 1.0 validator and `figma_validate_design_plan` MCP tool are automated verified. It maps top-level frames, actual token use and in-section image/vector assets; component candidates are checked against caller-supplied inventory but are not instantiated. Next run: Phase 3 / `CODE-03`.
+
+## 2026-11-12 Phase 3 checkpoint
+
+A separate component family 1.0 contract creates native Style variants, Label TEXT property and review instances on a new page; reads native fields back and exports a selected portable component set. Failures remove the new page. The subset is automated verified only; existing library import and schema 1.0 linkage are not implemented. Next: Phase 4.
