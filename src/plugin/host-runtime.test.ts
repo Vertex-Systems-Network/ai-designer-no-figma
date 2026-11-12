@@ -159,6 +159,22 @@ async function loadHostWithSelection(selection:MockHostNode[],overrides:Record<s
   return {figma:fakeFigma,ui};
 }
 
+describe('Figma host design-system discovery',()=>{
+  afterEach(()=>{Reflect.deleteProperty(globalThis,'figma');Reflect.deleteProperty(globalThis,'__html__');vi.resetModules();});
+  it('routes a read-only bridge job and preserves the selected node',async()=>{
+    const selected=mockTextNode('selected','Selected','Keep me');
+    const component={id:'component-1',name:'Primary button',type:'COMPONENT',x:0,y:0,width:120,height:40};
+    const currentPage={id:'page-1',name:'Page',selection:[selected],children:[component]};
+    const {ui}=await loadHostWithSelection([selected],{currentPage,
+      variables:{getLocalVariablesAsync:vi.fn().mockResolvedValue([{id:'variable-1',name:'Brand',resolvedType:'COLOR',variableCollectionId:'collection-1',valuesByMode:{light:{r:0,g:0,b:0}}}])},
+      getLocalTextStylesAsync:vi.fn().mockResolvedValue([]),getLocalPaintStylesAsync:vi.fn().mockResolvedValue([]),getLocalEffectStylesAsync:vi.fn().mockResolvedValue([]),
+    });
+    await ui.onmessage?.({type:'bridge-job',job:{jobId:'job-1',operationId:'op-1',sessionId:'session-1',agentLabel:'test',operation:{type:'inspect-design-system'},status:'running',createdAt:1,updatedAt:1}});
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'bridge-job-result',jobId:'job-1',ok:true,result:expect.objectContaining({components:[expect.objectContaining({id:'component-1'})],variables:[expect.objectContaining({id:'variable-1'})]})}));
+    expect(currentPage.selection).toEqual([selected]);
+  });
+});
+
 describe('Figma host patch behavior',()=>{
   afterEach(()=>{Reflect.deleteProperty(globalThis,'figma');Reflect.deleteProperty(globalThis,'__html__');vi.resetModules();});
 

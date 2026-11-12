@@ -59,6 +59,9 @@ export function createMcpServer(broker:JobBroker):McpServer{
       return textResult({transferId,status:'queued',chunkCount,jobIds:jobs.map(job=>job.jobId),sessionId:jobs[0]?.sessionId,agentLabel:jobs[0]?.agentLabel,asset:{kind:'image',...info,sha256:checksum}});
     }catch(error){return faultResult(error);}
   });
+  server.registerTool('figma_get_local_design_system',{description:'Read-only bounded inventory of components on the current Figma page and local document variables/text/paint/effect styles. Returns exact IDs, names, types and counts without changing selection. Requires an open paired plugin session; no hosted Figma MCP or REST token.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{return textResult(summary(broker.enqueue({type:'inspect-design-system'},queueOptions(args))));}catch(error){return faultResult(error);}
+  });
   server.registerTool('figma_get_selection',{description:'Queue a selection inspection on a paired Figma plugin. Poll figma_get_job_status/result for the real response.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     try{return textResult(summary(broker.enqueue({type:'inspect-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
   });

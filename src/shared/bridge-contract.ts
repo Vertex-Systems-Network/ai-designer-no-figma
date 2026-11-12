@@ -3,6 +3,7 @@ import type { DesignSpec } from './spec';
 
 export type BridgeOperation =
   | { type: 'inspect-selection' }
+  | { type: 'inspect-design-system' }
   | { type: 'render-spec'; spec: DesignSpec }
   | { type: 'apply-patch'; patch: EditPatch }
   | { type: 'export-selection' }

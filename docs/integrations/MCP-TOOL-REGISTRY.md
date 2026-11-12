@@ -7,6 +7,8 @@ This list mirrors `createMcpServer` in [`src/mcp/server.ts`](../../src/mcp/serve
 | `figma_get_connection_status` | Return bridge-connected plugin sessions. | Requires bridge token for plugin; no connection is reported as disconnected. |
 | `figma_get_agent_sessions` | List active sessions. | Specify a session ID for mutations when multiple sessions are connected. |
 | `figma_get_capabilities` | Report schema, node and patch capabilities. | Unsupported nodes and features are explicitly listed. |
+| `figma_audit_design_schema` | Validate and audit a design JSON locally before import. | No Figma session required; findings are advisory, not visual proof. |
+| `figma_get_local_design_system` | Queue a bounded read-only inventory of current-page components and local document variable/style identities. | Requires an open paired plugin; caps 500 scanned nodes, 80 components, 80 variables and 80 styles; reports truncation. |
 | `figma_get_selection` | Queue inspection of current selection. | Poll job status/result for actual plugin response. |
 | `figma_import_design_schema` | Validate schema 1.0 and queue an editable design insertion. | JSON size limit 512 KB; imported nodes land on a new page. |
 | `figma_apply_patch` | Validate and queue text/fill/name/bounds operations. | Plugin validates every target against its current selection. |

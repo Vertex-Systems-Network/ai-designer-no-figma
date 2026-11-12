@@ -8,6 +8,7 @@ import { decodeBase64, encodeBase64 } from '../shared/base64';
 import { MAX_PATCH_IMAGE_BYTES } from '../shared/edit-patch';
 import { fromFigmaLayoutMode, fromFigmaPrimaryAxisAlignment, toFigmaLayoutMode, toFigmaPrimaryAxisAlignment } from './compatibility';
 import { assertPortableBlendMode, assertSinglePortableStroke } from './export-compat';
+import { inventoryLocalDesignSystem } from './design-inventory';
 import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
@@ -592,6 +593,7 @@ function bridgeStatus(status:Extract<HostToUi,{type:'agent-status'}>['status'],d
 }
 function bridgeOperationLabel(operation:BridgeOperation):string{
   if(operation.type==='inspect-selection')return 'Inspecting selection';
+  if(operation.type==='inspect-design-system')return 'Inspecting local design system';
   if(operation.type==='render-spec')return `Inserting ${operation.spec.name}`;
   if(operation.type==='apply-patch')return `Applying ${operation.patch.operations.length} reviewed edit(s)`;
   if(operation.type==='insert-svg')return `Importing SVG ${operation.name}`;
@@ -633,6 +635,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
   try{
     let result:unknown;
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
+    else if(operation.type==='inspect-design-system')result=await inventoryLocalDesignSystem(figma);
     else if(operation.type==='render-spec')result={created:await renderSpec(operation.spec,'Inter'),message:'Editable Figma layers were inserted.'};
     else if(operation.type==='capture-selection')result=await captureSelectionPreview();
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
