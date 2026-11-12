@@ -75,7 +75,7 @@ The Edit tab follows the same handoff for selection-aware patch JSON. The plugin
 
 ## Optional remote AI connection through a tunnel
 
-The local bridge can serve a **separate authenticated Streamable HTTP MCP endpoint** for compatible online AI clients. This is an opt-in testing path; the default copy/paste workflow stays offline and needs no API key. See [remote MCP tunnel setup](docs/integrations/REMOTE-MCP-TUNNEL.md). Run `npm run mcp:remote` on the **same computer as Figma**, keep the plugin open and pair it in Settings. Tunnel **only port 8790**, never the plugin pairing port 8788. The remote client needs support for a custom MCP URL and a bearer token. This does not install the development plugin into browser Figma; that installation/distribution step is separate.
+The local bridge can serve a **separate authenticated Streamable HTTP MCP endpoint** for compatible online AI clients. This is an opt-in testing path; the default copy/paste workflow stays offline and needs no API key. See [remote MCP tunnel setup](docs/integrations/REMOTE-MCP-TUNNEL.md). Run `npm run mcp:remote` on the **same computer as Figma**, keep the plugin open and pair it in Settings. Tunnel **only the remote MCP port printed by the process** (8790 or another available port), never a plugin pairing port. The remote client needs support for a custom MCP URL and a bearer token. This does not install the development plugin into browser Figma; that installation/distribution step is separate.
 
 ## Connect Claude Desktop
 

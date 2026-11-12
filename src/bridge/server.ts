@@ -10,9 +10,11 @@ import { sanitizeSvg, validateRasterAsset } from '../shared/assets';
 
 const allowedOrigins = new Set(['https://www.figma.com','https://figma.com','null','http://127.0.0.1:5173','http://localhost:5173']);
 const maxBodyBytes = 4*1_048_576;
-type ServerOptions = { host?: string; port?: number; token?: string; tokenFile?: string; pluginTokenFile?:string; assetLibraryFile?:string; broker?: JobBroker };
+export const BRIDGE_DISCOVERY_PORTS=[8788,8789,8791,8792,8793,8794,8795,8796,8797,8798] as const;
+type ServerOptions = { host?: string; port?: number; autoPort?:boolean; pairingMode?:'local'|'remote'; token?: string; tokenFile?: string; pluginTokenFile?:string; assetLibraryFile?:string; broker?: JobBroker };
 
 export async function startBridgeServer(options: ServerOptions = {}): Promise<{server:Server;broker:JobBroker;token:string;close:()=>Promise<void>;address:()=>{host:string;port:number}}>{
+  if(options.autoPort){let last:unknown;for(const candidate of BRIDGE_DISCOVERY_PORTS){try{return await startBridgeServer({...options,autoPort:false,port:candidate});}catch(error){if((error as NodeJS.ErrnoException).code!=='EADDRINUSE')throw error;last=error;}}throw new Error('All allowed Figma pairing ports are occupied.',{cause:last});}
   const host=options.host??process.env.BRIDGE_HOST??'127.0.0.1';
   const port=options.port??Number(process.env.BRIDGE_PORT??8788);
   if (!isIP(host)||!['127.0.0.1','::1'].includes(host)) throw new Error('BRIDGE_HOST must be a loopback IP address.');
@@ -25,7 +27,7 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   const assetLibrary=createAssetLibrary(createFileStorage(options.assetLibraryFile??join(homedir(),'.ai-designer-no-figma','asset-library.json')));
   const broker=options.broker??new JobBroker();
   const server=createServer(async(req,res)=>{
-    try { await handle(req,res,broker,token,pluginToken,assetLibrary,server.address()); }
+    try { await handle(req,res,broker,token,pluginToken,assetLibrary,server.address(),options.pairingMode??'local'); }
     catch(error){
       const fault=error instanceof BridgeFault?error:new BridgeFault('BRIDGE_INTERNAL_ERROR',error instanceof Error?error.message:'Bridge request failed.');
       sendJson(res,fault.code==='INVALID_JSON'?400:fault.code==='BODY_TOO_LARGE'?413:fault.code==='UNAUTHORIZED'?401:fault.code==='ORIGIN_DENIED'?403:fault.code==='NOT_FOUND'?404:409,{error:{code:fault.code,message:fault.message}});
@@ -50,7 +52,7 @@ export async function startBridgeServer(options: ServerOptions = {}): Promise<{s
   return {server,broker,token,close,address:()=>({host:actual.address,port:actual.port})};
 }
 
-async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string,pluginToken:string,assetLibrary:ReturnType<typeof createAssetLibrary>,address:ReturnType<Server['address']>):Promise<void>{
+async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,token:string,pluginToken:string,assetLibrary:ReturnType<typeof createAssetLibrary>,address:ReturnType<Server['address']>,pairingMode:'local'|'remote'):Promise<void>{
   const origin=req.headers.origin;
   if (origin&&!allowedOrigins.has(origin)) throw new BridgeFault('ORIGIN_DENIED','Request origin is not allowed.');
   if (origin) res.setHeader('Access-Control-Allow-Origin',origin);
@@ -60,7 +62,7 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,to
   if(req.method==='POST'&&req.url==='/bridge/pair'){
     if(!origin||!allowedOrigins.has(origin))throw new BridgeFault('ORIGIN_DENIED','Pairing is only available from the Figma plugin UI.');
     const port=address&&typeof address!=='string'?address.port:8788;
-    sendJson(res,200,{ok:true,endpoint:`http://localhost:${port}`,token:pluginToken});return;
+    sendJson(res,200,{ok:true,endpoint:`http://localhost:${port}`,token:pluginToken,mode:pairingMode});return;
   }
   const url=new URL(req.url??'/','http://127.0.0.1');
   const authorization=req.headers.authorization??'';

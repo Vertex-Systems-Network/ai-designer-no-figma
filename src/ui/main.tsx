@@ -1,3 +1,5 @@
+import { discoverBridge } from './bridge-discovery';
+const defaultBridgeUrl = 'http://localhost:8788';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { auditDesignQuality, parseDesignSpec, type DesignSpec, type ValidationIssue } from '../shared/spec';
@@ -22,7 +24,6 @@ type DesignPreset = {id:string;name:string;createdAt:string;colors:Token[];typog
 type GenerationMode = 'handoff' | 'ollama';
 type AssetRecord=AssetSummary;
 const defaultUrl = 'http://localhost:8787';
-const defaultBridgeUrl = 'http://localhost:8788';
 function safeEndpoint(value: string): string {
   try {
     const url = new URL(value);
@@ -152,7 +153,7 @@ function App() {
     initializeAssetLibraryBridge();
     if(bridgeToken){configureStoredAssetBridge(bridgeUrl,bridgeToken);void listStoredAssets().then(setAssetRecords).catch(()=>{});}
     post({type:'inspect-selection'});
-    if (bridgeToken) void startBridgePolling(bridgeUrl,bridgeToken).catch(()=>{});
+    if (bridgeToken) void connectLocalAgent(false);
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
       if(msg.type==='current-user')setFigmaUser(msg);
       if(msg.type==='bridge-job-result')bridgeWaiters.current.get(msg.jobId)?.(msg);
@@ -194,13 +195,11 @@ function App() {
     };
     window.addEventListener('message',receive);post({type:'ui-ready'}); return ()=>window.removeEventListener('message',receive);
   },[]);
-  async function connectLocalAgent(){
+  async function connectLocalAgent(hideOnConnect=true){
     setAgentStatus({type:'agent-status',status:'connecting',message:'Connecting Claude to this Figma file…'});
     setError('');setNotice('Connecting Claude to Figma…');
     try{
-      const response=await fetch(`${defaultBridgeUrl}/bridge/pair`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-      const result=await response.json() as {ok?:boolean;endpoint?:string;token?:string;error?:{message?:string}};
-      if(!response.ok||!result.ok||!result.endpoint||!result.token)throw new Error(result.error?.message??'Claude Desktop is not running yet. Open Claude Desktop and try Connect again.');
+      const result=await discoverBridge();
       setBridgeUrl(result.endpoint);setBridgeToken(result.token);
       configureStoredAssetBridge(result.endpoint,result.token);
       save('adnf-bridge-url',result.endpoint);save('adnf-bridge-token',result.token);
@@ -208,9 +207,9 @@ function App() {
       setNotice('Claude found. Connecting to this Figma file…');
       await startBridgePolling(result.endpoint,result.token);
       setNotice('Claude connected. Figma work will continue in the background.');
-      post({type:'hide-ui'});
+      if(hideOnConnect)post({type:'hide-ui'});
     }catch(error){
-      const reason=error instanceof Error&&error.message!=='Failed to fetch'?error.message:'Open Claude Desktop and install the AI Designer extension, then try Connect again.';
+      const reason=error instanceof Error?error.message:'No local AI Designer bridge found.';
       setAgentStatus({type:'agent-status',status:'disconnected',message:reason});setError(reason);setNotice('');
     }
   }

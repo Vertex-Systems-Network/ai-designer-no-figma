@@ -84,3 +84,7 @@ Added `npm run mcp:remote`: shared local pairing bridge (8788) plus a separate l
 ## 2026-11-12 remote startup collision
 
 User's Windows run of `npm run mcp:remote` hit `EADDRINUSE 127.0.0.1:8788`. Existing Claude/Desktop MCP likely owns the bridge; the remote process cannot share that in-memory broker. Remote startup now reports the single-owner requirement and the setup guide identifies/ends only the owning process before restarting remote mode, then reconnects the plugin. This is a startup guidance fix, not hot attachment to the old process. Live Windows retry remains unobserved.
+
+## 2026-11-12 automatic port discovery
+
+Remote mode now tries manifest-allowlisted pairing ports 8788, 8789, 8791–8798, and remote MCP ports 8790, 8800–8809. The Figma plugin probes all allowed pairing ports and prefers a bridge advertising remote mode, including after reopening with a saved old connection. Host endpoint validation accepts only the bounded pairing ports. Integration tests prove two concurrent bridges select distinct ports and remote pairing advertises its actual endpoint; UI tests prove preference over an old bridge. The user must install the updated plugin build before this can work; live Windows/browser result remains unobserved.

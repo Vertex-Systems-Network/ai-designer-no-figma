@@ -244,6 +244,7 @@
       "sourceFiles": [
         "src/mcp/server.ts",
         "src/mcp/remote.ts",
+        "src/ui/bridge-discovery.ts",
         "src/shared/component-family.ts",
         "src/plugin/component-family.ts",
         "src/shared/design-plan.ts",
@@ -263,6 +264,7 @@
       "tests": [
         "src/mcp/server.integration.test.ts",
         "src/mcp/remote.integration.test.ts",
+        "src/ui/bridge-discovery.test.ts",
         "src/shared/component-family.test.ts",
         "src/plugin/component-family.test.ts",
         "src/shared/design-plan.test.ts",

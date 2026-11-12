@@ -19,7 +19,8 @@ export async function remoteToken(path=tokenPath()):Promise<string>{
   catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;const value=randomBytes(32).toString('hex');try{await writeFile(path,`${value}\n`,{mode:0o600,flag:'wx'});await chmod(path,0o600);return value;}catch(writeError){if((writeError as NodeJS.ErrnoException).code==='EEXIST')return remoteToken(path);throw writeError;}}
 }
 export async function startRemoteMcpServer(broker:JobBroker,options:{host?:string;port?:number;token?:string}={}){
-  const host=options.host??'127.0.0.1',port=options.port??8790;
+  if(options.port===undefined){let last:unknown;for(const candidate of [8790,8800,8801,8802,8803,8804,8805,8806,8807,8808,8809]){try{return await startRemoteMcpServer(broker,{...options,port:candidate});}catch(error){if((error as NodeJS.ErrnoException).code!=='EADDRINUSE')throw error;last=error;}}throw new Error('All remote MCP listener ports are occupied.',{cause:last});}
+  const host=options.host??'127.0.0.1',port=options.port;
   if(!isIP(host)||!['127.0.0.1','::1'].includes(host))throw new Error('Remote MCP listener must bind to loopback.');
   if(!Number.isInteger(port)||port<0||port>65535)throw new Error('Invalid remote MCP port.');
   const token=options.token??await remoteToken();if(!/^[a-f0-9]{64}$/i.test(token))throw new Error('Remote MCP token must be 64 hexadecimal characters.');
@@ -54,13 +55,8 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker){
     res.writeHead(response.status).end(body);
   }finally{await mcp.close();}
 }
-export function bridgeStartupMessage(error:unknown):string|undefined{
-  return (error as NodeJS.ErrnoException)?.code==='EADDRINUSE'?'Port 8788 is already owned by another local bridge (often Claude Desktop). Close that MCP process before starting remote mode; one process must own Figma pairing. Your Figma file stays unchanged.':undefined;
-}
 export async function startRemoteServices(){
-  let bridge:Awaited<ReturnType<typeof startBridgeServer>>;
-  try{bridge=await startBridgeServer();}
-  catch(error){const message=bridgeStartupMessage(error);if(message)throw new Error(message,{cause:error});throw error;}
+  const bridge=await startBridgeServer({autoPort:true,pairingMode:'remote'});
   try{const remote=await startRemoteMcpServer(bridge.broker);return{bridge,remote};}
   catch(error){await bridge.close();throw error;}
 }
