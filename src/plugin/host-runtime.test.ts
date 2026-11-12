@@ -196,6 +196,15 @@ describe('Figma host patch behavior',()=>{
     expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'patch-result',ok:true,message:'The latest plugin patch was reverted.'}));
   });
 
+  it('exports a manually edited title with native pass-through node blend',async()=>{
+    const title={...mockTextNode('title','Title','Edited in Figma'),blendMode:'PASS_THROUGH',opacity:1,fontSize:28,getRangeTextStyleId:()=>'',fills:[{type:'SOLID',color:{r:0.09,g:0.09,b:0.09},opacity:1,blendMode:'NORMAL'}],effects:[]} as unknown as MockHostNode;
+    const frame={id:'test-card',name:'Test Card',type:'FRAME',x:0,y:0,width:480,height:280,rotation:0,opacity:1,blendMode:'PASS_THROUGH',fills:[],effects:[],layoutMode:'NONE',layoutGrids:[],children:[title]} as unknown as MockHostNode;
+    const {ui}=await loadHostWithSelection([frame]);
+    await ui.onmessage?.({type:'export-selection'});
+    const result=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {ok:boolean;spec?:{pages:Array<{children:Array<{children:Array<{text:string}>}>}>}}|undefined;
+    expect(ui.postMessage.mock.calls.map(([message])=>message)).toEqual(expect.arrayContaining([expect.objectContaining({type:'export-result'})]));
+    expect(result?.spec?.pages[0]?.children[0]?.children[0]?.text).toBe('Edited in Figma');
+  });
   it('exports bound color variables and text styles discovered during asynchronous tree conversion',async()=>{
     const styledText={
       id:'styled-text',name:'Heading',type:'TEXT',x:12,y:16,width:220,height:40,rotation:0,opacity:1,

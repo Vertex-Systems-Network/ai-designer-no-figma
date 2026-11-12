@@ -68,3 +68,7 @@ A separate component family 1.0 contract creates native Style variants, Label TE
 ## 2026-11-12 Phase 5 checkpoint
 
 The custom MCP server now has `figma_prepare_visual_repair` and `figma_verify_visual_repair`. Flow: capture selected frame → inspect selection → inspect image in a vision client → supply visible defect, target ID and one validated patch → apply patch → recapture → compare ordered same-session hashes → reviewer judges both images. No tool claims the changed pixels fixed the defect. Unit and MCP protocol tests cover evidence binding and failure paths. Next: Phase 6 live Figma acceptance and same-brief evaluation; a paired Figma desktop/client is required.
+
+## 2026-11-12 live editor defect and export fix
+
+User imported the smoke-test schema in Figma Desktop, showing a native Test Card frame with Title text, then manually changed the title to “Edited in Figma”. Export failed because the native text node exposed `PASS_THROUGH` blend, which the exporter rejected. The exporter now accepts `PASS_THROUGH` for a leaf text node (as it already did for containers), while retaining rejection of unsupported actual blend effects. A host behavior regression exports the edited title from a selected frame. The user must install the new build and rerun Export selection; this turn has not observed that rerun. Next exact task: obtain the exported JSON with edited text, then continue live Phase 6 acceptance.

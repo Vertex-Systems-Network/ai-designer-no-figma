@@ -10,6 +10,8 @@ describe('portable export blend-mode checks', () => {
 
   it('allows pass-through containers while rejecting unrepresented paint/effect modes', () => {
     expect(() => assertPortableBlendMode('Frame', 'node', 'PASS_THROUGH', true)).not.toThrow();
+    expect(() => assertPortableBlendMode('Title', 'node', 'PASS_THROUGH', true)).not.toThrow();
+    expect(() => assertPortableBlendMode('Title', 'node', 'MULTIPLY', true)).toThrow(/cannot preserve/);
     expect(() => assertPortableBlendMode('Card', 'paint', 'MULTIPLY')).toThrow(/cannot preserve/);
     expect(() => assertPortableBlendMode('Card', 'effect', 'SCREEN')).toThrow(/Change it to Normal/);
   });
