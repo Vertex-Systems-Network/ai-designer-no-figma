@@ -28,6 +28,19 @@ describe('design specification validation', () => {
     expect(findings.some((finding) => finding.message.includes('semantic layer name'))).toBe(true);
     expect(validateDesignSpec(audited).valid).toBe(true);
   });
+  it('flags explicit overflow and substantial text collisions but not Auto Layout placement',()=>{
+    const audited=structuredClone(valid);const frame=audited.pages[0]!.children[0]!;if(frame.type!=='frame')throw new Error('fixture frame expected');
+    frame.width=300;frame.height=100;frame.children=[
+      {type:'text',id:'a',name:'Primary headline',x:10,y:10,width:180,height:40,text:'Headline'},
+      {type:'text',id:'b',name:'Secondary headline',x:80,y:20,width:180,height:40,text:'Overlap'},
+      {type:'rectangle',id:'c',name:'Decorative edge',x:290,y:5,width:30,height:20},
+    ];
+    const findings=auditDesignQuality(audited);
+    expect(findings.some(item=>item.message.includes('Text bounds overlap'))).toBe(true);
+    expect(findings.some(item=>item.message.includes('outside the parent'))).toBe(true);
+    frame.layout={mode:'vertical',gap:8,padding:8,alignment:'MIN'};
+    expect(auditDesignQuality(audited).some(item=>item.message.includes('overlap')||item.message.includes('outside the parent'))).toBe(false);
+  });
   it('counts UTF-8 bytes without TextEncoder, including multibyte and surrogate-pair characters', () => {
     expect(utf8ByteLength('ASCII')).toBe(5);
     expect(utf8ByteLength('é漢😀')).toBe(9);

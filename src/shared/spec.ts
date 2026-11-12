@@ -222,7 +222,27 @@ export function auditDesignQuality(spec: DesignSpec): DesignQualityFinding[] {
     if ((node.type === 'frame' || node.type === 'group' || node.type === 'component') && node.children.length >= 3 && (!node.layout || node.layout.mode === 'none')) {
       findings.push({ path: `${path}.layout`, severity: 'suggestion', message: 'This container has several children but no Auto Layout; consider using a consistent gap and padding.' });
     }
-    if (node.type === 'frame' || node.type === 'group' || node.type === 'component') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, background));
+    if (node.type === 'frame' || node.type === 'group' || node.type === 'component') {
+      // Explicit coordinates only: Auto Layout children are positioned by Figma at render time.
+      if (!node.layout || node.layout.mode === 'none') {
+        node.children.forEach((child, index) => {
+          if (child.x === undefined || child.y === undefined) return;
+          if (child.x < 0 || child.y < 0 || child.x + child.width > node.width || child.y + child.height > node.height) {
+            findings.push({ path: `${path}.children[${index}]`, severity: 'warning', message: 'Layer bounds extend outside the parent; inspect clipping and intended overflow.' });
+          }
+        });
+        const texts = node.children.map((child, index) => ({ child, index })).filter(({ child }) => child.type === 'text' && child.x !== undefined && child.y !== undefined);
+        for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
+          const a = texts[i]!.child, b = texts[j]!.child;
+          const overlapX = Math.min(a.x! + a.width, b.x! + b.width) - Math.max(a.x!, b.x!);
+          const overlapY = Math.min(a.y! + a.height, b.y! + b.height) - Math.max(a.y!, b.y!);
+          if (overlapX > 2 && overlapY > 2 && overlapX * overlapY > Math.min(a.width * a.height, b.width * b.height) * 0.1) {
+            findings.push({ path: `${path}.children[${texts[j]!.index}]`, severity: 'warning', message: `Text bounds overlap sibling text at children[${texts[i]!.index}]; inspect rendered typography.` });
+          }
+        }
+      }
+      node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, background));
+    }
   };
   spec.pages.forEach((page, p) => page.children.forEach((node, n) => visit(node, `pages[${p}].children[${n}]`)));
   return findings;
