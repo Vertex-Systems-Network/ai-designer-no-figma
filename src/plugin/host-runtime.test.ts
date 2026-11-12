@@ -205,6 +205,35 @@ describe('Figma host patch behavior',()=>{
     expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'patch-result',ok:true,message:'The latest plugin patch was reverted.'}));
   });
 
+  it('renames a text layer whose font is unavailable without loading fonts',async()=>{
+    const title=mockTextNode('title','Title','Revenue');
+    const root:MockHostNode={id:'root',name:'Card',type:'FRAME',x:0,y:0,width:280,height:121,rotation:0,children:[title]};
+    const loadFontAsync=vi.fn().mockRejectedValue(new Error('font unavailable'));
+    const {ui}=await loadHostWithSelection([root],{loadFontAsync});
+    await ui.onmessage?.({type:'apply-patch',patch:{operations:[{op:'rename',targetId:'title',value:'Renamed'}]}});
+    expect(title.name).toBe('Renamed');
+    await ui.onmessage?.({type:'undo-patch'});
+    expect(title.name).toBe('Title');
+    expect(loadFontAsync).not.toHaveBeenCalled();
+  });
+
+  it('serializes a patch sent while an undo is still loading fonts',async()=>{
+    const title=mockTextNode('title','Title','Revenue');
+    const root:MockHostNode={id:'root',name:'Card',type:'FRAME',x:0,y:0,width:280,height:121,rotation:0,children:[title]};
+    let release:()=>void=()=>{};
+    const loadFontAsync=vi.fn().mockResolvedValueOnce(undefined).mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve;})).mockResolvedValue(undefined);
+    const {ui}=await loadHostWithSelection([root],{loadFontAsync});
+    await ui.onmessage?.({type:'apply-patch',patch:{operations:[{op:'set-text',targetId:'title',value:'First'}]}});
+    const undo=ui.onmessage?.({type:'undo-patch'});
+    const second=ui.onmessage?.({type:'apply-patch',patch:{operations:[{op:'set-text',targetId:'title',value:'Second'}]}});
+    await new Promise(resolve=>setTimeout(resolve,0));
+    expect(title.characters).toBe('First'); // nothing interleaved while undo waits for fonts
+    release();await undo;await second;
+    expect(title.characters).toBe('Second');
+    await ui.onmessage?.({type:'undo-patch'});
+    expect(title.characters).toBe('Revenue');
+  });
+
   it('applies only selected-tree edits, preserves siblings, and restores edits on undo',async()=>{
     const title=mockTextNode('title','Title','Revenue');
     const sibling=mockTextNode('sibling','Sibling','Untouched');
