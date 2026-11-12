@@ -267,6 +267,7 @@
       "tests": [
         "src/mcp/server.integration.test.ts",
         "src/mcp/tunnel.test.ts",
+        "src/bridge/design-requests.test.ts",
         "src/mcp/agent-name.test.ts",
         "src/mcp/remote.integration.test.ts",
         "src/ui/bridge-discovery.test.ts",

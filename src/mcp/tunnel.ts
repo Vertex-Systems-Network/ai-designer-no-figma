@@ -100,33 +100,47 @@ export function defaultOpeners(port: number, config: TunnelConfig, spawnFn: type
  * Keep a tunnel up until stop() is called. Reports every (re)connect through onReady with the connector URL,
  * and flags when the public address changed so the user knows to update the connector.
  */
-export function superviseTunnel(options: { config: TunnelConfig; secret: string; openers: Openers; log: (line: string) => void; onReady: (connectorUrl: string, changed: boolean) => void; wait?: (ms: number) => Promise<void> }) {
-  const wait = options.wait ?? ((ms) => new Promise<void>((done) => setTimeout(done, ms)));
+export function superviseTunnel(options: { config: TunnelConfig; secret: string; openers: Openers; log: (line: string) => void; onReady: (connectorUrl: string, changed: boolean) => void; wait?: (ms: number) => Promise<void>; openTimeoutMs?: number; stableMs?: number; now?: () => number }) {
   const order = providerOrder(options.config);
+  const now = options.now ?? Date.now;
+  const openTimeoutMs = options.openTimeoutMs ?? 30_000; const stableMs = options.stableMs ?? 60_000;
   let stopped = false; let current: OpenTunnel | undefined; let lastUrl: string | undefined;
+  // Waits end early on stop(), so Ctrl+C never sits out a back-off delay.
+  let wake: (() => void) | undefined;
+  const pause = (ms: number) => options.wait ? options.wait(ms) : new Promise<void>((done) => { const timer = setTimeout(done, ms); wake = () => { clearTimeout(timer); done(); }; });
+  // Every opener gets a deadline; a tunnel that arrives after the deadline is closed instead of leaking.
+  const open = (provider: Exclude<TunnelProvider, 'auto'>) => new Promise<OpenTunnel>((resolve, reject) => {
+    let late = false;
+    const timer = setTimeout(() => { late = true; reject(new Error(`no tunnel within ${Math.round(openTimeoutMs / 1000)} s`)); }, openTimeoutMs);
+    options.openers[provider]().then((tunnel) => { if (late || stopped) tunnel.close(); else { clearTimeout(timer); resolve(tunnel); } }, (error: unknown) => { clearTimeout(timer); reject(error); });
+  });
   const run = async () => {
     let index = 0; let failures = 0;
     while (!stopped) {
       const provider = order[index % order.length]!;
       try {
-        current = await options.openers[provider]();
+        current = await open(provider);
         if (stopped) { current.close(); break; }
-        failures = 0;
+        const openedAt = now();
         const connector = `${current.url.replace(/\/$/, '')}/mcp/${options.secret}`;
         options.onReady(connector, lastUrl !== undefined && lastUrl !== current.url);
         lastUrl = current.url;
         const reason = await current.closed;
         if (stopped) break;
+        // A tunnel that dies right after opening counts as a failure, so a flapping provider still triggers fallback.
+        if (now() - openedAt < stableMs) throw new Error(`dropped right after opening (${reason})`);
         options.log(`Tunnel dropped (${reason}). Reconnecting…`);
+        failures = 0; index = 0; // a healthy run ended: start again from the preferred (fixed-address) provider
       } catch (error) {
+        if (stopped) break;
         failures++;
         options.log(`${provider} could not start: ${error instanceof Error ? error.message : String(error)}`);
-        // In auto mode move on to the next provider after two failures in a row; a single provider just keeps retrying.
+        // In auto mode move on after two failures in a row; a single provider just keeps retrying.
         if (order.length > 1 && failures >= 2) { index++; failures = 0; options.log(`Trying ${order[index % order.length]} instead.`); continue; }
       }
-      if (!stopped) await wait(backoffMs(failures));
+      if (!stopped) await pause(backoffMs(failures));
     }
   };
   const done = run();
-  return { stop: () => { stopped = true; current?.close(); }, done };
+  return { stop: () => { stopped = true; current?.close(); wake?.(); }, done };
 }

@@ -3,6 +3,13 @@
 
 
 
+
+## Unreleased: plugin → agent requests, tunnel hardening, illustrated guide
+
+- With an agent paired, Generate and Edit selection send the brief straight to it (bridge request queue + MCP tool `figma_get_design_requests`; the server instructions tell agents to check it). Without an agent, the copy-paste prompt flow is unchanged.
+- Tunnel supervisor: deadline on every provider start, flapping tunnels count as failures, return to the preferred provider after a healthy run ends, prompt Ctrl+C during back-off, servers closed if browser-mode setup fails, and the correct startup hint for `--tunnel=<provider>`.
+- USER-GUIDE: architecture, local-mode, browser-mode and request-flow diagrams (`docs/images/*.svg`).
+
 ## Unreleased: permanent browser-mode tunnel
 
 - `npm run mcp:browser` now supervises its own tunnel: a permanent address (a saved localtunnel subdomain or an ngrok static domain), automatic reconnects with back-off, and `auto` provider fallback (ngrok, then localtunnel, then Cloudflare). It warns when the address changes. Settings: `~/.ai-designer-no-figma/browser-mode.json`; per-run override `--tunnel=<provider>`.
