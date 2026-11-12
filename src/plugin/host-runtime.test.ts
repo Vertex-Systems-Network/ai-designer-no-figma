@@ -205,6 +205,26 @@ describe('Figma host patch behavior',()=>{
     expect(ui.postMessage.mock.calls.map(([message])=>message)).toEqual(expect.arrayContaining([expect.objectContaining({type:'export-result'})]));
     expect(result?.spec?.pages[0]?.children[0]?.children[0]?.text).toBe('Edited in Figma');
   });
+  it('round-trips imported frame after a native text edit in the host',async()=>{
+    let serial=0;
+    const page={type:'PAGE',id:'new-page',name:'',children:[] as unknown[],async loadAsync(){},appendChild(node:unknown){this.children.push(node);},remove(){}};
+    const createFrame=()=>({type:'FRAME',id:`frame-${++serial}`,name:'',x:0,y:0,width:0,height:0,rotation:0,opacity:1,blendMode:'PASS_THROUGH',children:[] as unknown[],fills:[] as unknown[],effects:[] as unknown[],layoutMode:'NONE',layoutGrids:[] as unknown[],clipsContent:false,appendChild(node:unknown){this.children.push(node);},resize(width:number,height:number){this.width=width;this.height=height;}});
+    const createText=()=>({type:'TEXT',id:`text-${++serial}`,name:'',x:0,y:0,width:0,height:0,rotation:0,opacity:1,blendMode:'PASS_THROUGH',characters:'',fontName:{family:'Inter',style:'Regular'},fontSize:16,fills:[] as unknown[],effects:[] as unknown[],getRangeTextStyleId:()=>'',resize(width:number,height:number){this.width=width;this.height=height;}});
+    const {ui,figma}=await loadHostWithSelection([],{
+      createPage:()=>page,createFrame,createText,setCurrentPageAsync:vi.fn(),viewport:{scrollAndZoomIntoView:vi.fn()},
+      variables:{getLocalVariableCollectionsAsync:vi.fn().mockResolvedValue([])},getLocalTextStylesAsync:vi.fn().mockResolvedValue([]),
+    });
+    const spec={schemaVersion:'1.0',name:'Smoke Test',pages:[{id:'page',name:'Smoke Test',children:[{type:'frame',id:'test-card',name:'Test Card',width:480,height:280,fill:'#F6F3EE',children:[{type:'text',id:'test-title',name:'Title',x:32,y:32,width:400,height:48,text:'Editable native design',fontSize:28,color:'#171717'}]}]}]};
+    await ui.onmessage?.({type:'render',spec});
+    const rendered=page.children[0] as {children:Array<{characters:string}>};
+    expect(rendered.children[0]?.characters).toBe('Editable native design');
+    rendered.children[0]!.characters='Edited in Figma';
+    (figma.currentPage as {selection:unknown[];name:string}).selection=[page.children[0]];
+    figma.currentPage.name='Smoke Test';
+    await ui.onmessage?.({type:'export-selection'});
+    const exported=ui.postMessage.mock.calls.find(([message])=>(message as {type?:string}).type==='export-result')?.[0] as {spec?:{pages:Array<{children:Array<{children:Array<{text:string}>}>}>}}|undefined;
+    expect(exported?.spec?.pages[0]?.children[0]?.children[0]?.text).toBe('Edited in Figma');
+  });
   it('exports bound color variables and text styles discovered during asynchronous tree conversion',async()=>{
     const styledText={
       id:'styled-text',name:'Heading',type:'TEXT',x:12,y:16,width:220,height:40,rotation:0,opacity:1,
