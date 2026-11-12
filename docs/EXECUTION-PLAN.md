@@ -56,7 +56,7 @@ Progress bars, if shown, must count checked criteria listed in the corresponding
 | AGENT-05 | P2 | Responsive layout and typography fidelity | Code + live | OPEN | Define supported sizing/wrapping rules and host tests; verify the same design at two widths with no unintended clipping/overlap in live Figma. |
 | AGENT-06 | P2 | Reuse actual local SVG/raster assets in generated designs | Code + live | PARTIAL | Bounded import/library exists; verify actual save/reload/reuse and placement in a composed native design. No fabricated asset bytes. |
 | EVAL-01 | P1 | Compare same briefs with Figma Agent | Evaluation | OPEN | Controlled briefs, canvas sizes, editability/token reuse rubric, screenshots and recorded reviewer observations; publish gaps and repairs without subjective equivalence claims. |
-| CODE-03 | P2 | Implement component properties/variants only where the official Plugin API supports deterministic import, instance binding, export, and rollback | Code | OPEN | Schema/API mapping, positive/negative tests, round-trip or explicit unsupported error; do not advertise partial controls. |
+| CODE-03 | P1 | Native bounded component-family variant/property import, readback, export and rollback | Code | AUTOMATED VERIFIED | Separate familyVersion 1.0 contract creates 2–8 Style variants with Label TEXT property, native review instances, readback and portable selected-set export; rejects unsupported properties and removes new page on failure. Existing library reuse and schema 1.0 instance linkage are outside this subset; live editor check is Phase 6. |
 | LIVE-01 | P1 | Verify latest build in Figma: generated native layers, import/export, selected edit, undo, and preserved siblings | Live Figma | BLOCKED · USER DESKTOP | User must re-import the latest `dist/manifest.json` build and run the listed smoke sequence; record the exact build hash and observed outcomes. |
 | LIVE-02 | P1 | Verify Claude hidden-panel bridge job and Agent Activity | Live Claude + Figma | BLOCKED · USER DESKTOP | Pair once, hide the panel, call one read-only status/selection tool and one safe mutation, then reopen and confirm result. A closed Figma/document is outside this plugin session. |
 | LIVE-03 | P2 | Verify asset save/reload/reuse and one chunked image transfer | Live Claude + Figma | BLOCKED · USER DESKTOP | Save SVG and raster, restart/reopen as supported, reuse them, and transfer an image >192 KiB; confirm pixels/vector editability and hash result. |
@@ -67,7 +67,7 @@ Progress bars, if shown, must count checked criteria listed in the corresponding
 
 ### Local release evidence at last recorded verification
 
-Latest `npm run release:verify`: 115 unit tests, 20 integration tests, strict typecheck, lint, local privacy/security audit, build/package, docs audit (0 findings), ZIP integrity and SHA-256 passed. This closes the local packaging gate for this exact source snapshot only; it does not close `LIVE-*` or `BLOCK-*` tasks. Re-run after any subsequent change.
+Latest `npm run release:verify`: 120 unit tests, 21 integration tests, strict typecheck, lint, local privacy/security audit, build/package, docs audit (0 findings), ZIP integrity and SHA-256 passed. This closes the local packaging gate for this exact source snapshot only; it does not close `LIVE-*` or `BLOCK-*` tasks. Re-run after any subsequent change.
 
 ## Product boundary decisions
 

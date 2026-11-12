@@ -1,9 +1,12 @@
 import type { EditPatch } from './protocol';
 import type { DesignSpec } from './spec';
+import type { ComponentFamily } from './component-family';
 
 export type BridgeOperation =
   | { type: 'inspect-selection' }
   | { type: 'inspect-design-system' }
+  | { type: 'render-component-family'; family: ComponentFamily }
+  | { type: 'export-component-family' }
   | { type: 'render-spec'; spec: DesignSpec }
   | { type: 'apply-patch'; patch: EditPatch }
   | { type: 'export-selection' }

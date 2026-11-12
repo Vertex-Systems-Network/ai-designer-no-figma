@@ -164,3 +164,5 @@
 - 2026-11-12: Phase 1 implemented read-only local design-system inventory across Plugin API host, bridge and MCP. Bounded current-page components and local variable/style identities; selection preservation and truncation tests. Live editor result deferred explicitly to Phase 6.
 
 - 2026-11-12: Phase 2 adds versioned plan validation and local MCP tool. Unit and protocol tests cover mapped frames, token use, scoped assets, unknown component candidates and invalid schema; real component reuse remains Phase 3.
+
+- 2026-11-12: Phase 3 built bounded component-family 1.0 native variant creation, Label text property, review instances, readback, portable export and new-page failure cleanup; unsupported native properties fail explicitly. Live Figma remains Phase 6.
