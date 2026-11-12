@@ -102,27 +102,36 @@ While the agent works, a small AI Designer window with the logo and a spinner po
 
 Web chats run on the provider's servers. They cannot reach your `localhost`, so browser mode publishes **only the MCP port** through an HTTPS tunnel with a long secret in the URL. The Figma pairing bridge is never exposed.
 
-### 5.1 One-time setup
-
-Install Cloudflare's tunnel tool:
-
-- Windows: `winget install Cloudflare.cloudflared`
-- macOS: `brew install cloudflared`
-- Linux: see Cloudflare's downloads page
-
-### 5.2 Start browser mode
+### 5.1 Start browser mode (one command)
 
 ```bash
+npm install          # once after pulling, installs the tunnel library
 npm run mcp:browser
 ```
 
-The terminal prints three things:
+That single command starts the hub **and** a tunnel to it, and keeps them running:
 
-- the **Figma pairing code**;
-- the local MCP address;
-- a line starting with `BROWSER MODE READY` that contains a URL like `https://<random>.trycloudflare.com/mcp/<64-character secret>`.
+- **Fixed address.** On the first run it picks a permanent name (for example `https://adnf-3f9c1a2b4d.loca.lt`) and saves it in `~/.ai-designer-no-figma/browser-mode.json`. Every later start uses the same address, so you add the connector **once**.
+- **Self-healing.** If the tunnel drops (network blip, sleep, provider restart) it reconnects by itself with back-off. If the address ever has to change, the terminal prints `TUNNEL ADDRESS CHANGED` with the new URL.
+- **Provider fallback.** `auto` mode tries an ngrok static domain (if configured), then localtunnel (nothing to install), then Cloudflare.
 
-**Treat that URL like a password.** Anyone who has it can drive your paired Figma file while the terminal runs.
+The terminal prints the Figma pairing code and a `BROWSER MODE READY` line with the connector URL `https://…/mcp/<secret>`. **That URL is a password**: never share it, never open it in a browser, and keep it out of screenshots.
+
+### 5.2 Most stable option: ngrok static domain (optional)
+
+The free localtunnel service can be slow or unavailable at times. For a rock-solid link, use ngrok's free static domain:
+
+1. Create a free account at ngrok.com, install it (`winget install ngrok.ngrok` / `brew install ngrok`) and run `ngrok config add-authtoken <token>`.
+2. Claim your free static domain in the ngrok dashboard (Domains), e.g. `my-name.ngrok-free.app`.
+3. Add it to `~/.ai-designer-no-figma/browser-mode.json`:
+
+   ```json
+   { "provider": "auto", "subdomain": "adnf-…", "ngrokDomain": "my-name.ngrok-free.app" }
+   ```
+
+4. Run `npm run mcp:browser`. ngrok is now tried first.
+
+Force a provider for one run with `--tunnel=ngrok`, `--tunnel=localtunnel` or `--tunnel=cloudflare`, for example `npx tsx src/mcp/remote.ts --tunnel=ngrok`, or set `"provider"` in the file. If a link with the secret was ever exposed, delete `~/.ai-designer-no-figma/remote-mcp-token` and restart, which creates a new secret.
 
 ### 5.3 Add the connector
 
@@ -144,9 +153,7 @@ Custom connectors need a paid ChatGPT plan with Developer mode. On some plans th
 1. In the Figma plugin, type the pairing code from the `npm run mcp:browser` terminal and press **Connect & hide panel**.
 2. Ask the web chat for a design, as in local mode.
 
-If `cloudflared` cannot reach Cloudflare (`failed to request quick Tunnel … context deadline exceeded`), your network blocks it. Keep `npm run mcp:browser` running and start another tunnel in a second terminal, to the **remote MCP port printed by `mcp:browser`** (usually 8790, but it moves to 8800–8809 when 8790 is busy): `npx localtunnel --port <port>`, or `ngrok http <port>` with a free ngrok account. Then put `<tunnel URL>/mcp/<secret>` into the connector; the secret is in `~/.ai-designer-no-figma/remote-mcp-token`. Do not open the secret link in a normal browser: that stores it in browser history, and a GET only returns 405, which tests nothing. If a link with the secret was ever shown or shared, delete `remote-mcp-token` and restart the hub to get a new secret.
-
-Stop browser mode with **Ctrl+C**. Quick-tunnel URLs change every start, so update the connector URL each time. The secret part stays the same, because it lives in `~/.ai-designer-no-figma/remote-mcp-token`.
+Stop browser mode with **Ctrl+C**. The address and the secret stay the same across restarts, so the connector keeps working when you start `npm run mcp:browser` again.
 
 ## 6. Local and browser mode together
 
