@@ -4,7 +4,7 @@ import * as z from 'zod/v4';
 import { BridgeFault, JobBroker } from '../bridge/broker';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { parseEditPatch } from '../shared/edit-patch';
-import { parseDesignSpec } from '../shared/spec';
+import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
 import { homedir } from 'node:os';
@@ -61,6 +61,12 @@ export function createMcpServer(broker:JobBroker):McpServer{
   });
   server.registerTool('figma_get_selection',{description:'Queue a selection inspection on a paired Figma plugin. Poll figma_get_job_status/result for the real response.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     try{return textResult(summary(broker.enqueue({type:'inspect-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_audit_design_schema',{description:'Validate a schema 1.0 design and return deterministic, advisory design-quality findings before insertion. Checks contrast, semantic naming, Auto Layout, explicit layer overflow and text-bounds collisions. No Figma session or token required; screenshot review remains necessary.',inputSchema:z.object({json:z.string().min(1).max(512_000)})},async({json})=>{
+    const checked=parseDesignSpec(json);
+    if(!checked.valid||!checked.value)return textResult({valid:false,error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation.',issues:checked.issues}},true);
+    const findings=auditDesignQuality(checked.value);
+    return textResult({valid:true,findings,summary:{warnings:findings.filter(item=>item.severity==='warning').length,suggestions:findings.filter(item=>item.severity==='suggestion').length},visualVerification:'NOT TESTED'});
   });
   server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Creates a new page and selects its first root frame so you can immediately capture and visually inspect it.',inputSchema:z.object({json:z.string().min(1).max(512_000),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const checked=parseDesignSpec(args.json);
