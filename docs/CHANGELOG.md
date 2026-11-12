@@ -1,5 +1,14 @@
 # Changelog
 
+
+## Unreleased: browser mode, agent presence, setup hardening
+
+- Browser mode: `npm run mcp:browser` starts the hub plus a Cloudflare quick tunnel and prints a ChatGPT / Claude.ai connector URL. The hub accepts the secret in the path (`/mcp/<secret>`) as well as the Bearer header; non-POST methods return 405.
+- Local and browser mode together: `setup:clients --client claude-desktop --mode http` points Claude Desktop at the shared hub through `mcp-remote`.
+- Agent presence: while an MCP job runs, Figma shows a persistent toast with the agent's name (Figma's avatar row cannot list plugins).
+- `setup:clients`: refuses to write Claude Desktop's config while the app runs, and verifies the entry after writing.
+- Docs: new `docs/USER-GUIDE.md`, linked from the README.
+
 ## Unreleased
 - Fixed (found live): the pairing token, settings and asset-library access were lost on every plugin restart, because the iframe's `localStorage` is not persistent. They are now stored in `figma.clientStorage`.
 - KI-003 live verified: in a rebuilt plugin, Undo of a set-bounds + rename + set-fill patch now restores the name, width and token-bound fill without errors.

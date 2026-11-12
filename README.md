@@ -46,6 +46,10 @@ The goal is an independent design agent that creates editable Figma layers throu
 
 **Current release evidence:** `npm run release:verify` passed typecheck, lint, 120 unit tests, 21 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. Phase 4 adds `figma_compose_responsive_plan` for two explicit widths, constraint geometry and supplied image/vector payloads; actual typography and screenshots remain Phase 6. Next is Phase 6 live editor acceptance.
 
+## Start here
+
+**New users: read the [User Guide](docs/USER-GUIDE.md).** It covers install, **local mode** (Claude Desktop, Cursor, VS Code, Gemini CLI, Codex …), **browser mode** (ChatGPT and Claude.ai on the web via `npm run mcp:browser`), using both at once, the plugin tabs, troubleshooting and security.
+
 ## Requirements
 
 - Node.js 20+ and npm to build/package the plugin.
@@ -73,11 +77,13 @@ The manifest allowlists `http://localhost:8787` for optional Ollama and `http://
 
 The Edit tab follows the same handoff for selection-aware patch JSON. The plugin sends nothing to an AI app; copying and pasting are user-controlled. It accepts a JSON code fence but validates every layer and edit operation before Figma mutation.
 
-## Optional remote AI connection through a tunnel
+## Browser mode (ChatGPT / Claude.ai web)
 
-The local bridge can serve a **separate authenticated Streamable HTTP MCP endpoint** for compatible online AI clients. This is an opt-in testing path; the default copy/paste workflow stays offline and needs no API key. See [remote MCP tunnel setup](docs/integrations/REMOTE-MCP-TUNNEL.md). Run `npm run mcp:remote` on the **same computer as Figma**, keep the plugin open and pair it in Settings. Tunnel **only the remote MCP port printed by the process** (8790 or another available port), never a plugin pairing port. The remote client needs support for a custom MCP URL and a bearer token. This does not install the development plugin into browser Figma; that installation/distribution step is separate.
+Run `npm run mcp:browser` on the computer that runs Figma. It starts the shared hub and a Cloudflare quick tunnel for the **MCP port only**, then prints a connector URL containing a 64-hex secret, to paste into ChatGPT Developer mode or Claude.ai custom connectors. Desktop clients keep using the Bearer header on `/mcp`. Details: [User Guide §5–6](docs/USER-GUIDE.md#5-browser-mode-chatgpt-and-claudeai-on-the-web) and [remote MCP tunnel setup](docs/integrations/REMOTE-MCP-TUNNEL.md).
 
 ## Connect Claude Desktop
+
+Two options, never both at once (two copies start two bridges and pairing codes stop matching): `npm run setup:clients -- --client claude-desktop --write` with Claude Desktop fully quit, or the extension below.
 
 The Claude Desktop extension package is `artifacts/ai-designer-no-figma-claude.mcpb`. Install it through **Settings → Desktop app → Manage extensions → Advanced settings → Install Extension**, then open Figma plugin **Settings** and click **Connect Claude**. The plugin pairs with the local bridge and confirms when the connection is active. No config-file editing, terminal commands, API key, or manual token copying is part of this user flow. Build the extension with `npm run package:claude`.
 

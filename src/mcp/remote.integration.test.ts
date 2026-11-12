@@ -1,7 +1,7 @@
 import { afterEach,describe,it,expect } from 'vitest';
 import { Client,StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { JobBroker } from '../bridge/broker';
-import { startRemoteMcpServer } from './remote';
+import { startRemoteMcpServer, connectorUrl } from './remote';
 import { startBridgeServer } from '../bridge/server';
 const token='c'.repeat(64);
 let close:(()=>Promise<void>)|undefined;
@@ -36,6 +36,21 @@ describe('loopback remote MCP gateway',()=>{
     const done=await fetch(`${base}/bridge/jobs/${jobId}/result`,{method:'POST',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({sessionId:'browser-session-1',ok:true,result:{summary:{name:'Card',nodes:[]}}})});expect(done.status).toBe(200);
     const result=await client.callTool({name:'figma_get_job_result',arguments:{jobId}});expect(result.structuredContent).toMatchObject({status:'completed',result:{summary:{name:'Card'}}});
     await client.close();
+  });
+  it('accepts the secret in the URL path for browser AIs and rejects a wrong one',async()=>{
+    const remote=await startRemoteMcpServer(new JobBroker(),{port:0,token});close=remote.close;
+    const base=`http://127.0.0.1:${remote.address().port}`;
+    expect((await fetch(`${base}/mcp/${'d'.repeat(64)}`,{method:'POST',body:'{}'})).status).toBe(401);
+    expect((await fetch(`${base}/mcp/${token}`,{method:'GET'})).status).toBe(405);
+    const client=new Client({name:'browser-ai',version:'1.0.0'});
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp/${token}`)));
+    expect((await client.listTools()).tools.map(item=>item.name)).toContain('figma_import_design_schema');
+    await client.close();
+  });
+  it('builds the browser connector URL from cloudflared output',()=>{
+    expect(connectorUrl('INF |  https://quiet-river-12.trycloudflare.com  |',token)).toBe(`https://quiet-river-12.trycloudflare.com/mcp/${token}`);
+    expect(connectorUrl('starting tunnel',token)).toBeUndefined();
+    expect(connectorUrl('failed to request quick Tunnel: Post "https://api.trycloudflare.com/tunnel"',token)).toBeUndefined();
   });
   it('never listens on a public interface',async()=>{
     await expect(startRemoteMcpServer(new JobBroker(),{host:'0.0.0.0',port:0,token})).rejects.toThrow(/loopback/);
