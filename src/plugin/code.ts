@@ -14,6 +14,8 @@ import { exportComponentFamily, renderComponentFamily } from './component-family
 import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
+// True while the user has hidden the panel; agent jobs then pop up a small branded loader instead.
+let panelHidden = false;
 let cancelActiveRender: (() => void) | undefined;
 // Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
 // for this plugin session and fall back to native Figma node IDs otherwise.
@@ -452,8 +454,10 @@ function applyColorToSelection(color: string): void {
 
 function hexColor(color:RGB):string{return `#${[color.r,color.g,color.b].map((value)=>Math.round(value*255).toString(16).padStart(2,'0')).join('')}`;}
 async function exportSelectedDesign(): Promise<DesignSpec> {
-  if (figma.currentPage.selection.length !== 1) throw new Error('Select exactly one Figma layer or frame to export as a design specification.');
-  const selected = figma.currentPage.selection[0]!;
+  // With nothing selected, fall back to the page's only top-level frame so an agent can read a design without a manual click.
+  const tops = ((figma.currentPage.children as readonly SceneNode[] | undefined) ?? []).filter((node) => node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'SECTION');
+  const selected = figma.currentPage.selection.length === 1 ? figma.currentPage.selection[0]! : figma.currentPage.selection.length === 0 && tops.length === 1 ? tops[0]! : undefined;
+  if (!selected) throw new Error(figma.currentPage.selection.length > 1 ? `Select one layer to export; ${figma.currentPage.selection.length} are selected.` : `Select the frame to export. This page has ${tops.length} top-level frames${tops.length ? ` (${tops.slice(0, 5).map((node) => node.name).join(', ')})` : ''}.`);
   if (!('width' in selected) || !('height' in selected)) throw new Error('The selected item does not have exportable design dimensions.');
   let count = 0;
   const definedComponents=new Set<string>();
@@ -660,7 +664,11 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
   const agent=job.agentLabel?.trim()||'AI agent';
   bridgeStatus('working',{jobId:job.jobId,agentLabel:job.agentLabel,operation:label});
   figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-started`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'started',timestamp:startedAt,message:'Plugin accepted the queued operation.'});
-  const working=figma.notify(`🤖 ${agent} is working in this file: ${label}…`,{timeout:Infinity});
+  const working=figma.notify(`${agent} is working in this file: ${label}…`,{timeout:Infinity});
+  const compact=panelHidden;
+  if(compact){figma.ui.resize(300,84);figma.ui.show();}
+  figma.ui.postMessage({type:'agent-working',agent,operation:label,compact});
+  const idle=()=>{working.cancel();figma.ui.postMessage({type:'agent-idle'});if(compact&&panelHidden){figma.ui.hide();figma.ui.resize(440,720);}};
   try{
     let result:unknown;
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
@@ -678,13 +686,13 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     else result={spec:await exportSelectedDesign()};
     figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:true,result});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-completed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'completed',timestamp:Date.now(),message:`Operation completed in ${Date.now()-startedAt} ms.`});
-    working.cancel();figma.notify(`🤖 ${agent} · Done: ${label}`);
+    idle();figma.notify(`${agent} · Done: ${label}`);
     bridgeStatus('connected');
   }catch(error){
     const message=error instanceof Error?error.message:'Plugin operation failed.';
     figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:false,error:{code:message.startsWith('RENDER_CANCELLED:')?'RENDER_CANCELLED':'PLUGIN_OPERATION_FAILED',message}});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-failed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'failed',timestamp:Date.now(),message});
-    working.cancel();figma.notify(`🤖 ${agent} · Failed: ${message.slice(0,140)}`,{error:true});
+    idle();figma.notify(`${agent} · Failed: ${message.slice(0,140)}`,{error:true});
     bridgeStatus('connected');
   }
 }
@@ -739,7 +747,7 @@ figma.ui.onmessage = async (message: UiToHost) => {
     }
     if(message.type==='ui-ready'){sendCurrentUser();inspectSelection();return;}
     if(message.type==='configure-bridge'){configureBridge(message.endpoint,message.token,message.sessionId);return;}
-    if(message.type==='hide-ui'){figma.ui.hide();figma.notify('Claude is connected. Figma work will continue in the background. Run AI Designer No Figma again to reopen its panel.');return;}
+    if(message.type==='hide-ui'){panelHidden=true;figma.ui.hide();figma.notify('Claude is connected. Figma work will continue in the background. Run AI Designer No Figma again to reopen its panel.');return;}
     if(message.type==='bridge-job'){await executeBridgeJob(message.job);return;}
     if (message.type === 'cancel-render') { cancelActiveRender?.(); return; }
     if (message.type === 'inspect-selection') inspectSelection();
@@ -785,5 +793,5 @@ figma.ui.onmessage = async (message: UiToHost) => {
   }
 };
 
-figma.on('run',()=>{figma.ui.show();sendCurrentUser();inspectSelection();});
+figma.on('run',()=>{panelHidden=false;figma.ui.resize(440,720);figma.ui.show();sendCurrentUser();inspectSelection();});
 sendCurrentUser();

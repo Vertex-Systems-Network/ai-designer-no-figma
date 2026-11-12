@@ -1,6 +1,14 @@
 # Changelog
 
 
+
+## Unreleased: agent loader and naming
+
+- While an MCP job runs with the panel hidden, the plugin pops up a small branded loader (AI Designer logo and spinner, "<agent> is working"), then hides again. With the panel open, a status bar shows the same.
+- Jobs are labeled with the real agent name from the MCP handshake (Claude, ChatGPT, Cursor, …) instead of "MCP client".
+- `figma_export_selection` falls back to the page's only top-level frame when nothing is selected, and otherwise names the frames to pick from.
+- Docs: tunnel fallbacks (localtunnel, ngrok) and rotating the secret.
+
 ## Unreleased: browser mode, agent presence, setup hardening
 
 - Browser mode: `npm run mcp:browser` starts the hub plus a Cloudflare quick tunnel and prints a ChatGPT / Claude.ai connector URL. The hub accepts the secret in the path (`/mcp/<secret>`) as well as the Bearer header; non-POST methods return 405.

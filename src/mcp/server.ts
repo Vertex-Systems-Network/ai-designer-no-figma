@@ -28,6 +28,13 @@ function faultResult(error:unknown) {
   return textResult({error:{code:fault.code,message:fault.message}},true);
 }
 function summary(job:BridgeJob):Record<string,unknown>{return {jobId:job.jobId,operationId:job.operationId,sessionId:job.sessionId,agentLabel:job.agentLabel,status:job.status,createdAt:job.createdAt,updatedAt:job.updatedAt,...(job.error?{error:job.error}:{})};}
+/** Friendly agent names for common MCP clients; unknown clients keep their own name. */
+export function agentName(client?:string):string|undefined{
+  if(!client)return undefined;const id=client.toLowerCase();
+  const known:[RegExp,string][]=[[/claude[- ]?code/,'Claude Code'],[/claude/,'Claude'],[/openai|chatgpt/,'ChatGPT'],[/codex/,'Codex'],[/cursor/,'Cursor'],[/gemini/,'Gemini'],[/copilot|vscode|visual studio/,'Copilot'],[/windsurf|codeium/,'Windsurf'],[/cline/,'Cline'],[/lm ?studio/,'LM Studio'],[/zed/,'Zed']];
+  for(const [pattern,name] of known)if(pattern.test(id))return name;
+  return client.slice(0,80);
+}
 function queueOptions(args:{sessionId?:string|undefined;agentLabel?:string|undefined;operationId?:string|undefined}){
   return { ...(args.sessionId?{sessionId:args.sessionId}:{}), ...(args.agentLabel?{agentLabel:args.agentLabel}:{}), ...(args.operationId?{operationId:args.operationId}:{}) };
 }
@@ -40,6 +47,8 @@ function decodeAssetBase64(value:string,maxBytes=MAX_MCP_ASSET_BYTES):Uint8Array
 
 export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promise<string>}={}):McpServer{
   const server=new McpServer({name:'ai-designer-no-figma',version:'0.3.0'});
+  // Name the agent in Figma from the MCP handshake when the caller did not pass agentLabel.
+  const withAgent=<T extends {agentLabel?:string|undefined}>(args:T):T=>args.agentLabel?args:{...args,agentLabel:agentName(server.server.getClientVersion()?.name)};
   if(options.pairingCode){const read=options.pairingCode;server.registerTool('figma_get_pairing_code',{description:'Return the 6-digit code the user must type into the AI Designer Figma plugin (Settings → Connect) to pair it with this local bridge. Show it to the user; never send it anywhere else.',inputSchema:z.object({})},async()=>textResult({pairingCode:await read(),instructions:'Open the AI Designer plugin in Figma, go to Settings, type this code and press Connect.'}));}
   server.registerTool('figma_get_connection_status',{description:'Return paired Figma plugin sessions currently heartbeat-active on the local bridge.',inputSchema:z.object({})},async()=>textResult({connected:broker.getSessions().length>0,sessions:broker.getSessions(),transport:'loopback-http'}));
   server.registerTool('figma_get_agent_sessions',{description:'List currently connected plugin sessions. Session IDs are required when more than one session is active.',inputSchema:z.object({})},async()=>textResult({sessions:broker.getSessions()}));
@@ -49,7 +58,7 @@ export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promi
     try{const asset=sanitizeSvg(svg);return textResult({valid:true,width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size,sanitizedSvg:asset.svg});}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_insert_generated_vector',{description:'Queue actual SVG markup supplied by the caller for safe editable Figma vector import. This tool does not generate the asset.',inputSchema:z.object({name:z.string().min(1).max(160),svg:z.string().min(1).max(MAX_SVG_BYTES),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    try{const asset=sanitizeSvg(args.svg);return textResult({...summary(broker.enqueue({type:'insert-svg',name:args.name,svg:asset.svg},queueOptions(args)),),asset:{kind:'svg',width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size}});}catch(error){return faultResult(error);}
+    try{const asset=sanitizeSvg(args.svg);return textResult({...summary(broker.enqueue({type:'insert-svg',name:args.name,svg:asset.svg},queueOptions(withAgent(args))),),asset:{kind:'svg',width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size}});}catch(error){return faultResult(error);}
   });
   const imageInputSchema=z.object({name:z.string().min(1).max(160),mimeType:z.enum(['image/png','image/jpeg','image/gif']),base64:z.string().min(16).max(Math.ceil(MAX_RASTER_BYTES/3)*4),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()});
   server.registerTool('figma_validate_image',{description:'Validate transferred PNG/JPEG/GIF bytes and report dimensions/checksum without inserting.',inputSchema:imageInputSchema.pick({mimeType:true,base64:true})},async({mimeType,base64})=>{
@@ -58,26 +67,26 @@ export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promi
   server.registerTool('figma_insert_generated_image',{description:'Queue actual PNG/JPEG/GIF bytes supplied by the caller for native Figma image-fill import. Images above the direct-transfer threshold are sent as checksum-verified 64 KiB jobs. Requires file bytes to be accessible to this MCP client; does not generate images.',inputSchema:imageInputSchema},async(args)=>{
     try{
       const bytes=decodeAssetBase64(args.base64,MAX_RASTER_BYTES);const info=validateRasterAsset(bytes,args.mimeType);const checksum=createHash('sha256').update(bytes).digest('hex');
-      if(bytes.byteLength<=MAX_MCP_ASSET_BYTES){const job=broker.enqueue({type:'insert-image',name:args.name,mimeType:info.mimeType,bytes:Array.from(bytes)},queueOptions(args));return textResult({...summary(job),asset:{kind:'image',...info,sha256:checksum}});}
+      if(bytes.byteLength<=MAX_MCP_ASSET_BYTES){const job=broker.enqueue({type:'insert-image',name:args.name,mimeType:info.mimeType,bytes:Array.from(bytes)},queueOptions(withAgent(args)));return textResult({...summary(job),asset:{kind:'image',...info,sha256:checksum}});}
       const transferId=randomUUID();const chunkCount=Math.ceil(bytes.byteLength/MCP_ASSET_CHUNK_BYTES);
       const operations:BridgeOperation[]=[{type:'begin-image-transfer',transferId,name:args.name,mimeType:info.mimeType,totalBytes:bytes.byteLength,sha256:checksum,chunkCount}];
       for(let index=0;index<chunkCount;index++){const start=index*MCP_ASSET_CHUNK_BYTES;operations.push({type:'image-transfer-chunk',transferId,index,bytes:Array.from(bytes.subarray(start,Math.min(start+MCP_ASSET_CHUNK_BYTES,bytes.byteLength)))});}
-      operations.push({type:'finish-image-transfer',transferId});const jobs=broker.enqueueBatch(operations,queueOptions(args));
+      operations.push({type:'finish-image-transfer',transferId});const jobs=broker.enqueueBatch(operations,queueOptions(withAgent(args)));
       return textResult({transferId,status:'queued',chunkCount,jobIds:jobs.map(job=>job.jobId),sessionId:jobs[0]?.sessionId,agentLabel:jobs[0]?.agentLabel,asset:{kind:'image',...info,sha256:checksum}});
     }catch(error){return faultResult(error);}
   });
   server.registerTool('figma_export_component_family',{description:'Export one selected native component set if it fits portable familyVersion 1.0: 2–8 Style variants, one Label text property, single solid fills and equal sizes. Unsupported native data fails explicitly.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    try{return textResult(summary(broker.enqueue({type:'export-component-family'},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'export-component-family'},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_create_component_family',{description:'Create a bounded native component set on a new Figma page with 2–8 Style variants, a TEXT Label property on each variant, and real review instances. Validates the separate familyVersion 1.0 contract, reads native properties back, and removes the new page on failure. Existing document content is untouched. Requires an open paired plugin session.',inputSchema:z.object({json:z.string().min(1).max(16_384),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const checked=parseComponentFamily(args.json);if(!checked.valid)return textResult({error:{code:'INVALID_COMPONENT_FAMILY',issues:checked.issues}},true);
-    try{return textResult(summary(broker.enqueue({type:'render-component-family',family:checked.value},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'render-component-family',family:checked.value},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_get_local_design_system',{description:'Read-only bounded inventory of components on the current Figma page and local document variables/text/paint/effect styles. Returns exact IDs, names, types and counts without changing selection. Requires an open paired plugin session; no hosted Figma MCP or REST token.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    try{return textResult(summary(broker.enqueue({type:'inspect-design-system'},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'inspect-design-system'},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_get_selection',{description:'Queue a selection inspection on a paired Figma plugin. Poll figma_get_job_status/result for the real response.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    try{return textResult(summary(broker.enqueue({type:'inspect-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'inspect-selection'},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_validate_design_plan',{description:'Validate a versioned section plan against its embedded editable schema 1.0 design, and optionally against a supplied bounded local inventory. Exact frame, component candidate, token and asset references are checked. Returns the validated native design specification for the existing import tool. Candidate components are planning metadata, not imported instances. No Figma or provider token required.',inputSchema:z.object({json:z.string().min(1).max(640_000),inventory:z.string().max(64_000).optional()})},async({json,inventory})=>{
     let parsedInventory:unknown;try{parsedInventory=inventory?JSON.parse(inventory):undefined;}catch{return textResult({valid:false,error:{code:'INVALID_INVENTORY',message:'Inventory JSON is invalid.'}},true);}
@@ -103,24 +112,24 @@ export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promi
       const checked=parseDesignSpec(JSON.stringify(spec));
       if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Generated kit failed validation.',issues:checked.issues}},true);
       if(!args.insert)return textResult({json:JSON.stringify(checked.value),findings:auditDesignQuality(checked.value)});
-      return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))),findings:auditDesignQuality(checked.value)});
+      return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(withAgent(args)))),findings:auditDesignQuality(checked.value)});
     }catch(error){return faultResult(error);}
   });
   server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Creates a new page and selects its first root frame so you can immediately capture and visually inspect it.',inputSchema:z.object({json:z.string().min(1).max(512_000),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const {result:checked,report}=await parseWithMigration(args.json);
     if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation.',issues:checked.issues}},true);
-    try{return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))),...(report?{migrated:report}:{})});}catch(error){return faultResult(error);}
+    try{return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(withAgent(args)))),...(report?{migrated:report}:{})});}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_apply_patch',{description:'Validate and queue explicit text/fill/name/bounds/Auto Layout/component-swap/image-replacement operations. The plugin checks every target against its current selection before applying. After a patch, capture the frame again and inspect the returned image.',inputSchema:z.object({json:z.string().min(1).max(262_144),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const checked=parseEditPatch(args.json);
     if(!checked.valid)return textResult({error:{code:'INVALID_EDIT_PATCH',message:checked.message}},true);
-    try{return textResult(summary(broker.enqueue({type:'apply-patch',patch:checked.value as EditPatch},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'apply-patch',patch:checked.value as EditPatch},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_export_selection',{description:'Queue export of exactly one selected supported layer tree to a validated design specification.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    try{return textResult(summary(broker.enqueue({type:'export-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'export-selection'},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_capture_selection',{description:'Queue a bounded rendered JPEG preview of the selected Figma frame. Retrieve the finished job using figma_get_job_result; it returns the actual image so you can inspect visual hierarchy, spacing, clipping and contrast before proposing a targeted patch. Re-capture after applying each patch.',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    try{return textResult(summary(broker.enqueue({type:'capture-selection'},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult(summary(broker.enqueue({type:'capture-selection'},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_get_job_status',{description:'Read the state of a queued, running or completed plugin operation.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
     try{return textResult(summary(broker.getJob(jobId)));}catch(error){return faultResult(error);}
