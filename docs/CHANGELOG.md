@@ -100,3 +100,5 @@
 - Added a typings-backed compatibility module for schema Auto Layout modes and primary-axis alignment, with deterministic mapping round-trip tests.
 - Local Ollama generation now receives the complete provider-neutral schema/category instructions, streams bounded NDJSON to the UI, reports actual output received, and propagates cancellation upstream. Patch prompts now include the supported Auto Layout operation.
 - Release verification passed: 55 unit and 17 integration tests, typecheck/lint, local audit, build/package and strict docs audit (0 findings). No local Ollama service or live Figma editor was available for verification.
+
+- 2026-11-12: Added optional bounded Figma reference notes to the external AI handoff and documented official MCP interoperability boundaries.

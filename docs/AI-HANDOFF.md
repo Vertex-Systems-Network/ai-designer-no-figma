@@ -1,6 +1,6 @@
 # AI development handoff
 
-Updated: 2026-11-10. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGINEERING-PROMPT.md`](MASTER-ENGINEERING-PROMPT.md), [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md), then the relevant registry entries and source/tests.
+Updated: 2026-11-12. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGINEERING-PROMPT.md`](MASTER-ENGINEERING-PROMPT.md), [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md), then the relevant registry entries and source/tests.
 
 ## Current state
 
@@ -18,7 +18,7 @@ Updated: 2026-11-10. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 - Selection-aware `set-rotation` edits are bounded to -180°–180° and restore rotation on undo.
 - Native node rotation is accepted between -180° and 180° and is applied on render/export; live Figma transform behavior remains NOT TESTED.
 - Design-system color, typography and spacing scales remain locally persisted with up to 20 presets. Design-spec 1.0 now supports bounded PNG/JPEG image nodes, color and text-style tokens, responsive constraints and row/column/grid definitions. Rendering creates native image fills, local Figma color Variables and Text Styles, applies supported constraints/grids, and binds declared tokens.
-- `npm run release:verify` passes for the current change set: 107 unit tests and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. `npm run compatibility:check` reports metadata/typing only and does not certify a live Figma session.
+- `npm run release:verify` passes for the current change set: 108 unit tests and 17 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. `npm run compatibility:check` reports metadata/typing only and does not certify a live Figma session.
 - Added a non-blocking `auditDesignQuality()` pass after successful JSON validation. It flags measurable contrast issues (when solid fills are known), generic names, missing explicit font sizes and repeated containers without Auto Layout. The prompt now directs the connected AI app to produce coherent, semantically named and readable design systems. Unit tests cover the audit; it cannot prove rendered visual quality or superiority to Figma Agent.
 - Implemented `figma_capture_selection`: the plugin host exports one selected frame as a JPEG using progressive 1024/768/512 px widths, a 700 KiB byte cap, and strict selection/aspect/height bounds. Generated pages select their first root frame. The local MCP server returns a completed preview job as an image content block so an AI client can visually inspect it and then call targeted patch tools. The plugin does not autonomously invoke the AI or choose repeated repairs; live Figma + Claude test remains open.
 - Figma compatibility mapping isolates schema Auto Layout modes and primary-axis alignment, with round-trip unit tests against installed Plugin API types. Other API mappings and live versions remain unverified.
@@ -36,3 +36,7 @@ No Git CLI/GitHub CLI, official Figma MCP, paid model API, public bind, hidden t
 ## Commands
 
 `npm run verify` runs typecheck, lint, unit/integration tests, build, local audit and package. `npm run docs:validate` enforces project documentation/registry/source references. `npm run release:verify` includes package integrity and required contents. `npm run mcp` starts the custom MCP stdio server and loopback bridge.
+
+## 2026-11-12 official Figma guide audit
+
+`INTEROP-01` adds an optional user-supplied Figma reference field to the external handoff only. The official guide is a remote MCP configuration/skills repository, not a server package; no automatic Figma MCP connectivity or live client verification is claimed. See [`OFFICIAL-FIGMA-MCP-INTEROP.md`](integrations/OFFICIAL-FIGMA-MCP-INTEROP.md). `CODE-03` remains next.
