@@ -178,6 +178,33 @@ describe('Figma host design-system discovery',()=>{
 describe('Figma host patch behavior',()=>{
   afterEach(()=>{Reflect.deleteProperty(globalThis,'figma');Reflect.deleteProperty(globalThis,'__html__');vi.resetModules();});
 
+  it('loads fonts before bounds/rename/fill writes and undoes them completely (found live 2026-11-12)',async()=>{
+    // Real Figma refuses text writes (characters, resize) until the node's font is loaded.
+    const loaded=new Set<string>();
+    const strictText=(id:string,name:string,text:string):MockHostNode=>{
+      let characters=text;let width=248;const node={id,name,type:'TEXT',x:16,y:16,height:17,rotation:0,fontName:{family:'Inter',style:'Regular'},fills:[{type:'SOLID',color:{r:0,g:0,b:0}}] as unknown[],
+        get width(){return width;},
+        get characters(){return characters;},
+        set characters(value:string){if(!loaded.has('Inter/Regular'))throw new Error('in set_characters: Cannot write to node with unloaded font "Inter Regular"');characters=value;},
+        resize(w:number){if(!loaded.has('Inter/Regular'))throw new Error('in resize: Cannot write to node with unloaded font "Inter Regular"');width=w;},
+      };return node as unknown as MockHostNode;};
+    const label=strictText('label','Metric label','Monthly revenue');
+    const change=strictText('change','Metric change','+12.4%');
+    const card:MockHostNode={id:'card',name:'Card/Metric',type:'FRAME',x:0,y:0,width:280,height:121,rotation:0,children:[label,change]};
+    const loadFontAsync=vi.fn(async(font:{family:string;style:string})=>{loaded.add(`${font.family}/${font.style}`);});
+    const {ui}=await loadHostWithSelection([card],{loadFontAsync});
+    await ui.onmessage?.({type:'apply-patch',patch:{operations:[{op:'set-bounds',targetId:'label',value:{x:16,y:16,width:200,height:17}},{op:'rename',targetId:'label',value:'Revenue label'},{op:'set-fill',targetId:'change',value:'#0B6E4F'}]}});
+    expect(loadFontAsync).toHaveBeenCalled();
+    expect(label.name).toBe('Revenue label');
+    expect((label as unknown as {width:number}).width).toBe(200);
+    loaded.clear(); // a later session: fonts are unloaded again before Undo
+    await ui.onmessage?.({type:'undo-patch'});
+    expect(label.name).toBe('Metric label');
+    expect((label as unknown as {width:number}).width).toBe(248);
+    expect((change as unknown as {fills:Array<{color:{r:number}}>}).fills[0]!.color.r).toBe(0);
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'patch-result',ok:true,message:'The latest plugin patch was reverted.'}));
+  });
+
   it('applies only selected-tree edits, preserves siblings, and restores edits on undo',async()=>{
     const title=mockTextNode('title','Title','Revenue');
     const sibling=mockTextNode('sibling','Sibling','Untouched');

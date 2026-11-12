@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed (found live): Undo of a bounds/rename/fill patch could fail half-way with an unloaded-font error, leaving the name and width changed. Patch apply and undo now load every text target's fonts first and rewrite text only when it changed.
 - LIVE-01 core flow verified in Figma Desktop 126.11.8 (Windows): native kit render; selection-aware set-text patch with a preview of the untouched layers; change propagated to an instance; Undo; selected export to schema 1.0 with tokens; re-import as editable nodes.
 - Live Figma (LIVE-01/02 partial): the component kit rendered native components, instances and variable-bound fills; pairing with the Claude Desktop extension worked. The kit now declares FIXED Auto Layout sizing and fixed-width text explicitly. This is a clarification, not a bug fix: an early note about a narrow input field was disproved by measuring the live layer, which was 320 px wide (Input/Text 320 × 65, Field 320 × 44, built before PR #24).
 - Issue #2: `buildComponentKit` and the MCP tool `figma_build_component_kit` create token-bound native components (buttons, input, card, navigation, table row, usage instances) with WCAG AA colors. The Design System tab can now build the kit in Figma and import or export presets.
