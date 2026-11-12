@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- KI-003 live verified: in a rebuilt plugin, Undo of a set-bounds + rename + set-fill patch now restores the name, width and token-bound fill without errors.
 - Fixed (found live): Undo of a bounds/rename/fill patch could fail half-way with an unloaded-font error, leaving the name and width changed. Patch apply and undo now load every text target's fonts first and rewrite text only when it changed.
 - Imported pages get a unique name (`Name (2)`) instead of duplicating an existing page name; seen live when an exported selection was re-imported.
 - LIVE-01 core flow verified in Figma Desktop 126.11.8 (Windows): native kit render; selection-aware set-text patch with a preview of the untouched layers; change propagated to an instance; Undo; selected export to schema 1.0 with tokens; re-import as editable nodes.
