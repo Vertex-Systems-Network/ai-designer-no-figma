@@ -455,7 +455,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
     if (!['TEXT','RECTANGLE','ELLIPSE','LINE','FRAME','GROUP','COMPONENT','INSTANCE','VECTOR'].includes(node.type)) throw new Error(`Layer "${node.name}" (${node.type}) cannot be represented in schema 1.0.`);
     const supported = node as SceneNode & { x:number; y:number; width:number; height:number; opacity:number; rotation:number };
     const nativeBlendMode=(node as SceneNode & {blendMode?:string}).blendMode;
-    if(nativeBlendMode)assertPortableBlendMode(node.name,'node',nativeBlendMode,['FRAME','GROUP','COMPONENT','INSTANCE'].includes(node.type));
+    if(nativeBlendMode)assertPortableBlendMode(node.name,'node',nativeBlendMode,['FRAME','GROUP','COMPONENT','INSTANCE','TEXT'].includes(node.type));
     if(!['RECTANGLE','ELLIPSE','LINE'].includes(node.type)&&'strokes' in node){const strokeValue:unknown=node.strokes;if(strokeValue===figma.mixed||(Array.isArray(strokeValue)&&strokeValue.some(stroke=>stroke.visible!==false&&(stroke.opacity??1)>0)))throw new Error(`Layer "${node.name}" has visible strokes that schema 1.0 cannot preserve for ${node.type.toLowerCase()} layers.`);}
     if(['RECTANGLE','ELLIPSE','LINE'].includes(node.type)&&'strokes' in node){const strokeValue:unknown=node.strokes;if(strokeValue===figma.mixed)throw new Error(`Layer "${node.name}" has mixed strokes which selected export cannot preserve losslessly.`);}
     const id=logicalIds.get(node.id)||`figma-${node.id}`;
