@@ -1,3 +1,4 @@
+import { uniquePageName } from '../shared/page-names';
 import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type EffectSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type RadialGradientSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
@@ -227,6 +228,7 @@ async function insertRaster(name:string,mimeType:string,input:number[]){
   catch(error){if(!node.removed)node.remove();throw error;}
 }
 
+
 async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<number> {
   const checked = validateDesignSpec(spec);
   if (!checked.valid) throw new Error(`Invalid specification: ${checked.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`);
@@ -239,7 +241,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
       if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
       const page = figma.createPage();
       createdPages.push(page);
-      page.name = pageSpec.name;
+      page.name = uniquePageName(pageSpec.name, (figma.root?.children ?? []).filter((p) => p !== page).map((p) => p.name));
       await page.loadAsync();
       for (const childSpec of pageSpec.children) await renderNode(childSpec, page, control, fontFallback);
     }

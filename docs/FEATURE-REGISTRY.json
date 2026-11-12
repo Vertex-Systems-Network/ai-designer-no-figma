@@ -51,7 +51,8 @@
         "src/plugin/paint.ts",
         "src/plugin/export-compat.ts",
         "src/shared/spec.ts",
-        "src/shared/assets.ts"
+        "src/shared/assets.ts",
+        "src/shared/page-names.ts"
       ],
       "dependencies": [
         "CORE-001"
@@ -63,7 +64,8 @@
         "src/plugin/export-compat.test.ts",
         "src/plugin/host-runtime.test.ts",
         "src/plugin/paint.test.ts",
-        "src/shared/spec.test.ts"
+        "src/shared/spec.test.ts",
+        "src/shared/page-names.test.ts"
       ],
       "knownIssues": [
         "Native rendering and asset operations have automated coverage but are NOT TESTED in live Figma; selected export intentionally rejects unsupported paint/effect/stroke cases."
