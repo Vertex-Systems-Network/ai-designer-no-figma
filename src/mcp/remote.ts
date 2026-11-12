@@ -54,8 +54,18 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker){
     res.writeHead(response.status).end(body);
   }finally{await mcp.close();}
 }
+export function bridgeStartupMessage(error:unknown):string|undefined{
+  return (error as NodeJS.ErrnoException)?.code==='EADDRINUSE'?'Port 8788 is already owned by another local bridge (often Claude Desktop). Close that MCP process before starting remote mode; one process must own Figma pairing. Your Figma file stays unchanged.':undefined;
+}
+export async function startRemoteServices(){
+  let bridge:Awaited<ReturnType<typeof startBridgeServer>>;
+  try{bridge=await startBridgeServer();}
+  catch(error){const message=bridgeStartupMessage(error);if(message)throw new Error(message,{cause:error});throw error;}
+  try{const remote=await startRemoteMcpServer(bridge.broker);return{bridge,remote};}
+  catch(error){await bridge.close();throw error;}
+}
 async function main(){
-  const bridge=await startBridgeServer();const remote=await startRemoteMcpServer(bridge.broker);
+  const {bridge,remote}=await startRemoteServices();
   console.error(`[ai-designer] Figma pairing bridge on ${bridge.address().host}:${bridge.address().port}; remote MCP on http://${remote.address().host}:${remote.address().port}/mcp`);
   console.error(`[ai-designer] Remote bearer secret stored at ${tokenPath()}; tunnel only port ${remote.address().port}, never the pairing bridge.`);
   const shutdown=()=>{void remote.close().then(()=>bridge.close());};process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);

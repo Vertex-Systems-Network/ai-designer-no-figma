@@ -1,7 +1,7 @@
 import { afterEach,describe,it,expect } from 'vitest';
 import { Client,StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { JobBroker } from '../bridge/broker';
-import { startRemoteMcpServer } from './remote';
+import { bridgeStartupMessage,startRemoteMcpServer } from './remote';
 import { startBridgeServer } from '../bridge/server';
 const token='c'.repeat(64);
 let close:(()=>Promise<void>)|undefined;
@@ -36,6 +36,10 @@ describe('loopback remote MCP gateway',()=>{
     const done=await fetch(`${base}/bridge/jobs/${jobId}/result`,{method:'POST',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({sessionId:'browser-session-1',ok:true,result:{summary:{name:'Card',nodes:[]}}})});expect(done.status).toBe(200);
     const result=await client.callTool({name:'figma_get_job_result',arguments:{jobId}});expect(result.structuredContent).toMatchObject({status:'completed',result:{summary:{name:'Card'}}});
     await client.close();
+  });
+  it('explains an occupied local pairing port without suggesting a public bind',()=>{
+    expect(bridgeStartupMessage(Object.assign(new Error('occupied'),{code:'EADDRINUSE'}))).toContain('one process must own Figma pairing');
+    expect(bridgeStartupMessage(Object.assign(new Error('denied'),{code:'EACCES'}))).toBeUndefined();
   });
   it('never listens on a public interface',async()=>{
     await expect(startRemoteMcpServer(new JobBroker(),{host:'0.0.0.0',port:0,token})).rejects.toThrow(/loopback/);
