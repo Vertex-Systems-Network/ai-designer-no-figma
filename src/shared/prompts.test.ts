@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseEditPatch } from './edit-patch';
-import { buildDesignPrompt, buildDesignSystemPrompt, buildPatchPrompt } from './prompts';
+import { buildDesignPrompt, buildDesignSystemPrompt, buildFigmaReferencePrompt, buildPatchPrompt } from './prompts';
 
 describe('provider-neutral AI handoff prompts', () => {
   it('builds a self-contained design prompt for any external assistant', () => {
@@ -21,6 +21,13 @@ describe('provider-neutral AI handoff prompts', () => {
     expect(prompt).toContain('WordPress admin conventions');
     expect(prompt).toContain('repeatable fields');
     expect(buildDesignPrompt('A phone app',{...settings,category:'Mobile Application'})).toContain('reachable actions');
+  });
+
+  it('bounds optional reference context and distinguishes a URL from fetched design data',()=>{
+    expect(buildFigmaReferencePrompt('')).toBe('');
+    expect(buildFigmaReferencePrompt('https://figma.com/design/example')).toContain('A URL alone supplies no node data');
+    expect(buildFigmaReferencePrompt('Color: #006039; spacing: 16')).toContain('Color: #006039');
+    expect(()=>buildFigmaReferencePrompt('x'.repeat(8001))).toThrow('8,000 characters');
   });
 
   it('builds an edit prompt with only the supplied selection context', () => {

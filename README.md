@@ -15,7 +15,7 @@ There is no aggregate completion percentage: it hid the distinction between code
 
 | Gate | Progress | Evidence / remaining action |
 |---|---:|---|
-| Automated release checks | `██████████` 8/8 | Latest `npm run release:verify`: typecheck, lint, 107 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
+| Automated release checks | `██████████` 8/8 | Latest `npm run release:verify`: typecheck, lint, 108 unit tests, 17 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
 | Feature registry fully implemented | `█████░░░░░` 8/17 | Eight features are `IMPLEMENTED`; nine remain `PARTIAL`. Counts are registry entries, not product completion. |
 | Live Figma/client acceptance | `░░░░░░░░░░` 0/4 | Four named live checks are in [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md); current executor cannot drive the user's desktop session. |
 | Remaining local engineering tasks | `██████░░░░` 2/3 | `CODE-01` and `CODE-02` are automated verified. `CODE-03` component properties/variants remains open. See the [schema fidelity matrix](docs/EXPORT-FIDELITY-MATRIX.md). |
@@ -64,6 +64,10 @@ The Edit tab follows the same handoff for selection-aware patch JSON. The plugin
 The Claude Desktop extension package is `artifacts/ai-designer-no-figma-claude.mcpb`. Install it through **Settings → Desktop app → Manage extensions → Advanced settings → Install Extension**, then open Figma plugin **Settings** and click **Connect Claude**. The plugin pairs with the local bridge and confirms when the connection is active. No config-file editing, terminal commands, API key, or manual token copying is part of this user flow. Build the extension with `npm run package:claude`.
 
 For visual refinement, ask Claude to generate/import the design, then use its Figma tools to capture the selected frame. The `figma_get_job_result` response includes the actual bounded JPEG image. Claude can inspect the result, propose a safe patch to existing selected IDs, apply it, and capture again. The tool loop is available to an AI client; the plugin itself does not perform automatic screenshot critique. Live Figma rendering still needs verification.
+
+## Optional official Figma MCP reference
+
+If an external AI client is separately connected to Figma MCP, fetch a focused frame’s design context, variable definitions and screenshot there. Paste concise factual notes into **Generate → Figma reference context**; the bounded reference is included in the copy/paste handoff prompt. A Figma URL alone is not inspected by this plugin. This is an optional manual workflow; see [interoperability audit](docs/integrations/OFFICIAL-FIGMA-MCP-INTEROP.md).
 
 ## Optional local Ollama
 
