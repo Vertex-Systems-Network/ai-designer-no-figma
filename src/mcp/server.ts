@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { visualPreviewToolResult } from './visual-preview';
+import { prepareVisualRepair, verifyVisualRepair } from '../shared/visual-repair';
 import { MAX_MCP_ASSET_BYTES, MAX_RASTER_BYTES, MAX_SVG_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
 
 function textResult(value: Record<string,unknown>, isError=false) {
@@ -114,6 +115,12 @@ export function createMcpServer(broker:JobBroker):McpServer{
   });
   server.registerTool('figma_get_job_result',{description:'Return the actual Figma plugin result or a truthful running/failed state for an operation. A completed capture-selection job returns the preview as an image content block for visual inspection.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
     try{const job=broker.getJob(jobId);if(job.status==='completed'){const preview=visualPreviewToolResult(job.result);if(preview)return{content:[{type:'text' as const,text:JSON.stringify({...summary(job),preview:preview.structuredContent})},preview.content[1]!],structuredContent:{...summary(job),preview:preview.structuredContent}};}return textResult({ ...summary(job), ...(job.status==='completed'?{result:job.result}:{}), ...(job.status==='failed'?{error:job.error}:{}), ...(job.status==='cancelled'?{message:'Job was cancelled before execution.'}:{}) });}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_prepare_visual_repair',{description:'Bind an inspected Figma screenshot and selected layer snapshot to one caller-observed defect and one validated target patch. Returns evidence and patch for explicit figma_apply_patch; does not infer visual quality or mutate.',inputSchema:z.object({captureJobId:z.string().uuid(),inspectionJobId:z.string().uuid(),json:z.string().min(1).max(262_144),targetId:z.string().min(1).max(200),observation:z.string().min(12).max(500)})},async(args)=>{
+    try{const result=prepareVisualRepair(broker.getJob(args.captureJobId),broker.getJob(args.inspectionJobId),args.json,args.targetId,args.observation);return textResult(result,!result.valid);}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_verify_visual_repair',{description:'Compare completed before/patch/after jobs from the same session and frame, reporting screenshot hashes and whether pixels changed. A vision-capable reviewer must still judge if the defect was fixed.',inputSchema:z.object({beforeJobId:z.string().uuid(),patchJobId:z.string().uuid(),afterJobId:z.string().uuid()})},async(args)=>{
+    try{const result=verifyVisualRepair(broker.getJob(args.beforeJobId),broker.getJob(args.patchJobId),broker.getJob(args.afterJobId));return textResult(result,!result.valid);}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_cancel_job',{description:'Cancel an operation only while it is still queued. Running Figma Plugin API operations are not interruptible yet.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
     try{return textResult(summary(broker.cancel(jobId)));}catch(error){return faultResult(error);}

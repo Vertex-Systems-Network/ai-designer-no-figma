@@ -69,6 +69,11 @@ describe('official MCP stdio server',()=>{
     expect((result.structuredContent as {supportedDesignFeatures:string[]}).supportedDesignFeatures).toEqual(expect.arrayContaining(['local-color-variables','local-text-styles','responsive-constraints','layout-grids']));
     expect((result.structuredContent as {exportLimitations:string[]}).exportLimitations).toContain('token binding metadata is not round-tripped');
   });
+  it('exposes evidence-bound visual repair tools and rejects unknown jobs',async()=>{
+    const listed=await client.listTools();expect(listed.tools.map(tool=>tool.name)).toEqual(expect.arrayContaining(['figma_prepare_visual_repair','figma_verify_visual_repair']));
+    const missing=await client.callTool({name:'figma_prepare_visual_repair',arguments:{captureJobId:'00000000-0000-4000-8000-000000000001',inspectionJobId:'00000000-0000-4000-8000-000000000002',json:'{"operations":[]}',targetId:'title',observation:'Title is too close to the edge.'}});
+    expect(missing.structuredContent).toMatchObject({error:{code:'JOB_NOT_FOUND'}});
+  });
   it('reports file-transfer limits and validates actual vector/image payloads',async()=>{
     const caps=await client.callTool({name:'figma_get_asset_capabilities',arguments:{}});
     expect(caps.structuredContent).toMatchObject({clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',raster:{formats:['image/png','image/jpeg','image/gif'],mcpTransferLimitBytes:MAX_RASTER_BYTES,mcpDirectLimitBytes:MAX_MCP_ASSET_BYTES,mcpChunkBytes:MCP_ASSET_CHUNK_BYTES}});
