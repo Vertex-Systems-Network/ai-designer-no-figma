@@ -314,7 +314,8 @@ function getSelectionSummary(): SelectionSummary {
 }
 function inspectSelection(): void { figma.ui.postMessage({ type:'selection', summary:getSelectionSummary() }); }
 
-async function applyPatch(patch: EditPatch): Promise<void> {
+async function applyPatch(patch: EditPatch): Promise<void> { return serializePatch(() => applyPatchNow(patch)); }
+async function applyPatchNow(patch: EditPatch): Promise<void> {
   const targets = new Map<string, SceneNode>();
   const visit = (node: SceneNode) => {
     const id = logicalIds.get(node.id) || node.id;
@@ -367,8 +368,9 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     }
     throw new Error('Unsupported patch operation.');
   });
-  // Any write to a text node (characters, resize) needs its fonts loaded; load them for every text target up front.
-  await loadTextFonts(resolved.map((item) => item.target));
+  // Text writes (characters, resize) need the node's fonts; load them only for those, so a rename or fill
+  // on a layer whose font is unavailable still works.
+  await loadTextFonts(resolved.filter(({ operation, target }) => target.type === 'TEXT' && (operation.op === 'set-text' || operation.op === 'set-bounds')).map((item) => item.target));
   const snapshots: PatchSnapshot[] = await Promise.all(resolved.map(async ({target,operation}) => {
     const mainComponent=operation.op==='swap-component'&&target.type==='INSTANCE'?await target.getMainComponentAsync():undefined;
     if(operation.op==='swap-component'&&!mainComponent)throw new Error(`The current main component for ${operation.targetId} is unavailable; component replacement cannot be rolled back safely.`);
@@ -408,7 +410,8 @@ async function loadTextFonts(nodes: readonly SceneNode[]): Promise<void> {
 }
 
 async function restoreSnapshots(snapshots: PatchSnapshot[]): Promise<void> {
-  await loadTextFonts(snapshots.map((snapshot) => snapshot.target));
+  // Load fonts only for text nodes whose characters or size will actually be rewritten.
+  await loadTextFonts(snapshots.filter(({ target, text, width, height }) => target.type === 'TEXT' && !target.removed && ((text !== undefined && (target as TextNode).characters !== text) || (width !== undefined && target.width !== width) || (height !== undefined && target.height !== height))).map((snapshot) => snapshot.target));
   for (const snapshot of [...snapshots].reverse()) {
     const { target } = snapshot;
     if (target.removed) continue;
@@ -417,12 +420,22 @@ async function restoreSnapshots(snapshots: PatchSnapshot[]): Promise<void> {
     if (snapshot.fills !== undefined && 'fills' in target) target.fills = snapshot.fills as typeof target.fills;
     if (snapshot.text !== undefined && target.type === 'TEXT' && (target as TextNode).characters !== snapshot.text) (target as TextNode).characters = snapshot.text;
     if(snapshot.mainComponent&&target.type==='INSTANCE'){target.swapComponent(snapshot.mainComponent);if(snapshot.componentProperties&&Object.keys(snapshot.componentProperties).length)target.setProperties(snapshot.componentProperties);}
-    if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
+    if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { if (target.width !== snapshot.width || target.height !== snapshot.height) target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
     if(snapshot.layout&&target.type==='FRAME'){target.layoutMode=snapshot.layout.mode;target.itemSpacing=snapshot.layout.gap;target.paddingTop=snapshot.layout.paddingTop;target.paddingRight=snapshot.layout.paddingRight;target.paddingBottom=snapshot.layout.paddingBottom;target.paddingLeft=snapshot.layout.paddingLeft;target.primaryAxisAlignItems=snapshot.layout.alignment;}
   }
 }
 
-async function undoPatch(): Promise<void> {
+/** Patch apply and Undo share one queue (UI messages and bridge jobs alike), so an awaited font load
+ * can never let another edit interleave with a restore or a checkpoint update. */
+let patchQueue: Promise<unknown> = Promise.resolve();
+function serializePatch<T>(task: () => Promise<T>): Promise<T> {
+  const run = patchQueue.then(task, task);
+  patchQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function undoPatch(): Promise<void> { return serializePatch(undoPatchNow); }
+async function undoPatchNow(): Promise<void> {
   const snapshot = patchCheckpoints.pop();
   if (!snapshot) throw new Error('There is no plugin patch checkpoint to revert in this session.');
   try { await restoreSnapshots(snapshot); }
