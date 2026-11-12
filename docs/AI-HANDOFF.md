@@ -18,7 +18,7 @@ Updated: 2026-11-12. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 - Selection-aware `set-rotation` edits are bounded to -180°–180° and restore rotation on undo.
 - Native node rotation is accepted between -180° and 180° and is applied on render/export; live Figma transform behavior remains NOT TESTED.
 - Design-system color, typography and spacing scales remain locally persisted with up to 20 presets. Design-spec 1.0 now supports bounded PNG/JPEG image nodes, color and text-style tokens, responsive constraints and row/column/grid definitions. Rendering creates native image fills, local Figma color Variables and Text Styles, applies supported constraints/grids, and binds declared tokens.
-- `npm run release:verify` passes for the current change set: 109 unit tests and 18 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. `npm run compatibility:check` reports metadata/typing only and does not certify a live Figma session.
+- `npm run release:verify` passes for the current change set: 112 unit tests and 19 integration tests, typecheck, lint, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. `npm run compatibility:check` reports metadata/typing only and does not certify a live Figma session.
 - Added a non-blocking `auditDesignQuality()` pass after successful JSON validation. It flags measurable contrast issues (when solid fills are known), generic names, missing explicit font sizes and repeated containers without Auto Layout. The prompt now directs the connected AI app to produce coherent, semantically named and readable design systems. Unit tests cover the audit; it cannot prove rendered visual quality or superiority to Figma Agent.
 - Implemented `figma_capture_selection`: the plugin host exports one selected frame as a JPEG using progressive 1024/768/512 px widths, a 700 KiB byte cap, and strict selection/aspect/height bounds. Generated pages select their first root frame. The local MCP server returns a completed preview job as an image content block so an AI client can visually inspect it and then call targeted patch tools. The plugin does not autonomously invoke the AI or choose repeated repairs; live Figma + Claude test remains open.
 - Figma compatibility mapping isolates schema Auto Layout modes and primary-axis alignment, with round-trip unit tests against installed Plugin API types. Other API mappings and live versions remain unverified.
@@ -27,7 +27,7 @@ Updated: 2026-11-12. Start with root [`AGENTS.md`](../AGENTS.md), [`MASTER-ENGIN
 
 ## Exact next tasks
 
-Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` and `CODE-02` are AUTOMATED VERIFIED; the full schema 1.0 import/export mapping and rejection boundaries are in [`EXPORT-FIDELITY-MATRIX.md`](EXPORT-FIDELITY-MATRIX.md). Next start `AGENT-02` bounded local design-system inventory, then `AGENT-03` plan contract and `CODE-03` component property/variant implementation. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED only for the previously published source snapshot; republish after the current verification succeeds.
+Authoritative order and acceptance tests are in [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md). `PLAN-01` is complete: documentation audit reports 0 findings. `CODE-01` and `CODE-02` are AUTOMATED VERIFIED; the full schema 1.0 import/export mapping and rejection boundaries are in [`EXPORT-FIDELITY-MATRIX.md`](EXPORT-FIDELITY-MATRIX.md). Next start Phase 2 / `AGENT-03` plan contract and `CODE-03` component property/variant implementation. Desktop-dependent `LIVE-*` checks remain blocked until Figma/Claude/Ollama can be tested against the exact build. `PUB-01` is LIVE VERIFIED only for the previously published source snapshot; republish after the current verification succeeds.
 
 ## Constraints
 
@@ -39,7 +39,7 @@ No Git CLI/GitHub CLI, official Figma MCP, paid model API, public bind, hidden t
 
 ## 2026-11-12 official Figma guide audit
 
-`INTEROP-01` adds an optional user-supplied Figma reference field to the external handoff only. The official guide is a remote MCP configuration/skills repository, not a server package; no automatic Figma MCP connectivity or live client verification is claimed. See [`OFFICIAL-FIGMA-MCP-INTEROP.md`](integrations/OFFICIAL-FIGMA-MCP-INTEROP.md). `AGENT-02` is next, then `AGENT-03` and `CODE-03`.
+`INTEROP-01` adds an optional user-supplied Figma reference field to the external handoff only. The official guide is a remote MCP configuration/skills repository, not a server package; no automatic Figma MCP connectivity or live client verification is claimed. See [`OFFICIAL-FIGMA-MCP-INTEROP.md`](integrations/OFFICIAL-FIGMA-MCP-INTEROP.md). Phase 1 / `AGENT-02` is automated verified; next is Phase 2 / `AGENT-03`.
 
 ## 2026-11-12 local-agent correction
 
@@ -48,3 +48,7 @@ User intent is to learn from Figma Agent techniques while keeping our own local 
 ## 2026-11-12 README task table
 
 README now presents one goal-driven task table with status, acceptance and next actions; the canonical execution plan includes `AGENT-02`–`AGENT-06` and `EVAL-01`. No new design capability is claimed by this documentation update.
+
+## 2026-11-12 Phase 1 checkpoint
+
+Implemented bounded current-page component and local document variable/style identity inventory via `figma_get_local_design_system`; unit, host behavior and MCP protocol tests pass. It returns mode IDs, not fully resolved token values or library imports. Live editor observation remains Phase 6. Next run: Phase 2 / `AGENT-03` validated plan contract.

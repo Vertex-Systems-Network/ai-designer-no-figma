@@ -243,6 +243,7 @@
       "module": "mcp-server",
       "sourceFiles": [
         "src/mcp/server.ts",
+        "src/plugin/design-inventory.ts",
         "src/bridge/broker.ts",
         "src/shared/bridge-contract.ts",
         "src/shared/assets.ts"
@@ -254,7 +255,9 @@
       "status": "PARTIAL",
       "testStatus": "VERIFIED",
       "tests": [
-        "src/mcp/server.integration.test.ts"
+        "src/mcp/server.integration.test.ts",
+        "src/plugin/design-inventory.test.ts",
+        "src/plugin/host-runtime.test.ts"
       ],
       "knownIssues": [
         "Client-specific registration and live Figma invocation are not tested; large raster batch transfer is automated-tested but not live-verified."

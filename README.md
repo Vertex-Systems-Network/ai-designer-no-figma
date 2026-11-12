@@ -9,6 +9,19 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 - Claude Desktop installer: [AI Designer No Figma `.mcpb`](artifacts/ai-designer-no-figma-claude.mcpb) (`npm run package:claude`)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
+## Sequential delivery phases
+
+One phase is implemented per development run. “Automated verified” means code and protocol tests pass; actual Figma visuals remain a separate final acceptance phase.
+
+| Phase | Deliverable | Completion evidence | Status |
+|---|---|---|---|
+| 1 | Read-only local design-system inventory | Exact component/variable/style IDs, bounded output and preserved selection; host behavior and MCP protocol tests | **AUTOMATED VERIFIED**; live Figma pending Phase 6 |
+| 2 | Validated agent design plan | Bounded sections, component/token/asset references and plan-to-schema tests | OPEN |
+| 3 | Native component variants and instance properties | Import/export/rollback tests; no silent unsupported data loss | OPEN |
+| 4 | Responsive layout and actual asset composition | Two-width structural/visual checks and supplied asset placement | OPEN |
+| 5 | Agent screenshot critique and targeted repair | Real vision-capable client sees capture, patches a measured defect and recaptures | OPEN |
+| 6 | Live Figma acceptance and same-brief comparison | Recorded editor/client versions, build hash, actual native editability, screenshots, review rubric and defects | BLOCKED on user desktop/client environment |
+
 ## Development plan
 
 The goal is an independent design agent that creates editable Figma layers through this plugin and its local MCP bridge. Figma's hosted MCP and REST tokens are not required. The default AI handoff works without an inference API; autonomous generation and visual critique require an available AI client or installed local model. [The execution plan](docs/EXECUTION-PLAN.md) holds the detailed acceptance criteria and evidence.
@@ -19,7 +32,7 @@ The goal is an independent design agent that creates editable Figma layers throu
 | `CODE-01` | P1 | Behavioral tests for native render/edit rollback and preserved siblings | **AUTOMATED VERIFIED** | Real host module passes fault and undo fixtures. |
 | `CODE-02` | P1 | Schema 1.0 native import/export field fidelity and explicit unsupported errors | **AUTOMATED VERIFIED** | Field matrix and round-trip/rejection tests pass. |
 | `AGENT-01` | P1 | Local MCP preflight for schema and measurable design issues | **AUTOMATED VERIFIED** | `figma_audit_design_schema` reports validation, contrast, naming, layout, overflow and text collision findings. |
-| `AGENT-02` | P1 | Discover reusable components, variables and styles in the open Figma file | **OPEN** | Read-only, bounded Plugin API inventory; exact IDs and safe scopes; host tests and a live file inspection. No hosted Figma MCP lookup. |
+| `AGENT-02` | P1 | Discover reusable components, variables and styles in the open Figma file | **AUTOMATED VERIFIED** | `figma_get_local_design_system` returns current-page component identities and local variable/style identities with bounds and truncation flags. Live Figma result is Phase 6. |
 | `AGENT-03` | P1 | Plan sections, component roles, tokens and assets before native creation | **OPEN** | Versioned, bounded agent plan contract; map each planned section to supported schema nodes and existing local assets; reject unknown references and test deterministic conversion. |
 | `CODE-03` | P1 | Native component variants and properties with instance binding | **OPEN** | Schema/API mapping, capped variant matrix, import/export/rollback tests; unsupported properties fail explicitly. |
 | `AGENT-04` | P1 | Rendered design review and targeted repair loop | **PARTIAL** | Existing JPEG capture and selected-ID patch work in automation. A real AI client must inspect the image, fix a measured issue, recapture and record before/after evidence in Figma. |
@@ -31,7 +44,7 @@ The goal is an independent design agent that creates editable Figma layers throu
 | `PUB-01` | P1 | Publish tested source with matching ZIP and checksums | **LIVE VERIFIED** | Verify archive hash, Git blob and required files for each release-bound change. |
 | `BLOCK-01`–`BLOCK-02` | — | Closed-document automation and arbitrary client file/identity access | **OUT OF PLUGIN SCOPE / NOT VERIFIED** | Requires separate authenticated desktop/client capabilities; do not advertise as plugin features. |
 
-**Current release evidence:** `npm run release:verify` passed typecheck, lint, 109 unit tests, 18 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. The next unblocked implementation task is `AGENT-02`, followed by `AGENT-03` and `CODE-03`.
+**Current release evidence:** `npm run release:verify` passed typecheck, lint, 112 unit tests, 19 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. The next implementation task is Phase 2 (`AGENT-03`); the live inventory observation remains in Phase 6.
 
 ## Requirements
 
