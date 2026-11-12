@@ -8,7 +8,7 @@
 //   npm run setup:clients -- --client custom --mode http      generic settings for any other client
 // --mode stdio (default): the app starts the MCP server itself.
 // --mode http: one shared hub (npm run mcp:remote) serves several apps at once.
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -20,6 +20,17 @@ const os = platform();
 const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
 const userConfig = os === 'darwin' ? join(home, 'Library', 'Application Support') : os === 'win32' ? appData : (process.env.XDG_CONFIG_HOME ?? join(home, '.config'));
 const NAME = 'ai-designer';
+// Microsoft Store (MSIX) builds of Claude Desktop keep their config under the package's virtualised AppData.
+function claudeDesktopConfig() {
+  const standard = join(userConfig, 'Claude', 'claude_desktop_config.json');
+  if (os !== 'win32') return standard;
+  const packages = join(process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'Packages');
+  try {
+    const pkg = readdirSync(packages).find((name) => /^(AnthropicPBC\.)?Claude_/i.test(name));
+    if (pkg) { const msix = join(packages, pkg, 'LocalCache', 'Roaming', 'Claude'); if (existsSync(msix)) return join(msix, 'claude_desktop_config.json'); }
+  } catch { /* no Packages folder */ }
+  return standard;
+}
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -42,7 +53,7 @@ async function hubToken({ required = false } = {}) {
 
 /** Each client: config file, JSON key, and how a stdio/http entry looks. Formats follow each app's MCP documentation. */
 const clients = {
-  'claude-desktop': { label: 'Claude Desktop', file: join(userConfig, 'Claude', 'claude_desktop_config.json'), key: 'mcpServers', stdio: (s) => s, http: null, note: 'Or install artifacts/ai-designer-no-figma-claude.mcpb by double-clicking it. Restart Claude Desktop after changes.' },
+  'claude-desktop': { label: 'Claude Desktop', file: claudeDesktopConfig(), key: 'mcpServers', stdio: (s) => s, http: null, note: 'Easiest: double-click artifacts/ai-designer-no-figma-claude.mcpb to install/update the extension instead (do not use both). Fully quit Claude Desktop from the tray and reopen after changes.' },
   'claude-code': { label: 'Claude Code (CLI)', command: (m, t) => m === 'http' ? `claude mcp add --scope user --transport http ${NAME} ${hubUrl} --header "Authorization: Bearer ${t}"` : `claude mcp add --scope user ${NAME} -- "${stdio.command}" "${serverScript}"` },
   cursor: { label: 'Cursor', file: join(home, '.cursor', 'mcp.json'), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ url: u, headers: { Authorization: `Bearer ${t}` } }) },
   vscode: { label: 'VS Code (GitHub Copilot agent mode)', file: join(userConfig, 'Code', 'User', 'mcp.json'), key: 'servers', stdio: (s) => ({ type: 'stdio', ...s }), http: (u, t) => ({ type: 'http', url: u, headers: { Authorization: `Bearer ${t}` } }) },
