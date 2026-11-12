@@ -8,7 +8,7 @@
 //   npm run setup:clients -- --client custom --mode http      generic settings for any other client
 // --mode stdio (default): the app starts the MCP server itself.
 // --mode http: one shared hub (npm run mcp:remote) serves several apps at once.
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -20,6 +20,22 @@ const os = platform();
 const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
 const userConfig = os === 'darwin' ? join(home, 'Library', 'Application Support') : os === 'win32' ? appData : (process.env.XDG_CONFIG_HOME ?? join(home, '.config'));
 const NAME = 'ai-designer';
+// Claude Desktop may be installed standalone (%APPDATA%\\Claude) and/or from the Microsoft Store (MSIX),
+// whose AppData is virtualised under %LOCALAPPDATA%\\Packages\\<Claude package>\\LocalCache\\Roaming\\Claude.
+// The package folder alone identifies a Store install (the app may not have created Roaming\\Claude yet),
+// so return every install found; --write updates each and prints every path.
+function claudeDesktopConfigs() {
+  const standard = join(userConfig, 'Claude', 'claude_desktop_config.json');
+  if (os !== 'win32') return [standard];
+  const targets = [];
+  if (existsSync(dirname(standard))) targets.push(standard);
+  const packages = join(process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'Packages');
+  try {
+    for (const pkg of readdirSync(packages).filter((name) => /^(AnthropicPBC\.)?Claude_/i.test(name)).sort())
+      targets.push(join(packages, pkg, 'LocalCache', 'Roaming', 'Claude', 'claude_desktop_config.json'));
+  } catch { /* no Packages folder */ }
+  return targets.length ? targets : [standard];
+}
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -42,7 +58,7 @@ async function hubToken({ required = false } = {}) {
 
 /** Each client: config file, JSON key, and how a stdio/http entry looks. Formats follow each app's MCP documentation. */
 const clients = {
-  'claude-desktop': { label: 'Claude Desktop', file: join(userConfig, 'Claude', 'claude_desktop_config.json'), key: 'mcpServers', stdio: (s) => s, http: null, note: 'Or install artifacts/ai-designer-no-figma-claude.mcpb by double-clicking it. Restart Claude Desktop after changes.' },
+  'claude-desktop': { label: 'Claude Desktop', files: claudeDesktopConfigs(), key: 'mcpServers', stdio: (s) => s, http: null, note: 'Easiest: double-click artifacts/ai-designer-no-figma-claude.mcpb to install/update the extension instead (do not use both). Fully quit Claude Desktop from the tray and reopen after changes.' },
   'claude-code': { label: 'Claude Code (CLI)', command: (m, t) => m === 'http' ? `claude mcp add --scope user --transport http ${NAME} ${hubUrl} --header "Authorization: Bearer ${t}"` : `claude mcp add --scope user ${NAME} -- "${stdio.command}" "${serverScript}"` },
   cursor: { label: 'Cursor', file: join(home, '.cursor', 'mcp.json'), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ url: u, headers: { Authorization: `Bearer ${t}` } }) },
   vscode: { label: 'VS Code (GitHub Copilot agent mode)', file: join(userConfig, 'Code', 'User', 'mcp.json'), key: 'servers', stdio: (s) => ({ type: 'stdio', ...s }), http: (u, t) => ({ type: 'http', url: u, headers: { Authorization: `Bearer ${t}` } }) },
@@ -88,10 +104,12 @@ async function show(id) {
     return;
   }
   const entry = await entryFor(client);
-  console.log(`  File: ${client.file}${existsSync(client.file) ? '' : '  (not found — app may not be installed; --write will create it)'}`);
+  for (const file of targetsOf(client)) console.log(`  File: ${file}${existsSync(file) ? '' : '  (not found — --write will create it)'}`);
   console.log(`  Add under "${client.key}":\n${JSON.stringify({ [client.key]: { [NAME]: entry } }, null, 2).replace(/^/gm, '    ')}`);
   if (client.note) console.log(`  Note: ${client.note}`);
 }
+
+const targetsOf = (client) => client.files ?? (client.file ? [client.file] : []);
 
 function codexBlock() {
   return `    [mcp_servers.${NAME}]\n    command = ${JSON.stringify(stdio.command)}\n    args = [${JSON.stringify(serverScript)}]\n`;
@@ -108,14 +126,18 @@ async function write(id) {
     console.log(`\n✔ ${client.label}: added to ${client.toml}. Restart Codex.`);
     return;
   }
-  let data = {};
-  if (existsSync(client.file)) {
-    try { data = JSON.parse(await readFile(client.file, 'utf8')); }
-    catch { fail(`${client.file} is not plain JSON (it may contain comments). Add the block shown by "--client ${id}" by hand.`); }
+  const entry = await entryFor(client);
+  for (const file of targetsOf(client)) {
+    let data = {};
+    if (existsSync(file)) {
+      try { data = JSON.parse(await readFile(file, 'utf8')); }
+      catch { console.error(`✖ ${file} is not plain JSON (it may contain comments); skipped. Add the block shown by "--client ${id}" by hand.`); continue; }
+    }
+    data[client.key] = { ...(data[client.key] ?? {}), [NAME]: entry };
+    await backupAndWrite(file, `${JSON.stringify(data, null, 2)}\n`, mode === 'http');
+    console.log(`✔ ${client.label}: wrote "${NAME}" into ${file}`);
   }
-  data[client.key] = { ...(data[client.key] ?? {}), [NAME]: await entryFor(client) };
-  await backupAndWrite(client.file, `${JSON.stringify(data, null, 2)}\n`, mode === 'http');
-  console.log(`\n✔ ${client.label}: wrote "${NAME}" into ${client.file}. Restart the app.`);
+  console.log('\nRestart the app (fully quit it first).');
 }
 
 /** Files that carry the hub bearer token (and their backups) are written owner-only. */
@@ -133,7 +155,8 @@ if (id && !clients[id]) fail(`Unknown client "${id}". Choose one of: ${Object.ke
 async function status() {
   console.log('\nAI app status (config files only; this does not inspect running apps):');
   for (const [key, client] of Object.entries(clients)) {
-    const file = client.file ?? client.toml;
+    const file = targetsOf(client)[0] ?? client.toml;
+    if (targetsOf(client).length > 1) { for (const f of targetsOf(client)) { const t = existsSync(f) ? await readFile(f, 'utf8').catch(() => '') : ''; console.log(`  ${client.label.padEnd(40)} ${!existsSync(f) ? 'no config yet' : t.includes(NAME) ? '✔ configured' : 'installed, not configured'}  (${f})`); } continue; }
     if (!file) { console.log(`  ${client.label.padEnd(40)} ${client.custom ? 'manual (custom client)' : 'use the command shown by --client ' + key}`); continue; }
     if (!existsSync(file)) { console.log(`  ${client.label.padEnd(40)} not found (${file})`); continue; }
     const text = await readFile(file, 'utf8').catch(() => '');
