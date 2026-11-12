@@ -96,7 +96,7 @@ Keep Figma open on the file and talk to the AI app normally, for example:
 
 > Use AI Designer to make a login screen in Figma with email and password fields and a Sign in button.
 
-While the agent works, Figma shows a toast **🤖 Claude is working in this file: …** until the job is done. Figma's avatar row at the top right only lists real Figma accounts, and plugins cannot add to it. The toast and the plugin's **Agent Activity** list are where the agent shows up.
+While the agent works, a small AI Designer window with the logo and a spinner pops up if the panel was hidden. If the panel is open, a bar appears at the top of it. Figma also shows a toast **🤖 Claude is working in this file: …** until the job is done. Figma's avatar row at the top right only lists real Figma accounts, and plugins cannot add to it. The toast and the plugin's **Agent Activity** list are where the agent shows up.
 
 ## 5. Browser mode: ChatGPT and Claude.ai on the web
 
@@ -143,6 +143,8 @@ Custom connectors need a paid ChatGPT plan with Developer mode. On some plans th
 
 1. In the Figma plugin, type the pairing code from the `npm run mcp:browser` terminal and press **Connect & hide panel**.
 2. Ask the web chat for a design, as in local mode.
+
+If `cloudflared` cannot reach Cloudflare (`failed to request quick Tunnel … context deadline exceeded`), your network blocks it. Keep `npm run mcp:browser` running and start another tunnel in a second terminal, to the **remote MCP port printed by `mcp:browser`** (usually 8790, but it moves to 8800–8809 when 8790 is busy): `npx localtunnel --port <port>`, or `ngrok http <port>` with a free ngrok account. Then put `<tunnel URL>/mcp/<secret>` into the connector; the secret is in `~/.ai-designer-no-figma/remote-mcp-token`. Do not open the secret link in a normal browser: that stores it in browser history, and a GET only returns 405, which tests nothing. If a link with the secret was ever shown or shared, delete `remote-mcp-token` and restart the hub to get a new secret.
 
 Stop browser mode with **Ctrl+C**. Quick-tunnel URLs change every start, so update the connector URL each time. The secret part stays the same, because it lives in `~/.ai-designer-no-figma/remote-mcp-token`.
 

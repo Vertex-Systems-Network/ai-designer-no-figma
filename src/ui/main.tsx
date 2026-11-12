@@ -151,6 +151,7 @@ function App() {
   const [assetPreview,setAssetPreview]=useState<{url:string;name:string}|null>(null);
   const [bridgeUrl, setBridgeUrl] = useState(() => load('adnf-bridge-url',defaultBridgeUrl));
   const [bridgeToken, setBridgeToken] = useState(() => load('adnf-bridge-token',''));
+  const [agentWork, setAgentWork] = useState<{agent:string;operation:string;compact:boolean}|null>(null);
   const [agentStatus, setAgentStatus] = useState<Extract<HostToUi,{type:'agent-status'}>>({type:'agent-status',status:'disconnected',message:'Pair a local MCP client from Settings.'});
   const [agentEvents, setAgentEvents] = useState<Array<Extract<HostToUi,{type:'agent-event'}>>>([]);
   const [figmaUser,setFigmaUser]=useState<Extract<HostToUi,{type:'current-user'}>>({type:'current-user',name:'Figma user',photoUrl:null,signedIn:false});
@@ -190,6 +191,9 @@ function App() {
     const receive=(event:MessageEvent)=>{ const msg=event.data?.pluginMessage as HostToUi|undefined; if(!msg)return;
       if(msg.type==='current-user')setFigmaUser(msg);
       if(msg.type==='bridge-job-result')bridgeWaiters.current.get(msg.jobId)?.(msg);
+      if(msg.type==='agent-working'){setAgentWork({agent:msg.agent,operation:msg.operation,compact:msg.compact});return;}
+      if(msg.type==='agent-idle'){setAgentWork(null);return;}
+      if(msg.type==='agent-expand'){setAgentWork(work=>work?{...work,compact:false}:work);return;}
       if(msg.type==='agent-status'){
         setAgentStatus(msg);
         if(msg.status==='connected') { setNotice('Claude is connected to Figma. Ready for your request.'); setError(''); }
@@ -463,7 +467,8 @@ function App() {
   }
   const modelSize=useMemo(()=>models.find(m=>m.name===model)?.details?.parameter_size??'', [models,model]);
 
-  return <main className={`app-shell ${loaderPhase!=='visible'?'ready':''}`}>
+  if(agentWork?.compact)return <main className="agent-working" role="status" aria-live="polite"><span className="agent-working-mark"><img src={vsnLogo} alt="AI Designer"/><span className="loader-spinner" aria-hidden="true"/></span><span><strong>{agentWork.agent} is working</strong><small>{agentWork.operation}</small></span></main>;
+  return <main className={`app-shell ${loaderPhase!=='visible'?'ready':''}`}>{agentWork&&<div className="agent-working-bar" role="status"><img src={vsnLogo} alt=""/><span className="loader-spinner" aria-hidden="true"/><span>{agentWork.agent} is working: {agentWork.operation}</span></div>}
     {loaderPhase!=='hidden'&&<div className={`startup-overlay ${loaderPhase==='leaving'?'leaving':''}`} role="status" aria-live="polite"><div className="startup-brand"><img src={vsnLogo} alt="Vertex Systems Network"/><div><strong>AI Designer</strong><span>Vertex Systems Network</span></div></div><div className="startup-loader"><span className="loader-spinner" aria-hidden="true"/><div><strong>Preparing your design workspace</strong><small>Loading tools and local settings</small></div></div><div className="loader-track" aria-hidden="true"><span/></div></div>}
     <header className="topbar"><div className="brand"><div className="brand-mark">AD</div><div><strong>AI Designer</strong><small>Figma design studio</small></div></div><div className="top-actions"><span className={`status status-${generationMode==='handoff'?'connected':runtime}`}><i/>{generationMode==='handoff'?'AI handoff ready':runtime==='connected'?(models.length?'Model ready':'Runtime connected'):runtime==='checking'?'Checking':'Local model offline'}</span><button className="icon-button header-icon-button" aria-label={`Switch to ${theme==='dark'?'light':'dark'} theme`} title={`Switch to ${theme==='dark'?'light':'dark'} theme`} onClick={()=>setTheme(theme==='dark'?'light':'dark')}><HeaderIcon kind={theme==='dark'?'sun':'moon'}/></button><button className="icon-button header-icon-button" aria-label="Settings" title="Settings" onClick={()=>setTab('Settings')}><HeaderIcon kind="settings"/></button></div></header>
     <nav className="nav-tabs" aria-label="Main navigation">{navTabs.map(item=><button key={item} className={tab===item?'nav-tab active':'nav-tab'} onClick={()=>{setTab(item);setError('');}}>{item}</button>)}</nav>
