@@ -252,6 +252,10 @@ describe('Figma host patch behavior',()=>{
       setAsync:vi.fn(async()=>{throw 'Figma refused the value';}),deleteAsync:vi.fn(async(key:string)=>{store.delete(key);})};
     const {ui}=await loadHostWithSelection([],{clientStorage});
     await ui.onmessage?.({type:'storage-set',key:'adnf-history',value:[{a:1}]});
+    clientStorage.getAsync.mockImplementationOnce(async()=>{throw 'unreadable';});
+    store.set('adnf-theme','dark');
+    await ui.onmessage?.({type:'storage-request'});
+    expect(ui.postMessage).toHaveBeenCalledWith({type:'storage-snapshot',values:{'adnf-theme':'dark'}});
     await ui.onmessage?.({type:'storage-set',key:'adnf-bridge-token',value:''});
     expect(store.has('adnf-bridge-token')).toBe(false);
     expect(ui.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({type:'error'}));
