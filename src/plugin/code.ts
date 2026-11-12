@@ -708,14 +708,22 @@ figma.ui.onmessage = async (message: UiToHost) => {
     // The plugin iframe has an opaque origin, so its localStorage is not reliably kept between runs.
     // Settings and pairing tokens are mirrored into figma.clientStorage, which is scoped to this plugin.
     if (message.type === 'storage-request') {
-      const keys = (await figma.clientStorage.keysAsync()).filter((key) => key.startsWith('adnf-'));
       const values: Record<string, unknown> = {};
-      for (const key of keys) values[key] = await figma.clientStorage.getAsync(key);
+      try {
+        const keys = (await figma.clientStorage.keysAsync()).filter((key) => key.startsWith('adnf-'));
+        const entries = await Promise.all(keys.map(async (key) => [key, await figma.clientStorage.getAsync(key)] as const));
+        for (const [key, value] of entries) if (value !== undefined) values[key] = value;
+      } catch (error) { console.warn('[ai-designer] clientStorage read failed', error); }
       figma.ui.postMessage({ type: 'storage-snapshot', values });
       return;
     }
     if (message.type === 'storage-set') {
-      if (typeof message.key === 'string' && /^adnf-[a-z0-9-]{1,40}$/.test(message.key)) await figma.clientStorage.setAsync(message.key, message.value);
+      // Storage is best effort: a failed write must never surface as a failed design operation.
+      if (typeof message.key !== 'string' || !/^adnf-[a-z0-9-]{1,40}$/.test(message.key)) return;
+      try {
+        if (message.value === undefined || message.value === null || message.value === '') await figma.clientStorage.deleteAsync(message.key);
+        else await figma.clientStorage.setAsync(message.key, JSON.parse(JSON.stringify(message.value)));
+      } catch (error) { console.warn('[ai-designer] clientStorage write failed', message.key, error); }
       return;
     }
     if (message.type === 'resize-ui') {
@@ -768,7 +776,7 @@ figma.ui.onmessage = async (message: UiToHost) => {
       figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
     }
   } catch (error) {
-    figma.ui.postMessage({ type: 'error', code: 'PLUGIN_OPERATION_FAILED', message: error instanceof Error ? error.message : 'Plugin operation failed.' });
+    figma.ui.postMessage({ type: 'error', code: 'PLUGIN_OPERATION_FAILED', message: error instanceof Error ? error.message : typeof error === 'string' && error ? error : `Plugin operation failed (${(message as { type?: string })?.type ?? 'unknown'}).` });
   }
 };
 

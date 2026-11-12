@@ -64,7 +64,7 @@ function save(key: string, value: unknown): void {
   try { parent.postMessage({ pluginMessage: { type: 'storage-set', key, value } }, '*'); } catch { /* outside Figma */ }
 }
 /** Wait briefly for the plugin host's stored settings so pairing survives plugin restarts. */
-function loadDurableSettings(timeoutMs = 1500): Promise<void> {
+function loadDurableSettings(timeoutMs = 5000): Promise<void> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => { window.removeEventListener('message', onMessage); resolve(); }, timeoutMs);
     function onMessage(event: MessageEvent) {

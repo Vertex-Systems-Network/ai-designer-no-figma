@@ -246,6 +246,17 @@ describe('Figma host patch behavior',()=>{
     expect(ui.postMessage).toHaveBeenCalledWith({type:'storage-snapshot',values:{'adnf-bridge-token':'a'.repeat(64),'adnf-bridge-instance':'instance-1'}});
   });
 
+  it('treats clientStorage failures and empty values as best effort, never as a failed operation',async()=>{
+    const store=new Map<string,unknown>([['adnf-bridge-token','t']]);
+    const clientStorage={keysAsync:vi.fn(async()=>[...store.keys()]),getAsync:vi.fn(async(key:string)=>store.get(key)),
+      setAsync:vi.fn(async()=>{throw 'Figma refused the value';}),deleteAsync:vi.fn(async(key:string)=>{store.delete(key);})};
+    const {ui}=await loadHostWithSelection([],{clientStorage});
+    await ui.onmessage?.({type:'storage-set',key:'adnf-history',value:[{a:1}]});
+    await ui.onmessage?.({type:'storage-set',key:'adnf-bridge-token',value:''});
+    expect(store.has('adnf-bridge-token')).toBe(false);
+    expect(ui.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({type:'error'}));
+  });
+
   it('applies only selected-tree edits, preserves siblings, and restores edits on undo',async()=>{
     const title=mockTextNode('title','Title','Revenue');
     const sibling=mockTextNode('sibling','Sibling','Untouched');
