@@ -45,10 +45,10 @@ function decodeAssetBase64(value:string,maxBytes=MAX_MCP_ASSET_BYTES):Uint8Array
   return new Uint8Array(bytes);
 }
 
-export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promise<string>}={}):McpServer{
+export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promise<string>;defaultAgent?:string}={}):McpServer{
   const server=new McpServer({name:'ai-designer-no-figma',version:'0.3.0'});
   // Name the agent in Figma from the MCP handshake when the caller did not pass agentLabel.
-  const withAgent=<T extends {agentLabel?:string|undefined}>(args:T):T=>args.agentLabel?args:{...args,agentLabel:agentName(server.server.getClientVersion()?.name)};
+  const withAgent=<T extends {agentLabel?:string|undefined}>(args:T):T=>args.agentLabel?args:{...args,agentLabel:agentName(server.server.getClientVersion()?.name)??options.defaultAgent};
   if(options.pairingCode){const read=options.pairingCode;server.registerTool('figma_get_pairing_code',{description:'Return the 6-digit code the user must type into the AI Designer Figma plugin (Settings → Connect) to pair it with this local bridge. Show it to the user; never send it anywhere else.',inputSchema:z.object({})},async()=>textResult({pairingCode:await read(),instructions:'Open the AI Designer plugin in Figma, go to Settings, type this code and press Connect.'}));}
   server.registerTool('figma_get_connection_status',{description:'Return paired Figma plugin sessions currently heartbeat-active on the local bridge.',inputSchema:z.object({})},async()=>textResult({connected:broker.getSessions().length>0,sessions:broker.getSessions(),transport:'loopback-http'}));
   server.registerTool('figma_get_agent_sessions',{description:'List currently connected plugin sessions. Session IDs are required when more than one session is active.',inputSchema:z.object({})},async()=>textResult({sessions:broker.getSessions()}));

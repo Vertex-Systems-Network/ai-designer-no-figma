@@ -6,6 +6,7 @@ export type HostToUi =
   | { type: 'storage-snapshot'; values: Record<string, unknown> }
   | { type: 'agent-working'; agent: string; operation: string; compact: boolean }
   | { type: 'agent-idle' }
+  | { type: 'agent-expand' }
   | { type: 'selection'; summary: { name: string; type: string; width: number; height: number; layerCount: number; nodes: Array<{id:string;name:string;type:string;x:number;y:number;width:number;height:number;text?:string;fill?:string;hasImageFill?:boolean;imageScaleMode?:'FILL'|'FIT'|'CROP'|'TILE';imageTransform?:[[number,number,number],[number,number,number]];imageScalingFactor?:number}> } | null }
   | { type: 'render-result'; ok: boolean; message: string; created?: number }
   | { type: 'export-result'; ok: boolean; message: string; spec?: DesignSpec }

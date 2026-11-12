@@ -193,6 +193,7 @@ function App() {
       if(msg.type==='bridge-job-result')bridgeWaiters.current.get(msg.jobId)?.(msg);
       if(msg.type==='agent-working'){setAgentWork({agent:msg.agent,operation:msg.operation,compact:msg.compact});return;}
       if(msg.type==='agent-idle'){setAgentWork(null);return;}
+      if(msg.type==='agent-expand'){setAgentWork(work=>work?{...work,compact:false}:work);return;}
       if(msg.type==='agent-status'){
         setAgentStatus(msg);
         if(msg.status==='connected') { setNotice('Claude is connected to Figma. Ready for your request.'); setError(''); }

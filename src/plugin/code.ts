@@ -16,6 +16,8 @@ import { buildEffectStack, buildPaintStack, buildShadowStack } from './paint';
 figma.showUI(__html__, { width: 440, height: 720, themeColors: true });
 // True while the user has hidden the panel; agent jobs then pop up a small branded loader instead.
 let panelHidden = false;
+// Last panel size the user chose; restored after the compact loader and on reopening.
+let panelSize = { width: 440, height: 720 };
 let cancelActiveRender: (() => void) | undefined;
 // Plugin data APIs require a registered manifest ID. Keep spec IDs in memory
 // for this plugin session and fall back to native Figma node IDs otherwise.
@@ -455,7 +457,7 @@ function applyColorToSelection(color: string): void {
 function hexColor(color:RGB):string{return `#${[color.r,color.g,color.b].map((value)=>Math.round(value*255).toString(16).padStart(2,'0')).join('')}`;}
 async function exportSelectedDesign(): Promise<DesignSpec> {
   // With nothing selected, fall back to the page's only top-level frame so an agent can read a design without a manual click.
-  const tops = ((figma.currentPage.children as readonly SceneNode[] | undefined) ?? []).filter((node) => node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'SECTION');
+  const tops = ((figma.currentPage.children as readonly SceneNode[] | undefined) ?? []).filter((node) => node.type === 'FRAME' || node.type === 'COMPONENT');
   const selected = figma.currentPage.selection.length === 1 ? figma.currentPage.selection[0]! : figma.currentPage.selection.length === 0 && tops.length === 1 ? tops[0]! : undefined;
   if (!selected) throw new Error(figma.currentPage.selection.length > 1 ? `Select one layer to export; ${figma.currentPage.selection.length} are selected.` : `Select the frame to export. This page has ${tops.length} top-level frames${tops.length ? ` (${tops.slice(0, 5).map((node) => node.name).join(', ')})` : ''}.`);
   if (!('width' in selected) || !('height' in selected)) throw new Error('The selected item does not have exportable design dimensions.');
@@ -668,7 +670,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
   const compact=panelHidden;
   if(compact){figma.ui.resize(300,84);figma.ui.show();}
   figma.ui.postMessage({type:'agent-working',agent,operation:label,compact});
-  const idle=()=>{working.cancel();figma.ui.postMessage({type:'agent-idle'});if(compact&&panelHidden){figma.ui.hide();figma.ui.resize(440,720);}};
+  const idle=()=>{working.cancel();figma.ui.postMessage({type:'agent-idle'});if(compact&&panelHidden){figma.ui.hide();figma.ui.resize(panelSize.width,panelSize.height);}};
   try{
     let result:unknown;
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
@@ -742,6 +744,7 @@ figma.ui.onmessage = async (message: UiToHost) => {
     if (message.type === 'resize-ui') {
       const width = Math.max(360, Math.min(760, Math.round(message.width)));
       const height = Math.max(520, Math.min(1000, Math.round(message.height)));
+      panelSize = { width, height };
       figma.ui.resize(width, height);
       return;
     }
@@ -793,5 +796,5 @@ figma.ui.onmessage = async (message: UiToHost) => {
   }
 };
 
-figma.on('run',()=>{panelHidden=false;figma.ui.resize(440,720);figma.ui.show();sendCurrentUser();inspectSelection();});
+figma.on('run',()=>{panelHidden=false;figma.ui.resize(panelSize.width,panelSize.height);figma.ui.postMessage({type:'agent-expand'});figma.ui.show();sendCurrentUser();inspectSelection();});
 sendCurrentUser();

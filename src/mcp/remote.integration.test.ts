@@ -47,6 +47,17 @@ describe('loopback remote MCP gateway',()=>{
     expect((await client.listTools()).tools.map(item=>item.name)).toContain('figma_import_design_schema');
     await client.close();
   });
+  it('names browser-mode jobs from the caller User-Agent when no handshake survives',async()=>{
+    const broker=new JobBroker();const bridge=await startBridgeServer({port:0,broker,token:'a'.repeat(64),pairingCode:'654321',pluginTokenFile:`/tmp/adnf-remote-ua-${process.pid}-plugin-token`});
+    const remote=await startRemoteMcpServer(broker,{port:0,token});close=async()=>{await remote.close();await bridge.close();};
+    const base=`http://127.0.0.1:${bridge.address().port}`;
+    const pairing=await fetch(`${base}/bridge/pair`,{method:'POST',headers:{Origin:'https://www.figma.com'},body:JSON.stringify({code:'654321'})});
+    const {token:pluginToken}=await pairing.json() as {token:string};
+    await fetch(`${base}/bridge/sessions/connect`,{method:'POST',headers:{Authorization:`Bearer ${pluginToken}`,'Content-Type':'application/json'},body:JSON.stringify({sessionId:'browser-session-ua',pluginVersion:'0.1.0'})});
+    const response=await fetch(`http://127.0.0.1:${remote.address().port}/mcp/${token}`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream','User-Agent':'Claude-User (claude.ai)','MCP-Protocol-Version':'2025-06-18'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'figma_get_selection',arguments:{}}})});
+    const body=await response.json() as {result?:{structuredContent?:{agentLabel?:string}}};
+    expect(body.result?.structuredContent?.agentLabel).toBe('Claude');
+  });
   it('builds the browser connector URL from cloudflared output',()=>{
     expect(connectorUrl('INF |  https://quiet-river-12.trycloudflare.com  |',token)).toBe(`https://quiet-river-12.trycloudflare.com/mcp/${token}`);
     expect(connectorUrl('starting tunnel',token)).toBeUndefined();

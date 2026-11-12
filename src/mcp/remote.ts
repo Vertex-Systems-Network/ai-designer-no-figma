@@ -52,7 +52,11 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,pa
   for await(const part of req){const bytes=Buffer.from(part as Uint8Array);length+=bytes.length;if(length>6*1024*1024){res.writeHead(413).end();return;}chunks.push(bytes);}
   const headers=new Headers();for(const [key,value] of Object.entries(req.headers))if(typeof value==='string')headers.set(key,value);
   const request=new Request('http://localhost/mcp',{method:'POST',headers,body:Buffer.concat(chunks)});
-  const transport=new WebStandardStreamableHTTPServerTransport({enableJsonResponse:true});const mcp=createMcpServer(broker,pairingCode?{pairingCode}:{});
+  const transport=new WebStandardStreamableHTTPServerTransport({enableJsonResponse:true});// Browser mode builds a fresh MCP server per HTTP request, so the initialize handshake is gone by the
+  // time a tool call arrives. Name the agent from the caller's User-Agent instead (only known AI clients).
+  const userAgent=req.headers['user-agent']??'';
+  const fromAgent=/claude|anthropic/i.test(userAgent)?'Claude':/openai|chatgpt/i.test(userAgent)?'ChatGPT':undefined;
+  const mcp=createMcpServer(broker,{...(pairingCode?{pairingCode}:{}),...(fromAgent?{defaultAgent:fromAgent}:{})});
   try{
     await mcp.connect(transport);
     const response=await transport.handleRequest(request);
