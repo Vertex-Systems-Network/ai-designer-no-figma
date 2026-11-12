@@ -21,7 +21,7 @@ describe('reusable component kit',()=>{
     expect(()=>buildComponentKit({brandColor:'#000000',spacing:[4,8]})).toThrow(/four/);
   });
 });
-describe('component kit sizing (found in live Figma, 2026-11-12)',()=>{
+describe('component kit sizing is explicit',()=>{
   it('keeps every Auto Layout container at its declared size and text at fixed width',()=>{
     const spec=buildComponentKit({brandColor:'#0D8A60'});
     type N={type:string;layout?:unknown;textAutoResize?:string;children?:N[]};
