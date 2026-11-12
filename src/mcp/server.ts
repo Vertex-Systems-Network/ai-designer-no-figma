@@ -6,6 +6,7 @@ import type { BridgeJob, BridgeOperation } from '../shared/bridge-contract';
 import { parseEditPatch } from '../shared/edit-patch';
 import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
 import { parseDesignPlan } from '../shared/design-plan';
+import { composeResponsivePlan } from '../shared/responsive-composition';
 import { parseComponentFamily } from '../shared/component-family';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
@@ -80,6 +81,11 @@ export function createMcpServer(broker:JobBroker):McpServer{
     const result=parseDesignPlan(json,parsedInventory as Parameters<typeof parseDesignPlan>[1]);
     if(!result.valid)return textResult({valid:false,error:{code:'INVALID_DESIGN_PLAN',issues:result.issues}},true);
     return textResult({valid:true,planVersion:'1.0',sectionCount:result.value!.sections.length,designSpec:result.design,componentCandidatesArePlanningOnly:true});
+  });
+  server.registerTool('figma_compose_responsive_plan',{description:'Materialize two native width variants from a validated one-frame plan using explicit horizontal constraints. Preserves supplied image/vector payloads; rejects unsupported geometry and overflow. Structural checks only; Figma screenshot review remains required.',inputSchema:z.object({json:z.string().min(1).max(640_000),widths:z.tuple([z.number().int().min(240).max(1920),z.number().int().min(240).max(1920)])})},async({json,widths})=>{
+    const result=composeResponsivePlan(json,widths);
+    if(!result.valid)return textResult({valid:false,error:{code:'RESPONSIVE_COMPOSITION_FAILED',issues:result.issues}},true);
+    return textResult({valid:true,widths,assetCount:result.assets,designSpec:result.design,visualVerification:'NOT TESTED'});
   });
   server.registerTool('figma_audit_design_schema',{description:'Validate a schema 1.0 design and return deterministic, advisory design-quality findings before insertion. Checks contrast, semantic naming, Auto Layout, explicit layer overflow and text-bounds collisions. No Figma session or token required; screenshot review remains necessary.',inputSchema:z.object({json:z.string().min(1).max(512_000)})},async({json})=>{
     const checked=parseDesignSpec(json);
