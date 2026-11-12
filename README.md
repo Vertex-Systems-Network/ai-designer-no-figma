@@ -18,7 +18,7 @@ One phase is implemented per development run. “Automated verified” means cod
 | 1 | Read-only local design-system inventory | Exact component/variable/style IDs, bounded output and preserved selection; host behavior and MCP protocol tests | **AUTOMATED VERIFIED**; live Figma pending Phase 6 |
 | 2 | Validated agent design plan | Bounded sections, component/token/asset references and plan-to-schema tests | **AUTOMATED VERIFIED**; native candidate reuse remains Phase 3 |
 | 3 | Native component variants and instance properties | Import/export/rollback tests; no silent unsupported data loss | **AUTOMATED VERIFIED** for family 1.0 subset; live editor pending Phase 6 |
-| 4 | Responsive layout and actual asset composition | Two-width structural/visual checks and supplied asset placement | OPEN |
+| 4 | Responsive layout and actual asset composition | Explicit two-width native specs with constraint geometry and supplied asset payload checks | **AUTOMATED VERIFIED** for bounded absolute layout; live visual checks remain Phase 6 |
 | 5 | Agent screenshot critique and targeted repair | Real vision-capable client sees capture, patches a measured defect and recaptures | OPEN |
 | 6 | Live Figma acceptance and same-brief comparison | Recorded editor/client versions, build hash, actual native editability, screenshots, review rubric and defects | BLOCKED on user desktop/client environment |
 
@@ -36,7 +36,7 @@ The goal is an independent design agent that creates editable Figma layers throu
 | `AGENT-03` | P1 | Plan sections, component roles, tokens and assets before native creation | **AUTOMATED VERIFIED** | `figma_validate_design_plan` checks all top-level frames, token usage, supplied assets and candidate IDs against a supplied inventory snapshot; returns validated schema 1.0. Candidate reuse is Phase 3. |
 | `CODE-03` | P1 | Native component variants and properties with instance binding | **AUTOMATED VERIFIED** for family 1.0 subset | Separate contract creates 2–8 Style variants with Label TEXT property and native instances; readback, portable export and page rollback tested. Existing library reuse and schema 1.0 instance linkage are outside this subset. |
 | `AGENT-04` | P1 | Rendered design review and targeted repair loop | **PARTIAL** | Existing JPEG capture and selected-ID patch work in automation. A real AI client must inspect the image, fix a measured issue, recapture and record before/after evidence in Figma. |
-| `AGENT-05` | P2 | Responsive layout and typography fidelity | **OPEN** | Supported sizing/wrapping rules tested at two widths with real text; no clipped actions or unintended overlap in screenshots. |
+| `AGENT-05` | P2 | Responsive layout and typography fidelity | **PARTIAL** | Supported sizing/wrapping rules tested at two widths with real text; no clipped actions or unintended overlap in screenshots. |
 | `AGENT-06` | P2 | Reuse real local image/vector assets in generated compositions | **PARTIAL** | Existing bounded SVG/raster import and storage need live save/reload/reuse and visual asset placement checks; never fabricate bytes. |
 | `EVAL-01` | P1 | Compare against Figma Agent on the same briefs | **OPEN** | Same inputs and sizes, native editability, design-system reuse, screenshots and recorded reviewers; report observed gaps, not a claimed equivalence. |
 | `LIVE-01`–`LIVE-04` | P1/P2 | Figma, Claude bridge, assets and Ollama acceptance | **BLOCKED · USER DESKTOP/MACHINE** | Run the exact build in those applications; record build hash, actions and actual outcomes. |
@@ -44,7 +44,7 @@ The goal is an independent design agent that creates editable Figma layers throu
 | `PUB-01` | P1 | Publish tested source with matching ZIP and checksums | **LIVE VERIFIED** | Verify archive hash, Git blob and required files for each release-bound change. |
 | `BLOCK-01`–`BLOCK-02` | — | Closed-document automation and arbitrary client file/identity access | **OUT OF PLUGIN SCOPE / NOT VERIFIED** | Requires separate authenticated desktop/client capabilities; do not advertise as plugin features. |
 
-**Current release evidence:** `npm run release:verify` passed typecheck, lint, 120 unit tests, 21 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. The next implementation task is Phase 4 (`AGENT-05`/`AGENT-06`); real editor observations remain in Phase 6.
+**Current release evidence:** `npm run release:verify` passed typecheck, lint, 120 unit tests, 21 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. Phase 4 adds `figma_compose_responsive_plan` for two explicit widths, constraint geometry and supplied image/vector payloads; actual typography and screenshots remain Phase 6. Next is Phase 5.
 
 ## Requirements
 

@@ -246,6 +246,7 @@
         "src/shared/component-family.ts",
         "src/plugin/component-family.ts",
         "src/shared/design-plan.ts",
+        "src/shared/responsive-composition.ts",
         "src/plugin/design-inventory.ts",
         "src/bridge/broker.ts",
         "src/shared/bridge-contract.ts",

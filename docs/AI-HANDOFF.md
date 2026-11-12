@@ -60,3 +60,7 @@ Plan 1.0 validator and `figma_validate_design_plan` MCP tool are automated verif
 ## 2026-11-12 Phase 3 checkpoint
 
 A separate component family 1.0 contract creates native Style variants, Label TEXT property and review instances on a new page; reads native fields back and exports a selected portable component set. Failures remove the new page. The subset is automated verified only; existing library import and schema 1.0 linkage are not implemented. Next: Phase 4.
+
+## 2026-11-12 Phase 4 checkpoint
+
+`figma_compose_responsive_plan` materializes two native schema 1.0 pages from one validated root frame, applying explicit horizontal MIN/MAX/CENTER/STRETCH/SCALE constraints to absolute children. It rejects bounds overflow, unsupported nested Auto Layout, automatic text width and rotation; preserves caller-supplied image/vector payloads. This is structural automation, not real Figma typography, screenshots, asset library reload or parity. Next run: Phase 5 / `AGENT-04` measured screenshot repair; Phase 6 retains live acceptance.
