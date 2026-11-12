@@ -712,8 +712,10 @@ figma.ui.onmessage = async (message: UiToHost) => {
       try {
         const keys = (await figma.clientStorage.keysAsync()).filter((key) => key.startsWith('adnf-'));
         // Settle each key on its own, so one unreadable key never drops the pairing token.
-        const results = await Promise.allSettled(keys.map(async (key) => [key, await figma.clientStorage.getAsync(key)] as const));
-        for (const result of results) if (result.status === 'fulfilled' && result.value[1] !== undefined) values[result.value[0]] = result.value[1];
+        for (const key of keys) {
+          try { const value = await figma.clientStorage.getAsync(key); if (value !== undefined) values[key] = value; }
+          catch (error) { console.warn('[AI Designer] skipped unreadable storage key', key, error); }
+        }
       } catch (error) { console.warn('[ai-designer] clientStorage read failed', error); }
       figma.ui.postMessage({ type: 'storage-snapshot', values });
       return;
