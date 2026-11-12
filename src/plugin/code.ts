@@ -665,7 +665,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
 function configureBridge(endpoint:string,token:string,sessionId:string):void{
   if(!token){bridgeSessionId='';bridgeStatus('disconnected',{message:'Claude disconnected.'});return;}
   try{
-    if(!/^http:\/\/(?:localhost|127\.0\.0\.1):8788\/?$/.test(endpoint))throw new Error('Use the local bridge endpoint http://localhost:8788.');
+    if(!/^http:\/\/(?:localhost|127\.0\.0\.1):(?:8788|8789|879[1-8])\/?$/.test(endpoint))throw new Error('Use a paired local bridge endpoint on an allowed port.');
     if(!/^[a-f0-9]{64}$/i.test(token))throw new Error('The local pairing details are invalid. Select Connect Claude again.');
     if(!/^[a-zA-Z0-9:_-]{8,128}$/.test(sessionId))throw new Error('The local bridge session is invalid. Select Connect Claude again.');
     bridgeSessionId=sessionId;

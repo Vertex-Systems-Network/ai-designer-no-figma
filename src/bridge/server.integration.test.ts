@@ -8,6 +8,13 @@ async function makeService(){const service=await startBridgeServer({host:'127.0.
 afterEach(async()=>{for(const service of services.splice(0))await service.close();});
 
 describe('authenticated local plugin bridge',()=>{
+  it('auto-selects a second allowed port when another local bridge owns the first',async()=>{
+    const first=await startBridgeServer({autoPort:true,token});services.push(first);
+    const second=await startBridgeServer({autoPort:true,token,pairingMode:'remote'});services.push(second);
+    expect(second.address().port).not.toBe(first.address().port);
+    const pair=await fetch(`http://localhost:${second.address().port}/bridge/pair`,{method:'POST',headers:{Origin:'https://www.figma.com'}});
+    expect(await pair.json()).toMatchObject({endpoint:`http://localhost:${second.address().port}`,mode:'remote'});
+  });
   it('rejects missing tokens and unapproved origins',async()=>{
     const service=await makeService();const url=`http://127.0.0.1:${service.address().port}`;
     expect((await fetch(`${url}/bridge/health`)).status).toBe(401);

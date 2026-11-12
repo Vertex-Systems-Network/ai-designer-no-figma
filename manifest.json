@@ -3,11 +3,27 @@
   "api": "1.0.0",
   "main": "dist/plugin.js",
   "ui": "dist/ui.html",
-  "editorType": ["figma"],
+  "editorType": [
+    "figma"
+  ],
   "documentAccess": "dynamic-page",
-  "permissions": ["currentuser"],
+  "permissions": [
+    "currentuser"
+  ],
   "networkAccess": {
-    "allowedDomains": ["http://localhost:8787", "http://localhost:8788"],
+    "allowedDomains": [
+      "http://localhost:8787",
+      "http://localhost:8788",
+      "http://localhost:8789",
+      "http://localhost:8791",
+      "http://localhost:8792",
+      "http://localhost:8793",
+      "http://localhost:8794",
+      "http://localhost:8795",
+      "http://localhost:8796",
+      "http://localhost:8797",
+      "http://localhost:8798"
+    ],
     "reasoning": "Connect to optional local model inference and the token-protected MCP plugin bridge. Both services bind only to loopback."
   }
 }
