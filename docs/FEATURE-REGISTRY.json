@@ -243,6 +243,7 @@
       "module": "mcp-server",
       "sourceFiles": [
         "src/mcp/server.ts",
+        "src/shared/design-plan.ts",
         "src/plugin/design-inventory.ts",
         "src/bridge/broker.ts",
         "src/shared/bridge-contract.ts",
@@ -256,6 +257,7 @@
       "testStatus": "VERIFIED",
       "tests": [
         "src/mcp/server.integration.test.ts",
+        "src/shared/design-plan.test.ts",
         "src/plugin/design-inventory.test.ts",
         "src/plugin/host-runtime.test.ts"
       ],
