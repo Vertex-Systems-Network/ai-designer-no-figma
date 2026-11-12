@@ -241,7 +241,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<numbe
       if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
       const page = figma.createPage();
       createdPages.push(page);
-      page.name = uniquePageName(pageSpec.name, (figma.root?.children ?? []).filter((p) => p !== page).map((p) => p.name));
+      page.name = uniquePageName(pageSpec.name, ((page.parent as DocumentNode | null)?.children ?? []).filter((p) => p !== page).map((p) => p.name));
       await page.loadAsync();
       for (const childSpec of pageSpec.children) await renderNode(childSpec, page, control, fontFallback);
     }
@@ -367,11 +367,8 @@ async function applyPatch(patch: EditPatch): Promise<void> {
     }
     throw new Error('Unsupported patch operation.');
   });
-  for (const item of resolved) if (item.operation.op === 'set-text') {
-    const text = item.target as TextNode;
-    const font = text.fontName === figma.mixed ? { family: 'Inter', style: 'Regular' } : text.fontName;
-    await figma.loadFontAsync(font as FontName);
-  }
+  // Any write to a text node (characters, resize) needs its fonts loaded; load them for every text target up front.
+  await loadTextFonts(resolved.map((item) => item.target));
   const snapshots: PatchSnapshot[] = await Promise.all(resolved.map(async ({target,operation}) => {
     const mainComponent=operation.op==='swap-component'&&target.type==='INSTANCE'?await target.getMainComponentAsync():undefined;
     if(operation.op==='swap-component'&&!mainComponent)throw new Error(`The current main component for ${operation.targetId} is unavailable; component replacement cannot be rolled back safely.`);
@@ -392,31 +389,43 @@ async function applyPatch(patch: EditPatch): Promise<void> {
       else if (operation.op === 'set-text' && target.type === 'TEXT') (target as TextNode).characters = operation.value;
     }
   } catch (error) {
-    restoreSnapshots(snapshots);
+    await restoreSnapshots(snapshots);
     throw error;
   }
   patchCheckpoints.push(snapshots);
   if (patchCheckpoints.length > 20) patchCheckpoints.shift();
 }
 
-function restoreSnapshots(snapshots: PatchSnapshot[]): void {
+/** Load every font used by the given text nodes (including mixed ranges) so later writes cannot fail half-way. */
+async function loadTextFonts(nodes: readonly SceneNode[]): Promise<void> {
+  const fonts = new Map<string, FontName>();
+  for (const node of nodes) {
+    if (node.type !== 'TEXT' || node.removed) continue;
+    const names = node.fontName === figma.mixed ? node.getRangeAllFontNames(0, node.characters.length) : [node.fontName];
+    for (const font of names) fonts.set(`${font.family}\u0000${font.style}`, font);
+  }
+  await Promise.all([...fonts.values()].map((font) => figma.loadFontAsync(font)));
+}
+
+async function restoreSnapshots(snapshots: PatchSnapshot[]): Promise<void> {
+  await loadTextFonts(snapshots.map((snapshot) => snapshot.target));
   for (const snapshot of [...snapshots].reverse()) {
     const { target } = snapshot;
     if (target.removed) continue;
     target.name = snapshot.name;
     if(snapshot.rotation!==undefined&&'rotation' in target)target.rotation=snapshot.rotation;
     if (snapshot.fills !== undefined && 'fills' in target) target.fills = snapshot.fills as typeof target.fills;
-    if (snapshot.text !== undefined && target.type === 'TEXT') (target as TextNode).characters = snapshot.text;
+    if (snapshot.text !== undefined && target.type === 'TEXT' && (target as TextNode).characters !== snapshot.text) (target as TextNode).characters = snapshot.text;
     if(snapshot.mainComponent&&target.type==='INSTANCE'){target.swapComponent(snapshot.mainComponent);if(snapshot.componentProperties&&Object.keys(snapshot.componentProperties).length)target.setProperties(snapshot.componentProperties);}
     if (snapshot.x !== undefined && snapshot.y !== undefined && snapshot.width !== undefined && snapshot.height !== undefined && 'resize' in target && 'x' in target && 'y' in target) { target.resize(snapshot.width, snapshot.height); target.x = snapshot.x; target.y = snapshot.y; }
     if(snapshot.layout&&target.type==='FRAME'){target.layoutMode=snapshot.layout.mode;target.itemSpacing=snapshot.layout.gap;target.paddingTop=snapshot.layout.paddingTop;target.paddingRight=snapshot.layout.paddingRight;target.paddingBottom=snapshot.layout.paddingBottom;target.paddingLeft=snapshot.layout.paddingLeft;target.primaryAxisAlignItems=snapshot.layout.alignment;}
   }
 }
 
-function undoPatch(): void {
+async function undoPatch(): Promise<void> {
   const snapshot = patchCheckpoints.pop();
   if (!snapshot) throw new Error('There is no plugin patch checkpoint to revert in this session.');
-  try { restoreSnapshots(snapshot); }
+  try { await restoreSnapshots(snapshot); }
   catch (error) { patchCheckpoints.push(snapshot); throw error; }
   figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'The latest plugin patch was reverted.', undoCount: patchCheckpoints.length });
 }
@@ -713,7 +722,7 @@ figma.ui.onmessage = async (message: UiToHost) => {
       await applyPatch(message.patch);
       figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Patch applied to the selected frame.', undoCount: patchCheckpoints.length });
     }
-    if (message.type === 'undo-patch') undoPatch();
+    if (message.type === 'undo-patch') await undoPatch();
     if (message.type === 'apply-color-selection') {
       applyColorToSelection(message.color);
       figma.ui.postMessage({ type: 'patch-result', ok: true, message: 'Color applied to the selected layers.' });

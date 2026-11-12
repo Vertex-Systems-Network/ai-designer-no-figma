@@ -26,6 +26,12 @@ describe('native component family',()=>{
     const set=api.combineAsVariants.mock.results[0]?.value;
     expect(exportComponentFamily(set as unknown as ComponentSetNode)).toEqual(spec);
   });
+  it('gives a rebuilt family a unique page name instead of duplicating the existing one',async()=>{
+    serial=0;const {api,page}=host();const existing=node('PAGE');existing.name='AI Designer · Button';
+    (page as unknown as {parent:{children:unknown[]}}).parent={children:[existing,page]};
+    await renderComponentFamily(spec,api as unknown as PluginAPI);
+    expect(page.name).toBe('AI Designer · Button (2)');
+  });
   it('rejects unsupported native properties during export',()=>{
     const set=node('COMPONENT_SET');set.children=[node('COMPONENT'),node('COMPONENT')];set.componentPropertyDefinitions={Style:{type:'VARIANT'},'Label#1':{type:'TEXT'},Extra:{type:'BOOLEAN'}};
     expect(()=>exportComponentFamily(set as unknown as ComponentSetNode)).toThrow('Only Style and Label');

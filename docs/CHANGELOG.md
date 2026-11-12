@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed (found live): Undo of a bounds/rename/fill patch could fail half-way with an unloaded-font error, leaving the name and width changed. Patch apply and undo now load every text target's fonts first and rewrite text only when it changed.
 - Imported pages get a unique name (`Name (2)`) instead of duplicating an existing page name; seen live when an exported selection was re-imported.
 - LIVE-01 core flow verified in Figma Desktop 126.11.8 (Windows): native kit render; selection-aware set-text patch with a preview of the untouched layers; change propagated to an instance; Undo; selected export to schema 1.0 with tokens; re-import as editable nodes.
 - Live Figma (LIVE-01/02 partial): the component kit rendered native components, instances and variable-bound fills; pairing with the Claude Desktop extension worked. The kit now declares FIXED Auto Layout sizing and fixed-width text explicitly. This is a clarification, not a bug fix: an early note about a narrow input field was disproved by measuring the live layer, which was 320 px wide (Input/Text 320 × 65, Field 320 × 44, built before PR #24).
