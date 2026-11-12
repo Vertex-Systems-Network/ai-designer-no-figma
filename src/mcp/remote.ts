@@ -73,13 +73,14 @@ export async function startRemoteServices(){
 }
 /** Browser mode: expose only the remote MCP port through a Cloudflare quick tunnel and print the connector URL. */
 export function connectorUrl(tunnelOutput:string,secret:string):string|undefined{
-  const match=/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(tunnelOutput);return match?`${match[0]}/mcp/${secret}`:undefined;
+  const match=/https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com(?![a-z0-9.-])/i.exec(tunnelOutput);return match?`${match[0]}/mcp/${secret}`:undefined;
 }
 function startTunnel(port:number,secret:string){
   const child=spawn('cloudflared',['tunnel','--no-autoupdate','--url',`http://127.0.0.1:${port}`],{stdio:['ignore','pipe','pipe']});
-  let shown=false;
-  const watch=(chunk:Buffer)=>{if(shown)return;const url=connectorUrl(chunk.toString(),secret);if(url){shown=true;console.error(`\n[ai-designer] BROWSER MODE READY. Paste this URL into ChatGPT (Developer mode → Create connector) or Claude.ai (Settings → Connectors → Add custom connector):\n\n    ${url}\n\n[ai-designer] Anyone with this URL can drive your paired Figma file. Do not share it. Stop with Ctrl+C.`);}};
-  child.stdout.on('data',watch);child.stderr.on('data',watch);
+  let shown=false;const buffers={out:'',err:''};
+  // Output arrives in arbitrary chunks; keep a bounded tail per stream so a URL split across chunks is still found.
+  const watcher=(stream:'out'|'err')=>(chunk:Buffer)=>{if(shown)return;buffers[stream]=(buffers[stream]+chunk.toString()).slice(-4096);const url=connectorUrl(buffers[stream],secret);if(url){shown=true;console.error(`\n[ai-designer] BROWSER MODE READY. Paste this URL into ChatGPT (Developer mode → Create connector) or Claude.ai (Settings → Connectors → Add custom connector):\n\n    ${url}\n\n[ai-designer] Anyone with this URL can drive your paired Figma file. Do not share it. Stop with Ctrl+C.`);}};
+  child.stdout.on('data',watcher('out'));child.stderr.on('data',watcher('err'));
   child.on('error',error=>{console.error((error as NodeJS.ErrnoException).code==='ENOENT'?'[ai-designer] cloudflared is not installed. Install it (winget install Cloudflare.cloudflared / brew install cloudflared), then run npm run mcp:browser again. Local mode keeps working.':`[ai-designer] Tunnel failed: ${error.message}`);});
   child.on('exit',code=>{if(code)console.error(`[ai-designer] Tunnel stopped (exit ${code}). Browser AIs are disconnected; local mode keeps working.`);});
   return child;
@@ -88,7 +89,7 @@ async function main(){
   const {bridge,remote}=await startRemoteServices();
   console.error(`[ai-designer] Figma pairing bridge on ${bridge.address().host}:${bridge.address().port}; remote MCP on http://${remote.address().host}:${remote.address().port}/mcp`);
   console.error(`[ai-designer] Remote bearer secret stored at ${tokenPath()}; tunnel only port ${remote.address().port}, never the pairing bridge.`);
-  console.error(`[ai-designer] Browser AI (ChatGPT / Claude.ai) connector path: /mcp/${await remoteToken()} — append it to your HTTPS tunnel URL. Treat that URL like a password.`);
+  if(!process.argv.includes('--tunnel'))console.error('[ai-designer] Browser AIs: run npm run mcp:browser to get a connector URL (path /mcp/<secret from remote-mcp-token>).');
   console.error(`[ai-designer] Figma pairing code: ${bridge.pairing.current()} (also in ~/.ai-designer-no-figma/pairing-code-${bridge.address().port}). Press Enter here for a new code.`);
   await writeHubInfo(`http://${remote.address().host}:${remote.address().port}/mcp`);
   if(process.stdin.isTTY){process.stdin.on('data',()=>{void bridge.pairing.reset().then(code=>console.error(`[ai-designer] New Figma pairing code: ${code}`));});}

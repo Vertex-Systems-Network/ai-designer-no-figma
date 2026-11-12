@@ -62,7 +62,7 @@ async function hubToken({ required = false } = {}) {
 /** Each client: config file, JSON key, and how a stdio/http entry looks. Formats follow each app's MCP documentation. */
 const clients = {
   // Claude Desktop only launches stdio servers, so HTTP (shared hub) mode goes through mcp-remote with the secret in the path.
-  'claude-desktop': { label: 'Claude Desktop', files: claudeDesktopConfigs(), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ command: 'npx', args: ['-y', 'mcp-remote', `${u.replace(/\/$/, '')}/${t}`] }), guardRunning: 'Claude', note: 'Use this entry OR the .mcpb extension (artifacts/ai-designer-no-figma-claude.mcpb), never both: two copies start two bridges and pairing codes stop matching. Fully quit Claude Desktop (tray → Quit) before writing, then reopen.' },
+  'claude-desktop': { label: 'Claude Desktop', files: claudeDesktopConfigs(), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ command: 'npx', args: ['-y', 'mcp-remote', u, '--header', 'Authorization:${AI_DESIGNER_AUTH}'], env: { AI_DESIGNER_AUTH: `Bearer ${t}` } }), guardRunning: 'Claude', note: 'Use this entry OR the .mcpb extension (artifacts/ai-designer-no-figma-claude.mcpb), never both: two copies start two bridges and pairing codes stop matching. Fully quit Claude Desktop (tray → Quit) before writing, then reopen.' },
   'claude-code': { label: 'Claude Code (CLI)', command: (m, t) => m === 'http' ? `claude mcp add --scope user --transport http ${NAME} ${hubUrl} --header "Authorization: Bearer ${t}"` : `claude mcp add --scope user ${NAME} -- "${stdio.command}" "${serverScript}"` },
   cursor: { label: 'Cursor', file: join(home, '.cursor', 'mcp.json'), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ url: u, headers: { Authorization: `Bearer ${t}` } }) },
   vscode: { label: 'VS Code (GitHub Copilot agent mode)', file: join(userConfig, 'Code', 'User', 'mcp.json'), key: 'servers', stdio: (s) => ({ type: 'stdio', ...s }), http: (u, t) => ({ type: 'http', url: u, headers: { Authorization: `Bearer ${t}` } }) },
@@ -78,8 +78,10 @@ const clients = {
 /** True when a desktop app with this process name is running (Windows tasklist, macOS/Linux pgrep). */
 function appRunning(name) {
   try {
-    if (platform() === 'win32') return execFileSync('tasklist', ['/FI', `IMAGENAME eq ${name}.exe`, '/NH'], { encoding: 'utf8' }).toLowerCase().includes(`${name.toLowerCase()}.exe`);
-    execFileSync('pgrep', ['-x', name], { stdio: 'ignore' }); return true;
+    // Windows: the Claude Code CLI is also claude.exe, so only count processes installed as the desktop app.
+    if (platform() === 'win32') return execFileSync('powershell', ['-NoProfile', '-Command', `Get-Process ${name} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path`], { encoding: 'utf8' }).split(/\r?\n/).some((path) => /\\(AnthropicClaude|WindowsApps\\[^\\]*Claude)[^\\]*\\/i.test(path));
+    if (platform() === 'darwin') { execFileSync('pgrep', ['-x', name], { stdio: 'ignore' }); return true; }
+    return false; // Claude Desktop has no Linux build; avoid matching other "claude" processes.
   } catch { return false; }
 }
 

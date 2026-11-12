@@ -151,7 +151,7 @@ async function loadHostWithSelection(selection:MockHostNode[],overrides:Record<s
   const ui:{postMessage:ReturnType<typeof vi.fn>;onmessage?:((message:unknown)=>Promise<void>);resize:ReturnType<typeof vi.fn>;hide:ReturnType<typeof vi.fn>}={postMessage:vi.fn(),resize:vi.fn(),hide:vi.fn()};
   const fakeFigma={
     showUI:vi.fn(),currentPage:{name:'Page 1',selection},currentUser:{name:'Test Operator',photoUrl:null},mixed:Symbol('mixed'),
-    ui,on:vi.fn(),notify:vi.fn(),loadFontAsync:vi.fn().mockResolvedValue(undefined),
+    ui,on:vi.fn(),notify:vi.fn(()=>({cancel:vi.fn()})),loadFontAsync:vi.fn().mockResolvedValue(undefined),
   };
   Object.assign(fakeFigma,overrides);
   Object.assign(globalThis,{figma:fakeFigma,__html__:'<div id="root"></div>'});

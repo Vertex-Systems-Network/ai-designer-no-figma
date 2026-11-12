@@ -50,6 +50,7 @@ describe('loopback remote MCP gateway',()=>{
   it('builds the browser connector URL from cloudflared output',()=>{
     expect(connectorUrl('INF |  https://quiet-river-12.trycloudflare.com  |',token)).toBe(`https://quiet-river-12.trycloudflare.com/mcp/${token}`);
     expect(connectorUrl('starting tunnel',token)).toBeUndefined();
+    expect(connectorUrl('failed to request quick Tunnel: Post "https://api.trycloudflare.com/tunnel"',token)).toBeUndefined();
   });
   it('never listens on a public interface',async()=>{
     await expect(startRemoteMcpServer(new JobBroker(),{host:'0.0.0.0',port:0,token})).rejects.toThrow(/loopback/);

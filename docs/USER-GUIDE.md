@@ -158,7 +158,8 @@ The plugin pairs with **one** bridge at a time. To let desktop and web AIs work 
    npm run setup:clients -- --client cursor --mode http --write
    ```
 
-   (Claude Desktop reaches the hub through `mcp-remote`, which `npx` downloads on first use.)
+   (Claude Desktop reaches the hub through `mcp-remote`, which `npx` downloads on first use. The token goes in an env-backed Authorization header, not in the URL.)
+   HTTP mode works for `claude-desktop`, `claude-code`, `cursor`, `vscode`, `windsurf`, `cline`, `gemini-cli` and `lm-studio`. **Codex and Zed are stdio only**: they keep their own bridge and cannot share the hub.
 3. Restart the desktop apps, then pair the plugin once with the code from the hub terminal.
 
 All AIs now share one job queue. Each job shows its agent's name in the Figma toast and in Agent Activity.
@@ -219,7 +220,7 @@ Files that help with diagnosis live in `~/.ai-designer-no-figma/`:
 |---|---|
 | `npm run build` | Build plugin, MCP server, hub and runtime into `dist/`. |
 | `npm run setup:clients -- --status` | Show which AI apps have the server configured. |
-| `npm run setup:clients -- --client <id> [--mode http] --write` | Write the config for one app; ids: `claude-desktop`, `claude-code`, `cursor`, `vscode`, `windsurf`, `cline`, `gemini-cli`, `codex`, `lm-studio`, `zed`, `custom`. |
+| `npm run setup:clients -- --client <id> [--mode http] --write` (`--mode http` not for `codex`, `zed`) | Write the config for one app; ids: `claude-desktop`, `claude-code`, `cursor`, `vscode`, `windsurf`, `cline`, `gemini-cli`, `codex`, `lm-studio`, `zed`, `custom`. |
 | `npm run mcp:hub` | One shared local HTTP MCP server and bridge (local multi-app mode). |
 | `npm run mcp:browser` | Same as `mcp:hub` plus a Cloudflare quick tunnel for web AIs. |
 | `npm run runtime` | Optional local model runtime (Ollama, LM Studio, OpenAI-compatible, …). |
