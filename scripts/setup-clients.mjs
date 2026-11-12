@@ -2,6 +2,7 @@
 // Connect AI Designer's own MCP server to popular AI apps — or to any custom MCP client.
 // Usage:
 //   npm run setup:clients                      list apps and show what would be written
+//   npm run setup:clients -- --status          show which AI apps are installed/configured
 //   npm run setup:clients -- --client cursor   show one app's config
 //   npm run setup:clients -- --client cursor --write          merge into that app's config (backup kept)
 //   npm run setup:clients -- --client custom --mode http      generic settings for any other client
@@ -120,6 +121,17 @@ async function backupAndWrite(file, content) {
 const id = option('client');
 if (!existsSync(serverScript)) console.warn(`⚠ ${serverScript} does not exist yet. Run "npm run build" first.`);
 if (id && !clients[id]) fail(`Unknown client "${id}". Choose one of: ${Object.keys(clients).join(', ')}`);
+async function status() {
+  console.log('\nAI app status (config files only; this does not inspect running apps):');
+  for (const [key, client] of Object.entries(clients)) {
+    const file = client.file ?? client.toml;
+    if (!file) { console.log(`  ${client.label.padEnd(40)} ${client.custom ? 'manual (custom client)' : 'use the command shown by --client ' + key}`); continue; }
+    if (!existsSync(file)) { console.log(`  ${client.label.padEnd(40)} not found (${file})`); continue; }
+    const text = await readFile(file, 'utf8').catch(() => '');
+    console.log(`  ${client.label.padEnd(40)} ${text.includes(NAME) ? '✔ configured' : 'installed, not configured'}  (${file})`);
+  }
+}
+if (flag('status')) { await status(); process.exit(0); }
 if (flag('write')) { if (!id) fail('--write needs --client <id>'); await write(id); }
 else for (const key of id ? [id] : Object.keys(clients)) await show(key);
 console.log('\nNext: open the AI Designer plugin in Figma → Settings, ask your AI app for "the AI Designer pairing code", type it and press Connect.');

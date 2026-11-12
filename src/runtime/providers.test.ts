@@ -58,3 +58,13 @@ describe('provider streaming', () => {
     await expect(collect(streamText(p, { model: 'm', prompt: 'hi', json: true, signal }, {}))).rejects.toThrow(/401: bad key/);
   });
 });
+
+describe('provider retry', () => {
+  it('retries once after a 503 before streaming, then succeeds', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response('busy', { status: 503 })).mockResolvedValueOnce(sse([{ choices: [{ delta: { content: 'ok' } }] }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const p: ProviderConfig = { id: 'x', label: 'X', kind: 'openai-compatible', baseUrl: 'https://api.example.com/v1' };
+    expect(await collect(streamText(p, { model: 'm', prompt: 'hi', json: true, signal }, {}))).toBe('ok');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

@@ -518,19 +518,21 @@
     {
       "id": "PROVIDER-001",
       "name": "Multi-provider model runtime",
-      "description": "Ollama, LM Studio, OpenAI, Anthropic, Gemini, OpenRouter, Groq, DeepSeek, Mistral, xAI and custom OpenAI-compatible endpoints behind one streaming interface; keys stay in the local runtime.",
+      "description": "Ollama, LM Studio, OpenAI, Anthropic, Gemini, OpenRouter, Groq, DeepSeek, Mistral, xAI and custom OpenAI-compatible endpoints behind one streaming interface; keys stay in the local runtime. Design mode runs a plan \u2192 build \u2192 validate/repair \u2192 review/improve loop (/api/agent) with progress shown in the plugin.",
       "module": "local-runtime",
       "sourceFiles": [
         "src/runtime/providers.ts",
         "src/runtime/server.ts",
-        "src/ui/main.tsx"
+        "src/ui/main.tsx",
+        "src/runtime/design-agent.ts"
       ],
       "dependencies": [],
       "status": "PARTIAL",
       "testStatus": "VERIFIED",
       "tests": [
         "src/runtime/providers.test.ts",
-        "src/runtime/server.integration.test.ts"
+        "src/runtime/server.integration.test.ts",
+        "src/runtime/design-agent.test.ts"
       ],
       "knownIssues": [
         "Streaming formats are tested against recorded-shape fakes; no real cloud provider or key has been exercised."

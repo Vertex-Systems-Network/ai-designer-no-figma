@@ -150,18 +150,30 @@ async function* ndjson(body: ReadableStream<Uint8Array>): AsyncGenerator<unknown
 }
 
 /** Stream plain text chunks from any supported provider. */
+/** Retry once on connection errors and 429/5xx before any output is streamed; never retry after cancellation. */
+async function withRetry(send: () => Promise<Response>, signal: AbortSignal): Promise<Response> {
+  try {
+    const first = await send();
+    if (first.status !== 429 && first.status < 500) return first;
+    await first.body?.cancel().catch(() => {});
+  } catch (error) { if (signal.aborted) throw error; }
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  if (signal.aborted) throw new ProviderError('CANCELLED', 'Request was cancelled.', 499);
+  return send();
+}
+
 export async function* streamText(provider: ProviderConfig, request: StreamRequest, env: NodeJS.ProcessEnv = process.env): AsyncGenerator<string> {
   const headers = { 'Content-Type': 'application/json', ...authHeaders(provider, env) };
   const fullPrompt = request.system ? `${request.system}\n\n${request.prompt}` : request.prompt;
   let response: Response;
   if (provider.kind === 'ollama') {
-    response = await fetch(join2(provider.baseUrl, '/api/generate'), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ model: request.model, prompt: fullPrompt, stream: true, ...(request.json ? { format: 'json' } : {}), options: { temperature: 0.3, num_predict: 8192 } }) });
+    response = await withRetry(() => fetch(join2(provider.baseUrl, '/api/generate'), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ model: request.model, prompt: fullPrompt, stream: true, ...(request.json ? { format: 'json' } : {}), options: { temperature: 0.3, num_predict: 8192 } }) }), request.signal);
   } else if (provider.kind === 'anthropic') {
-    response = await fetch(join2(provider.baseUrl, '/messages'), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ model: request.model, max_tokens: 16000, stream: true, temperature: 0.3, ...(request.system ? { system: request.system } : {}), messages: [{ role: 'user', content: request.prompt }] }) });
+    response = await withRetry(() => fetch(join2(provider.baseUrl, '/messages'), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ model: request.model, max_tokens: 16000, stream: true, temperature: 0.3, ...(request.system ? { system: request.system } : {}), messages: [{ role: 'user', content: request.prompt }] }) }), request.signal);
   } else if (provider.kind === 'gemini') {
-    response = await fetch(join2(provider.baseUrl, `/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ ...(request.system ? { systemInstruction: { parts: [{ text: request.system }] } } : {}), contents: [{ role: 'user', parts: [{ text: request.prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 16000, ...(request.json ? { responseMimeType: 'application/json' } : {}) } }) });
+    response = await withRetry(() => fetch(join2(provider.baseUrl, `/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ ...(request.system ? { systemInstruction: { parts: [{ text: request.system }] } } : {}), contents: [{ role: 'user', parts: [{ text: request.prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 16000, ...(request.json ? { responseMimeType: 'application/json' } : {}) } }) }), request.signal);
   } else {
-    response = await fetch(join2(provider.baseUrl, '/chat/completions'), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ model: request.model, stream: true, temperature: 0.3, messages: [...(request.system ? [{ role: 'system', content: request.system }] : []), { role: 'user', content: request.prompt }] }) });
+    response = await withRetry(() => fetch(join2(provider.baseUrl, '/chat/completions'), { method: 'POST', headers, signal: request.signal, body: JSON.stringify({ model: request.model, stream: true, temperature: 0.3, messages: [...(request.system ? [{ role: 'system', content: request.system }] : []), { role: 'user', content: request.prompt }] }) }), request.signal);
   }
   if (!response.ok) {
     const detail = (await response.text().catch(() => '')).slice(0, 300).replace(/\s+/g, ' ');

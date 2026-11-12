@@ -15,7 +15,7 @@ AI Designer works with any AI tool in one of four ways. None of them need a Figm
 
 `custom` prints the generic settings: the stdio command and args, or the hub URL and bearer header. Use these for Kiro, Roo Code, Continue, Goose, Jan, Msty, or your own agent.
 
-Running without `--write` only prints the settings. With `--write`, the script merges the settings into the app's config and keeps a `.bak-ai-designer` backup. If a file has comments, the script writes nothing and prints the block to paste by hand.
+`--status` lists which apps have a config file and whether AI Designer is configured in it. Running without `--write` only prints the settings. With `--write`, the script merges the settings into the app's config and keeps a `.bak-ai-designer` backup. If a file has comments, the script writes nothing and prints the block to paste by hand.
 
 ## Pairing the Figma plugin (security)
 
