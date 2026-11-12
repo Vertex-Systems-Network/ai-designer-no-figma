@@ -1,7 +1,7 @@
 # Changelog
 
 ## Unreleased
-- Live Figma (LIVE-01/02 partial): the component kit rendered native components, instances and variable-bound fills; pairing with the Claude Desktop extension worked. Fixed a defect found live: kit Auto Layout containers hugged their content (input field too narrow). The kit now uses FIXED sizing and fixed-width text.
+- Live Figma (LIVE-01/02 partial): the component kit rendered native components, instances and variable-bound fills; pairing with the Claude Desktop extension worked. The kit now declares FIXED Auto Layout sizing and fixed-width text explicitly. This is a clarification, not a bug fix: an early note about a narrow input field came from misreading a zoomed-out screenshot, and the renderer already defaulted to FIXED.
 - Issue #2: `buildComponentKit` and the MCP tool `figma_build_component_kit` create token-bound native components (buttons, input, card, navigation, table row, usage instances) with WCAG AA colors. The Design System tab can now build the kit in Figma and import or export presets.
 - Issue #5: added a versioned migration layer (`spec-migrations.ts`) that upgrades loose or unversioned model output to schema 1.0 and reports each change. MCP import and the design agent use it.
 - Issue #7: `npm run bench` performance fixtures; results are in `docs/PERFORMANCE.md`.
