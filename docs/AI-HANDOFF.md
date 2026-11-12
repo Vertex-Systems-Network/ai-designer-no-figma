@@ -64,3 +64,7 @@ A separate component family 1.0 contract creates native Style variants, Label TE
 ## 2026-11-12 Phase 4 checkpoint
 
 `figma_compose_responsive_plan` materializes two native schema 1.0 pages from one validated root frame, applying explicit horizontal MIN/MAX/CENTER/STRETCH/SCALE constraints to absolute children. It rejects bounds overflow, unsupported nested Auto Layout, automatic text width and rotation; preserves caller-supplied image/vector payloads. This is structural automation, not real Figma typography, screenshots, asset library reload or parity. Next run: Phase 5 / `AGENT-04` measured screenshot repair; Phase 6 retains live acceptance.
+
+## 2026-11-12 Phase 5 checkpoint
+
+The custom MCP server now has `figma_prepare_visual_repair` and `figma_verify_visual_repair`. Flow: capture selected frame → inspect selection → inspect image in a vision client → supply visible defect, target ID and one validated patch → apply patch → recapture → compare ordered same-session hashes → reviewer judges both images. No tool claims the changed pixels fixed the defect. Unit and MCP protocol tests cover evidence binding and failure paths. Next: Phase 6 live Figma acceptance and same-brief evaluation; a paired Figma desktop/client is required.
