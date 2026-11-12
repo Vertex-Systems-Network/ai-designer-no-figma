@@ -158,3 +158,5 @@
 - 2026-11-12: Audited `figma/mcp-server-guide` and implemented `INTEROP-01`: bounded optional reference notes in the Generate UI and external prompt, with URL-only/untrusted-context safeguards and unit tests. `npm run release:verify` passed: 108 unit, 17 integration, typecheck/lint/audit/build/package/docs audit (0 findings), ZIP integrity and SHA-256. No live official MCP client was used; `CODE-03` remains next.
 
 - 2026-11-12: Corrected the integration goal after user clarification. Studied official generate-design/library/use/recovery patterns. Added local MCP design preflight, geometry audit and bounded agent workflow roadmap. Focused tests passed; full release verification pending.
+
+- 2026-11-12: Replaced README progress bars and broad tracker with task-level development table. Mirrored new agent discovery, planning, visual, responsive, asset and evaluation IDs into the canonical execution plan. Documentation-only change; live capabilities unchanged.

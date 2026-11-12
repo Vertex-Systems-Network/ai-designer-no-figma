@@ -9,28 +9,29 @@ Generate and edit native, editable Figma layers with the AI app you already use.
 - Claude Desktop installer: [AI Designer No Figma `.mcpb`](artifacts/ai-designer-no-figma-claude.mcpb) (`npm run package:claude`)
 - Open work: [GitHub Issues](https://github.com/Vertex-Systems-Network/ai-designer-no-figma/issues) and [engineering backlog](docs/BACKLOG.md)
 
-## Project progress
+## Development plan
 
-There is no aggregate completion percentage: it hid the distinction between code that passes local automation and work that needs a live Figma/AI-client session. These bars count explicit gates only.
+The goal is an independent design agent that creates editable Figma layers through this plugin and its local MCP bridge. Figma's hosted MCP and REST tokens are not required. The default AI handoff works without an inference API; autonomous generation and visual critique require an available AI client or installed local model. [The execution plan](docs/EXECUTION-PLAN.md) holds the detailed acceptance criteria and evidence.
 
-| Gate | Progress | Evidence / remaining action |
-|---|---:|---|
-| Automated release checks | `██████████` 8/8 | Latest `npm run release:verify`: typecheck, lint, 109 unit tests, 18 integration tests, local audit, build/package, strict docs audit, ZIP integrity and SHA-256 passed. Re-run after changes. |
-| Feature registry fully implemented | `█████░░░░░` 8/17 | Eight features are `IMPLEMENTED`; nine remain `PARTIAL`. Counts are registry entries, not product completion. |
-| Live Figma/client acceptance | `░░░░░░░░░░` 0/4 | Four named live checks are in [`docs/EXECUTION-PLAN.md`](docs/EXECUTION-PLAN.md); current executor cannot drive the user's desktop session. |
-| Remaining local engineering tasks | `██████░░░░` 2/3 | `CODE-01` and `CODE-02` are automated verified. `CODE-03` component properties/variants remains open. See the [schema fidelity matrix](docs/EXPORT-FIDELITY-MATRIX.md). |
-| Published binary matches verified source | `██████████` 1/1 | `PUB-01` LIVE VERIFIED: source/docs and ZIP are on `main`; uploaded blob equals the local archive bytes and the SHA-256 manifest passes. |
+| ID | Priority | Task and deliverable | Status | Done when / next action |
+|---|---|---|---|---|
+| `PLAN-01` | P0 | One canonical work contract, status vocabulary and traceable release gates | **AUTOMATED VERIFIED** | Plan, registry, handoff and documentation audit agree. |
+| `CODE-01` | P1 | Behavioral tests for native render/edit rollback and preserved siblings | **AUTOMATED VERIFIED** | Real host module passes fault and undo fixtures. |
+| `CODE-02` | P1 | Schema 1.0 native import/export field fidelity and explicit unsupported errors | **AUTOMATED VERIFIED** | Field matrix and round-trip/rejection tests pass. |
+| `AGENT-01` | P1 | Local MCP preflight for schema and measurable design issues | **AUTOMATED VERIFIED** | `figma_audit_design_schema` reports validation, contrast, naming, layout, overflow and text collision findings. |
+| `AGENT-02` | P1 | Discover reusable components, variables and styles in the open Figma file | **OPEN** | Read-only, bounded Plugin API inventory; exact IDs and safe scopes; host tests and a live file inspection. No hosted Figma MCP lookup. |
+| `AGENT-03` | P1 | Plan sections, component roles, tokens and assets before native creation | **OPEN** | Versioned, bounded agent plan contract; map each planned section to supported schema nodes and existing local assets; reject unknown references and test deterministic conversion. |
+| `CODE-03` | P1 | Native component variants and properties with instance binding | **OPEN** | Schema/API mapping, capped variant matrix, import/export/rollback tests; unsupported properties fail explicitly. |
+| `AGENT-04` | P1 | Rendered design review and targeted repair loop | **PARTIAL** | Existing JPEG capture and selected-ID patch work in automation. A real AI client must inspect the image, fix a measured issue, recapture and record before/after evidence in Figma. |
+| `AGENT-05` | P2 | Responsive layout and typography fidelity | **OPEN** | Supported sizing/wrapping rules tested at two widths with real text; no clipped actions or unintended overlap in screenshots. |
+| `AGENT-06` | P2 | Reuse real local image/vector assets in generated compositions | **PARTIAL** | Existing bounded SVG/raster import and storage need live save/reload/reuse and visual asset placement checks; never fabricate bytes. |
+| `EVAL-01` | P1 | Compare against Figma Agent on the same briefs | **OPEN** | Same inputs and sizes, native editability, design-system reuse, screenshots and recorded reviewers; report observed gaps, not a claimed equivalence. |
+| `LIVE-01`–`LIVE-04` | P1/P2 | Figma, Claude bridge, assets and Ollama acceptance | **BLOCKED · USER DESKTOP/MACHINE** | Run the exact build in those applications; record build hash, actions and actual outcomes. |
+| `INTEROP-01` | P2 | Optional external Figma reference handoff | **AUTOMATED VERIFIED** | Bounded user-supplied notes are included in a copy/paste prompt; separate from the local agent goal. |
+| `PUB-01` | P1 | Publish tested source with matching ZIP and checksums | **LIVE VERIFIED** | Verify archive hash, Git blob and required files for each release-bound change. |
+| `BLOCK-01`–`BLOCK-02` | — | Closed-document automation and arbitrary client file/identity access | **OUT OF PLUGIN SCOPE / NOT VERIFIED** | Requires separate authenticated desktop/client capabilities; do not advertise as plugin features. |
 
-The [execution plan](docs/EXECUTION-PLAN.md) is the sole task board. Percentages are not used for overall project completion; each task closes against its own evidence.
-
-## Remaining task tracker
-
-| Task group | Status | Next action |
-|---|---|---|
-| Local code | IN PROGRESS | `CODE-01` and `CODE-02` are AUTOMATED VERIFIED. `CODE-02` now has a field-group matrix for every schema 1.0 node type, shared properties, imports, exports and explicit loss boundaries. `CODE-03` component properties/variants is next. |
-| Live Figma and AI clients | BLOCKED · USER DESKTOP | Run `LIVE-01` through `LIVE-04` against the exact built package; record app, build hash, and observed result. |
-| Repository publication | LIVE VERIFIED | `PUB-01`: source and exact verified ZIP/checksum are synced on `main`. |
-| Plugin-only closed-file/background operation | OUT OF SCOPE | `BLOCK-01`: requires a separate supported desktop runner; the current plugin session ends when its document closes. |
+**Current release evidence:** `npm run release:verify` passed typecheck, lint, 109 unit tests, 18 integration tests, local audit, build/package, strict docs audit (0 findings), ZIP integrity and SHA-256. This verifies code and packaging, not real Figma rendering or parity with Figma Agent. The next unblocked implementation task is `AGENT-02`, followed by `AGENT-03` and `CODE-03`.
 
 ## Requirements
 
