@@ -1,1 +1,1 @@
-45b05f330cbc47ac74717aa1a07ff2d5399a31e29a2dea6c97f87d7acb8acdf9  ai-designer-no-figma-0.1.0.zip
+0fc6eea8f3730add43ba5833551c1654e4d5a1c165454491e0723c1fff93104d  ai-designer-no-figma-0.1.0.zip
