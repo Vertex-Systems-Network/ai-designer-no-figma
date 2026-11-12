@@ -22,12 +22,15 @@ describe('local Figma job broker',()=>{
     expect(broker.getJob(job.jobId).result).toEqual({nodes:4});
   });
 
-  it('cancels queued work but rejects cancellation of active Figma work',()=>{
+  it('cancels queued work and flags running work for a cooperative stop',()=>{
     const broker=new JobBroker();broker.connect('figma-session-1','0.2.0');
     const queued=broker.enqueue({type:'inspect-selection'});
     expect(broker.cancel(queued.jobId).status).toBe('cancelled');
     const active=broker.enqueue({type:'inspect-selection'});broker.takeNext('figma-session-1');
-    expect(()=>broker.cancel(active.jobId)).toThrowError(/not interruptible yet/);
+    expect(broker.cancel(active.jobId)).toMatchObject({status:'running',cancelRequested:true});
+    expect(broker.cancellationsFor('figma-session-1')).toEqual([active.jobId]);
+    broker.complete('figma-session-1',active.jobId,true,{});
+    expect(()=>broker.cancel(active.jobId)).toThrowError(/already completed/);
   });
 
   it('expires disconnected sessions and bounds active work',()=>{

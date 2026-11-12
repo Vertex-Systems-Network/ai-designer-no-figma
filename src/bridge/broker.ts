@@ -106,11 +106,16 @@ export class JobBroker {
     this.expire();
     const job=this.jobs.get(jobId);
     if (!job) throw new BridgeFault('JOB_NOT_FOUND','The requested job does not exist or has expired.');
-    if (job.status !== 'queued') throw new BridgeFault('JOB_NOT_CANCELLABLE','Only queued jobs can be cancelled; running Figma operations are not interruptible yet.');
+    if (job.status === 'running') { job.cancelRequested=true; job.updatedAt=this.now(); return structuredClone(job); }
+    if (job.status !== 'queued') throw new BridgeFault('JOB_NOT_CANCELLABLE',`The job is already ${job.status}.`);
     job.status='cancelled';job.updatedAt=this.now();
     return structuredClone(job);
   }
 
+  /** Running jobs in this session that an AI client asked to stop. */
+  cancellationsFor(sessionId: string): string[] {
+    return [...this.jobs.values()].filter(job=>job.sessionId===sessionId&&job.status==='running'&&job.cancelRequested).map(job=>job.jobId);
+  }
   getJob(jobId: string): BridgeJob {
     this.expire();
     const job=this.jobs.get(jobId);

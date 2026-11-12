@@ -18,7 +18,7 @@ export async function remoteToken(path=tokenPath()):Promise<string>{
   try{const value=(await readFile(path,'utf8')).trim();if(!/^[a-f0-9]{64}$/i.test(value))throw new Error('Remote MCP token file is invalid.');return value;}
   catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;const value=randomBytes(32).toString('hex');try{await writeFile(path,`${value}\n`,{mode:0o600,flag:'wx'});await chmod(path,0o600);return value;}catch(writeError){if((writeError as NodeJS.ErrnoException).code==='EEXIST')return remoteToken(path);throw writeError;}}
 }
-export async function startRemoteMcpServer(broker:JobBroker,options:{host?:string;port?:number;token?:string}={}){
+export async function startRemoteMcpServer(broker:JobBroker,options:{host?:string;port?:number;token?:string;pairingCode?:()=>Promise<string>}={}){
   if(options.port===undefined){let last:unknown;for(const candidate of [8790,8800,8801,8802,8803,8804,8805,8806,8807,8808,8809]){try{return await startRemoteMcpServer(broker,{...options,port:candidate});}catch(error){if((error as NodeJS.ErrnoException).code!=='EADDRINUSE')throw error;last=error;}}throw new Error('All remote MCP listener ports are occupied.',{cause:last});}
   const host=options.host??'127.0.0.1',port=options.port;
   if(!isIP(host)||!['127.0.0.1','::1'].includes(host))throw new Error('Remote MCP listener must bind to loopback.');
@@ -33,19 +33,19 @@ export async function startRemoteMcpServer(broker:JobBroker,options:{host?:strin
     if(!authorization.startsWith('Bearer ')||!equal(authorization.slice(7),token)){res.writeHead(401,{'WWW-Authenticate':'Bearer'}).end();return;}
     if(active>=8){res.writeHead(429).end();return;}
     active++;
-    try{await handle(req,res,broker);}catch{if(!res.headersSent)res.writeHead(400).end();else res.destroy();}finally{active--;}
+    try{await handle(req,res,broker,options.pairingCode);}catch{if(!res.headersSent)res.writeHead(400).end();else res.destroy();}finally{active--;}
   });
   server.listen(port,host);
   await new Promise<void>((done,reject)=>{server.once('listening',done);server.once('error',reject);});
   const address=server.address();if(!address||typeof address==='string')throw new Error('Remote listener address unavailable.');
   return{server,address:()=>({host:address.address,port:address.port}),close:()=>new Promise<void>((done,reject)=>{server.close(error=>error?reject(error):done());server.closeAllConnections();})};
 }
-async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker){
+async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,pairingCode?:()=>Promise<string>){
   const chunks:Buffer[]=[];let length=0;
   for await(const part of req){const bytes=Buffer.from(part as Uint8Array);length+=bytes.length;if(length>6*1024*1024){res.writeHead(413).end();return;}chunks.push(bytes);}
   const headers=new Headers();for(const [key,value] of Object.entries(req.headers))if(typeof value==='string')headers.set(key,value);
   const request=new Request('http://localhost/mcp',{method:'POST',headers,body:Buffer.concat(chunks)});
-  const transport=new WebStandardStreamableHTTPServerTransport({enableJsonResponse:true});const mcp=createMcpServer(broker);
+  const transport=new WebStandardStreamableHTTPServerTransport({enableJsonResponse:true});const mcp=createMcpServer(broker,pairingCode?{pairingCode}:{});
   try{
     await mcp.connect(transport);
     const response=await transport.handleRequest(request);
@@ -55,15 +55,22 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker){
     res.writeHead(response.status).end(body);
   }finally{await mcp.close();}
 }
+/** Publish the hub's real address so setup:clients never guesses a port. */
+export async function writeHubInfo(url:string,path=join(homedir(),'.ai-designer-no-figma','hub.json')):Promise<void>{
+  await mkdir(dirname(path),{recursive:true,mode:0o700});await writeFile(path,`${JSON.stringify({url,updatedAt:new Date().toISOString()})}\n`,{mode:0o600});await chmod(path,0o600);
+}
 export async function startRemoteServices(){
   const bridge=await startBridgeServer({autoPort:true,pairingMode:'remote'});
-  try{const remote=await startRemoteMcpServer(bridge.broker);return{bridge,remote};}
+  try{const remote=await startRemoteMcpServer(bridge.broker,{pairingCode:()=>bridge.pairing.reveal()});return{bridge,remote};}
   catch(error){await bridge.close();throw error;}
 }
 async function main(){
   const {bridge,remote}=await startRemoteServices();
   console.error(`[ai-designer] Figma pairing bridge on ${bridge.address().host}:${bridge.address().port}; remote MCP on http://${remote.address().host}:${remote.address().port}/mcp`);
   console.error(`[ai-designer] Remote bearer secret stored at ${tokenPath()}; tunnel only port ${remote.address().port}, never the pairing bridge.`);
+  console.error(`[ai-designer] Figma pairing code: ${bridge.pairing.current()} (also in ~/.ai-designer-no-figma/pairing-code-${bridge.address().port}). Press Enter here for a new code.`);
+  await writeHubInfo(`http://${remote.address().host}:${remote.address().port}/mcp`);
+  if(process.stdin.isTTY){process.stdin.on('data',()=>{void bridge.pairing.reset().then(code=>console.error(`[ai-designer] New Figma pairing code: ${code}`));});}
   const shutdown=()=>{void remote.close().then(()=>bridge.close());};process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)void main().catch(error=>{console.error(error);process.exitCode=1;});

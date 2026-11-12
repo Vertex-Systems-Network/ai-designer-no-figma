@@ -514,6 +514,134 @@
       "lastModified": "2026-11-09",
       "lastVerified": "2026-11-09",
       "nextAction": "Reimport the build, render a design, request a preview through Claude MCP, confirm Claude receives the actual image, apply one safe patch, and capture again."
+    },
+    {
+      "id": "PROVIDER-001",
+      "name": "Multi-provider model runtime",
+      "description": "Ollama, LM Studio, OpenAI, Anthropic, Gemini, OpenRouter, Groq, DeepSeek, Mistral, xAI and custom OpenAI-compatible endpoints behind one streaming interface; keys stay in the local runtime. Design mode runs a plan \u2192 build \u2192 validate/repair \u2192 review/improve loop (/api/agent) with progress shown in the plugin.",
+      "module": "local-runtime",
+      "sourceFiles": [
+        "src/runtime/providers.ts",
+        "src/runtime/server.ts",
+        "src/ui/main.tsx",
+        "src/runtime/design-agent.ts"
+      ],
+      "dependencies": [],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/runtime/providers.test.ts",
+        "src/runtime/server.integration.test.ts",
+        "src/runtime/design-agent.test.ts"
+      ],
+      "knownIssues": [
+        "Streaming formats are tested against recorded-shape fakes; no real cloud provider or key has been exercised."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.x",
+      "lastModified": "2026-11-12",
+      "lastVerified": "2026-11-12",
+      "nextAction": "Run one real local model (Ollama or LM Studio) and one cloud key end to end from the Figma plugin."
+    },
+    {
+      "id": "CLIENTS-001",
+      "name": "AI client setup and pairing code",
+      "description": "Setup for Claude Desktop/Code, Cursor, VS Code, Windsurf, Cline, Gemini CLI, Codex, LM Studio, Zed and any custom MCP client; plugin pairing requires a 6-digit user code.",
+      "module": "mcp-bridge",
+      "sourceFiles": [
+        "scripts/setup-clients.mjs",
+        "src/bridge/server.ts",
+        "src/ui/bridge-discovery.ts",
+        "src/mcp/server.ts"
+      ],
+      "dependencies": [],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/bridge/server.integration.test.ts",
+        "src/ui/bridge-discovery.test.ts"
+      ],
+      "knownIssues": [
+        "Client config paths follow each app's documentation but were not verified against installed apps here."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.x",
+      "lastModified": "2026-11-12",
+      "lastVerified": "2026-11-12",
+      "nextAction": "Run npm run setup:clients -- --client <app> --write on the user machine, pair with the code, and record the result per app."
+    },
+    {
+      "id": "KIT-001",
+      "name": "Reusable component kit",
+      "description": "Token-bound native components (buttons, input, card, navigation, table row, usage instances) from brand color, type and spacing scales, with WCAG AA color adjustment; MCP tool figma_build_component_kit and Design System tab button; preset import/export.",
+      "module": "design-engine",
+      "sourceFiles": [
+        "src/shared/component-kit.ts",
+        "src/mcp/server.ts",
+        "src/ui/main.tsx"
+      ],
+      "dependencies": [],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/component-kit.test.ts"
+      ],
+      "knownIssues": [
+        "Rendering in live Figma is NOT TESTED; component variants/properties beyond these six components are not generated yet."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.x",
+      "lastModified": "2026-11-12",
+      "lastVerified": "2026-11-12",
+      "nextAction": "Insert the kit in Figma and check token bindings, Auto Layout and instances."
+    },
+    {
+      "id": "MIGRATE-001",
+      "name": "Design spec migrations",
+      "description": "Versioned migration interface that upgrades unversioned/loose model output (missing version, upper-case types, autoLayout, characters, missing children) to schema 1.0 and reports each change; used by MCP import and the design agent.",
+      "module": "design-engine",
+      "sourceFiles": [
+        "src/shared/spec-migrations.ts",
+        "src/runtime/design-agent.ts",
+        "src/mcp/server.ts"
+      ],
+      "dependencies": [],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "src/shared/spec-migrations.test.ts"
+      ],
+      "knownIssues": [
+        "Only the legacy-to-1.0 path exists because no other released schema version exists yet."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.x",
+      "lastModified": "2026-11-12",
+      "lastVerified": "2026-11-12",
+      "nextAction": "Add a 1.0 \u2192 1.1 step when the schema next changes."
+    },
+    {
+      "id": "PERF-001",
+      "name": "Performance fixtures",
+      "description": "Benchmark for component, screen, multi-screen, edit and near-limit import cases (npm run bench), results in docs/PERFORMANCE.md.",
+      "module": "design-engine",
+      "sourceFiles": [
+        "tools/benchmark/benchmark.ts"
+      ],
+      "dependencies": [],
+      "status": "PARTIAL",
+      "testStatus": "VERIFIED",
+      "tests": [
+        "tools/benchmark/benchmark.ts"
+      ],
+      "knownIssues": [
+        "Figma-side render time is NOT TESTED."
+      ],
+      "priority": "P1",
+      "releaseTarget": "0.2.x",
+      "lastModified": "2026-11-12",
+      "lastVerified": "2026-11-12",
+      "nextAction": "Add live Figma render timings."
     }
   ]
 }

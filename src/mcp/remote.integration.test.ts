@@ -20,10 +20,10 @@ describe('loopback remote MCP gateway',()=>{
     await client.close();
   });
   it('routes a remote MCP request to the locally paired plugin and returns its result',async()=>{
-    const broker=new JobBroker();const bridge=await startBridgeServer({port:0,broker,token:'a'.repeat(64),pluginTokenFile:`/tmp/adnf-remote-test-${process.pid}-plugin-token`});
+    const broker=new JobBroker();const bridge=await startBridgeServer({port:0,broker,token:'a'.repeat(64),pairingCode:'654321',pluginTokenFile:`/tmp/adnf-remote-test-${process.pid}-plugin-token`});
     const remote=await startRemoteMcpServer(broker,{port:0,token});close=async()=>{await remote.close();await bridge.close();};
     const base=`http://127.0.0.1:${bridge.address().port}`;
-    const pairing=await fetch(`${base}/bridge/pair`,{method:'POST',headers:{Origin:'https://www.figma.com'}});expect(pairing.status).toBe(200);
+    const pairing=await fetch(`${base}/bridge/pair`,{method:'POST',headers:{Origin:'https://www.figma.com'},body:JSON.stringify({code:'654321'})});expect(pairing.status).toBe(200);
     const {token:pluginToken}=await pairing.json() as {token:string};
     const auth={Authorization:`Bearer ${pluginToken}`};
     const connect=await fetch(`${base}/bridge/sessions/connect`,{method:'POST',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({sessionId:'browser-session-1',pluginVersion:'0.1.0'})});expect(connect.status).toBe(200);

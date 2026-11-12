@@ -7,11 +7,13 @@ import { parseEditPatch } from '../shared/edit-patch';
 import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
 import { parseDesignPlan } from '../shared/design-plan';
 import { composeResponsivePlan } from '../shared/responsive-composition';
+import { buildComponentKit } from '../shared/component-kit';
+import { parseWithMigration } from '../shared/spec-migrations';
 import { parseComponentFamily } from '../shared/component-family';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { visualPreviewToolResult } from './visual-preview';
@@ -36,11 +38,12 @@ function decodeAssetBase64(value:string,maxBytes=MAX_MCP_ASSET_BYTES):Uint8Array
   return new Uint8Array(bytes);
 }
 
-export function createMcpServer(broker:JobBroker):McpServer{
-  const server=new McpServer({name:'ai-designer-no-figma',version:'0.2.0'});
+export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promise<string>}={}):McpServer{
+  const server=new McpServer({name:'ai-designer-no-figma',version:'0.3.0'});
+  if(options.pairingCode){const read=options.pairingCode;server.registerTool('figma_get_pairing_code',{description:'Return the 6-digit code the user must type into the AI Designer Figma plugin (Settings → Connect) to pair it with this local bridge. Show it to the user; never send it anywhere else.',inputSchema:z.object({})},async()=>textResult({pairingCode:await read(),instructions:'Open the AI Designer plugin in Figma, go to Settings, type this code and press Connect.'}));}
   server.registerTool('figma_get_connection_status',{description:'Return paired Figma plugin sessions currently heartbeat-active on the local bridge.',inputSchema:z.object({})},async()=>textResult({connected:broker.getSessions().length>0,sessions:broker.getSessions(),transport:'loopback-http'}));
   server.registerTool('figma_get_agent_sessions',{description:'List currently connected plugin sessions. Session IDs are required when more than one session is active.',inputSchema:z.object({})},async()=>textResult({sessions:broker.getSessions()}));
-  server.registerTool('figma_get_capabilities',{description:'Report the plugin operations actually wired to the local bridge and current schema limitations.',inputSchema:z.object({})},async()=>textResult({protocolVersion:'1.0',designSchemaVersion:'1.0',bridge:{transport:'HTTP polling',bind:'127.0.0.1',tokenRequired:true},operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{capture:'bounded JPEG preview of one selected frame',agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'},supportedDesignNodeTypes:['frame','group','component','instance','vector','image','text','rectangle','ellipse','line'],supportedDesignPaints:['solid','linear-gradient','drop-shadow','image-fill'],supportedDesignFeatures:['local-color-variables','local-text-styles','responsive-constraints','layout-grids'],patchOperations:['set-text','set-fill','rename','set-bounds','set-auto-layout','swap-component','replace-image','set-image-crop'],supportedAssetImports:['sanitized-svg','png','jpeg','gif'],exportLimitations:['component instances require their main component to precede them in the exported tree','multiple fills and non-drop-shadow effects fail explicitly','token binding metadata is not round-tripped'],unsupported:['full-document export','remote library-variable import']}));
+  server.registerTool('figma_get_capabilities',{description:'Report the plugin operations actually wired to the local bridge and current schema limitations.',inputSchema:z.object({})},async()=>textResult({protocolVersion:'1.0',designSchemaVersion:'1.0',bridge:{transport:'HTTP polling',bind:'127.0.0.1',tokenRequired:true},operations:['inspect-selection','render-spec','apply-patch','export-selection','capture-selection'],visualReview:{capture:'bounded JPEG preview of one selected frame',agentLoop:'AI client inspects returned image and requests a targeted patch; recapture after applying'},supportedDesignNodeTypes:['frame','group','component','instance','vector','image','text','rectangle','ellipse','line'],supportedDesignPaints:['solid','linear-gradient','radial-gradient','angular-gradient','diamond-gradient','image-fill','up to 8 stacked fills'],supportedDesignEffects:['drop-shadow','inner-shadow','layer-blur','background-blur','up to 4 effects'],supportedDesignFeatures:['local-color-variables','local-text-styles','responsive-constraints','layout-grids','per-corner-radius','rotation','clips-content'],patchOperations:['set-text','set-fill','rename','set-bounds','set-rotation','set-auto-layout','swap-component','replace-image','set-image-crop'],supportedAssetImports:['sanitized-svg','png','jpeg','gif'],exportLimitations:['component instances require an accessible main component','non-normal blend modes, mixed text styling, compound vector paths and unsupported effects fail explicitly instead of being dropped','token mode/theme metadata is not round-tripped'],cancellation:'queued jobs can be cancelled; a running render is cancelled at the next node boundary when the plugin receives cancel',unsupported:['full-document export','remote library-variable import']}));
   server.registerTool('figma_get_asset_capabilities',{description:'Report actual local asset import support separately from AI generation or client file-access claims.',inputSchema:z.object({})},async()=>textResult({vector:{svgMarkup:true,editableImport:true,maxBytes:MAX_SVG_BYTES,allowedElements:['svg','g','path','rect','circle','ellipse','line','polyline','polygon']},raster:{formats:['image/png','image/jpeg','image/gif'],maxBytes:MAX_RASTER_BYTES,maxDimension:4096,mcpTransferLimitBytes:MAX_RASTER_BYTES,mcpDirectLimitBytes:MAX_MCP_ASSET_BYTES,mcpChunkBytes:MCP_ASSET_CHUNK_BYTES},clientNativeGeneration:'NOT_VERIFIED',clientGeneratedFileAccess:'NOT_VERIFIED',manualLocalFileImport:'SUPPORTED',automaticClientAssetTransfer:'NOT_VERIFIED',officialFigmaMcp:false}));
   server.registerTool('figma_validate_vector',{description:'Sanitize and validate geometric SVG markup without inserting it or executing its contents.',inputSchema:z.object({svg:z.string().min(1).max(MAX_SVG_BYTES)})},async({svg})=>{
     try{const asset=sanitizeSvg(svg);return textResult({valid:true,width:asset.width,height:asset.height,elements:asset.elements,bytes:asset.size,sanitizedSvg:asset.svg});}catch(error){return faultResult(error);}
@@ -94,10 +97,19 @@ export function createMcpServer(broker:JobBroker):McpServer{
     const findings=auditDesignQuality(checked.value);
     return textResult({valid:true,findings,summary:{warnings:findings.filter(item=>item.severity==='warning').length,suggestions:findings.filter(item=>item.severity==='suggestion').length},visualVerification:'NOT TESTED'});
   });
+  server.registerTool('figma_build_component_kit',{description:'Build a reusable native component kit (primary/secondary buttons, text input, metric card, top navigation, table row and a usage frame of real instances) bound to named color and text-style tokens. Colors are adjusted to WCAG AA contrast. Set insert:true to queue it into the paired Figma file; otherwise the validated schema 1.0 JSON is returned for review or editing.',inputSchema:z.object({brandColor:z.string().regex(/^#[0-9A-Fa-f]{6}$/),name:z.string().min(1).max(80).optional(),fontFamily:z.string().min(1).max(80).optional(),typeScale:z.tuple([z.number().min(8).max(96),z.number().min(8).max(96),z.number().min(8).max(96),z.number().min(8).max(96),z.number().min(8).max(160)]).optional(),spacing:z.array(z.number().min(1).max(128)).min(4).max(12).optional(),radius:z.number().min(0).max(48).optional(),theme:z.enum(['light','dark']).optional(),insert:z.boolean().optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{
+      const spec=buildComponentKit({brandColor:args.brandColor,...(args.name?{name:args.name}:{}),...(args.fontFamily?{fontFamily:args.fontFamily}:{}),...(args.typeScale?{typeScale:args.typeScale}:{}),...(args.spacing?{spacing:args.spacing}:{}),...(args.radius!==undefined?{radius:args.radius}:{}),...(args.theme?{theme:args.theme}:{})});
+      const checked=parseDesignSpec(JSON.stringify(spec));
+      if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Generated kit failed validation.',issues:checked.issues}},true);
+      if(!args.insert)return textResult({json:JSON.stringify(checked.value),findings:auditDesignQuality(checked.value)});
+      return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))),findings:auditDesignQuality(checked.value)});
+    }catch(error){return faultResult(error);}
+  });
   server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Creates a new page and selects its first root frame so you can immediately capture and visually inspect it.',inputSchema:z.object({json:z.string().min(1).max(512_000),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    const checked=parseDesignSpec(args.json);
+    const {result:checked,report}=await parseWithMigration(args.json);
     if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation.',issues:checked.issues}},true);
-    try{return textResult(summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))),...(report?{migrated:report}:{})});}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_apply_patch',{description:'Validate and queue explicit text/fill/name/bounds/Auto Layout/component-swap/image-replacement operations. The plugin checks every target against its current selection before applying. After a patch, capture the frame again and inspect the returned image.',inputSchema:z.object({json:z.string().min(1).max(262_144),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const checked=parseEditPatch(args.json);
@@ -122,19 +134,19 @@ export function createMcpServer(broker:JobBroker):McpServer{
   server.registerTool('figma_verify_visual_repair',{description:'Compare completed before/patch/after jobs from the same session and frame, reporting screenshot hashes and whether pixels changed. A vision-capable reviewer must still judge if the defect was fixed.',inputSchema:z.object({beforeJobId:z.string().uuid(),patchJobId:z.string().uuid(),afterJobId:z.string().uuid()})},async(args)=>{
     try{const result=verifyVisualRepair(broker.getJob(args.beforeJobId),broker.getJob(args.patchJobId),broker.getJob(args.afterJobId));return textResult(result,!result.valid);}catch(error){return faultResult(error);}
   });
-  server.registerTool('figma_cancel_job',{description:'Cancel an operation only while it is still queued. Running Figma Plugin API operations are not interruptible yet.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
+  server.registerTool('figma_cancel_job',{description:'Cancel a queued operation immediately, or request a stop for a running one. A running render stops at the next layer and removes its partial page; short operations finish normally.',inputSchema:z.object({jobId:z.string().uuid()})},async({jobId})=>{
     try{return textResult(summary(broker.cancel(jobId)));}catch(error){return faultResult(error);}
   });
   return server;
 }
 
 async function main():Promise<void>{
-  const bridge=await startBridgeServer();
+  const bridge=await startBridgeServer({autoPort:true});
   const address=bridge.address();
   const tokenPath=process.env.BRIDGE_TOKEN?'configured by BRIDGE_TOKEN':join(homedir(),'.ai-designer-no-figma','bridge-token');
-  console.error(`[ai-designer] loopback plugin bridge listening on http://${address.host}:${address.port}; pairing token: ${tokenPath}`);
+  console.error(`[ai-designer] loopback plugin bridge listening on http://${address.host}:${address.port}; token file: ${tokenPath}; Figma pairing code: ${bridge.pairing.current()}`);
   const handle=serveStdio(()=>{
-    const server=createMcpServer(bridge.broker);
+    const server=createMcpServer(bridge.broker,{pairingCode:()=>bridge.pairing.reveal()});
     server.server.onclose=()=>{void bridge.close();};
     return server;
   });
@@ -143,9 +155,10 @@ async function main():Promise<void>{
   process.once('SIGTERM',()=>{void handle.close();void bridge.close();});
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) void main().catch((error)=>{
+// remote.ts bundles this module too; its import.meta.url then equals the hub entry, so skip the stdio main there.
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href&&!/^remote(-mcp)?\.(ts|mjs|js)$/i.test(basename(process.argv[1]))) void main().catch((error)=>{
   const code=error&&typeof error==='object'&&'code'in error?(error as NodeJS.ErrnoException).code:undefined;
-  if(code==='EADDRINUSE')console.error('[ai-designer] Bridge port 8788 is already in use. Close any older AI Designer MCP process, then restart Claude Desktop.');
+  if(code==='EADDRINUSE')console.error('[ai-designer] All AI Designer bridge ports (8788-8798) are in use. Close older AI Designer MCP processes, then restart your AI app.');
   else console.error(error);
   process.exitCode=1;
 });
