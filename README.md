@@ -73,6 +73,10 @@ The manifest allowlists `http://localhost:8787` for optional Ollama and `http://
 
 The Edit tab follows the same handoff for selection-aware patch JSON. The plugin sends nothing to an AI app; copying and pasting are user-controlled. It accepts a JSON code fence but validates every layer and edit operation before Figma mutation.
 
+## Optional remote AI connection through a tunnel
+
+The local bridge can serve a **separate authenticated Streamable HTTP MCP endpoint** for compatible online AI clients. This is an opt-in testing path; the default copy/paste workflow stays offline and needs no API key. See [remote MCP tunnel setup](docs/integrations/REMOTE-MCP-TUNNEL.md). Run `npm run mcp:remote` on the **same computer as Figma**, keep the plugin open and pair it in Settings. Tunnel **only port 8790**, never the plugin pairing port 8788. The remote client needs support for a custom MCP URL and a bearer token. This does not install the development plugin into browser Figma; that installation/distribution step is separate.
+
 ## Connect Claude Desktop
 
 The Claude Desktop extension package is `artifacts/ai-designer-no-figma-claude.mcpb`. Install it through **Settings → Desktop app → Manage extensions → Advanced settings → Install Extension**, then open Figma plugin **Settings** and click **Connect Claude**. The plugin pairs with the local bridge and confirms when the connection is active. No config-file editing, terminal commands, API key, or manual token copying is part of this user flow. Build the extension with `npm run package:claude`.

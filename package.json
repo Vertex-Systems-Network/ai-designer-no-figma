@@ -26,7 +26,8 @@
     "compatibility:check": "node scripts/compatibility-check.mjs",
     "release:verify": "npm run verify && npm run docs:validate && node scripts/release-verify.mjs",
     "verify": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build && npm run audit:local && npm run package",
-    "audit:local": "node scripts/audit-local.mjs"
+    "audit:local": "node scripts/audit-local.mjs",
+    "mcp:remote": "tsx src/mcp/remote.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
