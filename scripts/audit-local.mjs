@@ -3,7 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 const checks = [];
 const rootManifest = JSON.parse(await readFile('manifest.json','utf8'));
 checks.push(['Figma manifest declares official API version', rootManifest.api === '1.0.0']);
-checks.push(['Plugin ID is omitted rather than invented', !Object.hasOwn(rootManifest,'id')]);
+checks.push(['Figma manifest declares a plugin id (clientStorage needs it)', typeof rootManifest.id === 'string' && rootManifest.id.length > 0]);
 checks.push(['Plugin network permission uses Figma-compatible localhost loopback', rootManifest.networkAccess.allowedDomains.length > 0 && rootManifest.networkAccess.allowedDomains.every((url) => /^http:\/\/localhost(:\d+)?$/.test(url))]);
 checks.push(['Plugin manifest includes only local runtime and bridge origins', rootManifest.networkAccess.allowedDomains.includes('http://localhost:8787') && [8788,8789,8791,8792,8793,8794,8795,8796,8797,8798].every(port=>rootManifest.networkAccess.allowedDomains.includes(`http://localhost:${port}`)) && rootManifest.networkAccess.allowedDomains.every((url) => /^http:\/\/localhost(:\d+)?$/.test(url))]);
 checks.push(['Optional local UI endpoint matches the manifest allowlist', (await readFile('src/ui/main.tsx','utf8')).includes("const defaultUrl = 'http://localhost:8787'")]);

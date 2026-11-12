@@ -1,5 +1,6 @@
 {
   "name": "AI Designer No Figma",
+  "id": "ai-designer-no-figma",
   "api": "1.0.0",
   "main": "dist/plugin.js",
   "ui": "dist/ui.html",
