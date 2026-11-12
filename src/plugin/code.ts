@@ -655,10 +655,12 @@ async function finishImageTransfer(operation:Extract<BridgeOperation,{type:'fini
 }
 async function executeBridgeJob(job:BridgeJob):Promise<void>{
   const operation=job.operation;const label=bridgeOperationLabel(operation);const startedAt=Date.now();
-  const operator=figma.currentUser?.name??'Figma user';
+  // Figma's avatar row only lists real Figma accounts; plugins cannot add to it. Show the agent instead with a
+  // toast that stays up for the whole job, so everyone looking at this screen sees who is editing.
+  const agent=job.agentLabel?.trim()||'AI agent';
   bridgeStatus('working',{jobId:job.jobId,agentLabel:job.agentLabel,operation:label});
   figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-started`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'started',timestamp:startedAt,message:'Plugin accepted the queued operation.'});
-  figma.notify(`${operator} · Working in this file: ${label}`);
+  const working=figma.notify(`🤖 ${agent} is working in this file: ${label}…`,{timeout:Infinity});
   try{
     let result:unknown;
     if(operation.type==='inspect-selection')result={summary:getSelectionSummary()};
@@ -676,13 +678,13 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     else result={spec:await exportSelectedDesign()};
     figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:true,result});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-completed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'completed',timestamp:Date.now(),message:`Operation completed in ${Date.now()-startedAt} ms.`});
-    figma.notify(`${operator} · Done: ${label}`);
+    working.cancel();figma.notify(`🤖 ${agent} · Done: ${label}`);
     bridgeStatus('connected');
   }catch(error){
     const message=error instanceof Error?error.message:'Plugin operation failed.';
     figma.ui.postMessage({type:'bridge-job-result',jobId:job.jobId,ok:false,error:{code:message.startsWith('RENDER_CANCELLED:')?'RENDER_CANCELLED':'PLUGIN_OPERATION_FAILED',message}});
     figma.ui.postMessage({type:'agent-event',id:`${job.jobId}-failed`,jobId:job.jobId,agentLabel:job.agentLabel,operation:label,status:'failed',timestamp:Date.now(),message});
-    figma.notify(`${operator} · Failed: ${message.slice(0,140)}`);
+    working.cancel();figma.notify(`🤖 ${agent} · Failed: ${message.slice(0,140)}`,{error:true});
     bridgeStatus('connected');
   }
 }

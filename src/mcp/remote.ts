@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { mkdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server';
 import { startBridgeServer } from '../bridge/server';
@@ -27,10 +28,16 @@ export async function startRemoteMcpServer(broker:JobBroker,options:{host?:strin
   let active=0;
   const server=createServer(async(req,res)=>{
     res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
-    if(req.url!=='/mcp'||req.method!=='POST'){res.writeHead(404).end();return;}
+    // Two ways in: /mcp with a Bearer header (desktop clients), or /mcp/<secret> for browser AIs
+    // (ChatGPT, Claude.ai) whose connector forms cannot send custom headers. Both use the same secret.
+    const path=(req.url??'').split('?')[0]??'';
+    const pathSecret=path.startsWith('/mcp/')?path.slice(5):undefined;
+    if(path!=='/mcp'&&pathSecret===undefined){res.writeHead(404).end();return;}
+    if(req.method!=='POST'){res.writeHead(405,{Allow:'POST'}).end();return;}
     if(req.headers.origin){res.writeHead(403).end();return;}
     const authorization=req.headers.authorization??'';
-    if(!authorization.startsWith('Bearer ')||!equal(authorization.slice(7),token)){res.writeHead(401,{'WWW-Authenticate':'Bearer'}).end();return;}
+    const authorized=pathSecret!==undefined?equal(pathSecret,token):authorization.startsWith('Bearer ')&&equal(authorization.slice(7),token);
+    if(!authorized){res.writeHead(401,{'WWW-Authenticate':'Bearer'}).end();return;}
     if(active>=8){res.writeHead(429).end();return;}
     active++;
     try{await handle(req,res,broker,options.pairingCode);}catch{if(!res.headersSent)res.writeHead(400).end();else res.destroy();}finally{active--;}
@@ -64,13 +71,28 @@ export async function startRemoteServices(){
   try{const remote=await startRemoteMcpServer(bridge.broker,{pairingCode:()=>bridge.pairing.reveal()});return{bridge,remote};}
   catch(error){await bridge.close();throw error;}
 }
+/** Browser mode: expose only the remote MCP port through a Cloudflare quick tunnel and print the connector URL. */
+export function connectorUrl(tunnelOutput:string,secret:string):string|undefined{
+  const match=/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(tunnelOutput);return match?`${match[0]}/mcp/${secret}`:undefined;
+}
+function startTunnel(port:number,secret:string){
+  const child=spawn('cloudflared',['tunnel','--no-autoupdate','--url',`http://127.0.0.1:${port}`],{stdio:['ignore','pipe','pipe']});
+  let shown=false;
+  const watch=(chunk:Buffer)=>{if(shown)return;const url=connectorUrl(chunk.toString(),secret);if(url){shown=true;console.error(`\n[ai-designer] BROWSER MODE READY. Paste this URL into ChatGPT (Developer mode → Create connector) or Claude.ai (Settings → Connectors → Add custom connector):\n\n    ${url}\n\n[ai-designer] Anyone with this URL can drive your paired Figma file. Do not share it. Stop with Ctrl+C.`);}};
+  child.stdout.on('data',watch);child.stderr.on('data',watch);
+  child.on('error',error=>{console.error((error as NodeJS.ErrnoException).code==='ENOENT'?'[ai-designer] cloudflared is not installed. Install it (winget install Cloudflare.cloudflared / brew install cloudflared), then run npm run mcp:browser again. Local mode keeps working.':`[ai-designer] Tunnel failed: ${error.message}`);});
+  child.on('exit',code=>{if(code)console.error(`[ai-designer] Tunnel stopped (exit ${code}). Browser AIs are disconnected; local mode keeps working.`);});
+  return child;
+}
 async function main(){
   const {bridge,remote}=await startRemoteServices();
   console.error(`[ai-designer] Figma pairing bridge on ${bridge.address().host}:${bridge.address().port}; remote MCP on http://${remote.address().host}:${remote.address().port}/mcp`);
   console.error(`[ai-designer] Remote bearer secret stored at ${tokenPath()}; tunnel only port ${remote.address().port}, never the pairing bridge.`);
+  console.error(`[ai-designer] Browser AI (ChatGPT / Claude.ai) connector path: /mcp/${await remoteToken()} — append it to your HTTPS tunnel URL. Treat that URL like a password.`);
   console.error(`[ai-designer] Figma pairing code: ${bridge.pairing.current()} (also in ~/.ai-designer-no-figma/pairing-code-${bridge.address().port}). Press Enter here for a new code.`);
   await writeHubInfo(`http://${remote.address().host}:${remote.address().port}/mcp`);
   if(process.stdin.isTTY){process.stdin.on('data',()=>{void bridge.pairing.reset().then(code=>console.error(`[ai-designer] New Figma pairing code: ${code}`));});}
-  const shutdown=()=>{void remote.close().then(()=>bridge.close());};process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);
+  const tunnel=process.argv.includes('--tunnel')?startTunnel(remote.address().port,await remoteToken()):undefined;
+  const shutdown=()=>{tunnel?.kill();void remote.close().then(()=>bridge.close());};process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)void main().catch(error=>{console.error(error);process.exitCode=1;});

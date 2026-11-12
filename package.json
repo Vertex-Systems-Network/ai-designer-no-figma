@@ -30,6 +30,7 @@
     "mcp:remote": "tsx src/mcp/remote.ts",
     "setup:clients": "node scripts/setup-clients.mjs",
     "mcp:hub": "tsx src/mcp/remote.ts",
+    "mcp:browser": "tsx src/mcp/remote.ts --tunnel",
     "bench": "tsx tools/benchmark/benchmark.ts"
   },
   "dependencies": {

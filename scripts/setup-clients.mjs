@@ -13,6 +13,7 @@ import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const home = homedir();
@@ -60,7 +61,8 @@ async function hubToken({ required = false } = {}) {
 
 /** Each client: config file, JSON key, and how a stdio/http entry looks. Formats follow each app's MCP documentation. */
 const clients = {
-  'claude-desktop': { label: 'Claude Desktop', files: claudeDesktopConfigs(), key: 'mcpServers', stdio: (s) => s, http: null, note: 'Easiest: double-click artifacts/ai-designer-no-figma-claude.mcpb to install/update the extension instead (do not use both). Fully quit Claude Desktop from the tray and reopen after changes.' },
+  // Claude Desktop only launches stdio servers, so HTTP (shared hub) mode goes through mcp-remote with the secret in the path.
+  'claude-desktop': { label: 'Claude Desktop', files: claudeDesktopConfigs(), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ command: 'npx', args: ['-y', 'mcp-remote', `${u.replace(/\/$/, '')}/${t}`] }), guardRunning: 'Claude', note: 'Use this entry OR the .mcpb extension (artifacts/ai-designer-no-figma-claude.mcpb), never both: two copies start two bridges and pairing codes stop matching. Fully quit Claude Desktop (tray → Quit) before writing, then reopen.' },
   'claude-code': { label: 'Claude Code (CLI)', command: (m, t) => m === 'http' ? `claude mcp add --scope user --transport http ${NAME} ${hubUrl} --header "Authorization: Bearer ${t}"` : `claude mcp add --scope user ${NAME} -- "${stdio.command}" "${serverScript}"` },
   cursor: { label: 'Cursor', file: join(home, '.cursor', 'mcp.json'), key: 'mcpServers', stdio: (s) => s, http: (u, t) => ({ url: u, headers: { Authorization: `Bearer ${t}` } }) },
   vscode: { label: 'VS Code (GitHub Copilot agent mode)', file: join(userConfig, 'Code', 'User', 'mcp.json'), key: 'servers', stdio: (s) => ({ type: 'stdio', ...s }), http: (u, t) => ({ type: 'http', url: u, headers: { Authorization: `Bearer ${t}` } }) },
@@ -72,6 +74,14 @@ const clients = {
   zed: { label: 'Zed', printOnly: true, file: join(userConfig, 'zed', 'settings.json'), key: 'context_servers', stdio: (s) => ({ command: s.command, args: s.args }), http: null, note: 'Zed settings allow comments, so add this block by hand under "context_servers".' },
   custom: { label: 'Any other MCP client (custom)', custom: true },
 };
+
+/** True when a desktop app with this process name is running (Windows tasklist, macOS/Linux pgrep). */
+function appRunning(name) {
+  try {
+    if (platform() === 'win32') return execFileSync('tasklist', ['/FI', `IMAGENAME eq ${name}.exe`, '/NH'], { encoding: 'utf8' }).toLowerCase().includes(`${name.toLowerCase()}.exe`);
+    execFileSync('pgrep', ['-x', name], { stdio: 'ignore' }); return true;
+  } catch { return false; }
+}
 
 function fail(message) { console.error(`\n✖ ${message}`); process.exit(1); }
 
@@ -128,6 +138,7 @@ async function write(id) {
     console.log(`\n✔ ${client.label}: added to ${client.toml}. Restart Codex.`);
     return;
   }
+  if (client.guardRunning && !flag('force') && appRunning(client.guardRunning)) fail(`${client.label} is running. It rewrites its config while open and would drop this entry. Quit it fully (tray icon → Quit; check Task Manager), then run this again. Use --force to write anyway.`);
   const entry = await entryFor(client);
   for (const file of targetsOf(client)) {
     let data = {};
@@ -137,7 +148,9 @@ async function write(id) {
     }
     data[client.key] = { ...(data[client.key] ?? {}), [NAME]: entry };
     await backupAndWrite(file, `${JSON.stringify(data, null, 2)}\n`, mode === 'http');
-    console.log(`✔ ${client.label}: wrote "${NAME}" into ${file}`);
+    const check = JSON.parse(await readFile(file, 'utf8'));
+    if (!check?.[client.key]?.[NAME]) fail(`${file} does not contain "${NAME}" after writing. Another program changed it; quit ${client.label} and retry.`);
+    console.log(`✔ ${client.label}: wrote "${NAME}" into ${file} (verified)`);
   }
   console.log('\nRestart the app (fully quit it first).');
 }
