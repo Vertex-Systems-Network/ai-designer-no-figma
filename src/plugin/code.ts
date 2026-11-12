@@ -705,6 +705,19 @@ function sendCurrentUser():void{
 figma.on('selectionchange', inspectSelection);
 figma.ui.onmessage = async (message: UiToHost) => {
   try {
+    // The plugin iframe has an opaque origin, so its localStorage is not reliably kept between runs.
+    // Settings and pairing tokens are mirrored into figma.clientStorage, which is scoped to this plugin.
+    if (message.type === 'storage-request') {
+      const keys = (await figma.clientStorage.keysAsync()).filter((key) => key.startsWith('adnf-'));
+      const values: Record<string, unknown> = {};
+      for (const key of keys) values[key] = await figma.clientStorage.getAsync(key);
+      figma.ui.postMessage({ type: 'storage-snapshot', values });
+      return;
+    }
+    if (message.type === 'storage-set') {
+      if (typeof message.key === 'string' && /^adnf-[a-z0-9-]{1,40}$/.test(message.key)) await figma.clientStorage.setAsync(message.key, message.value);
+      return;
+    }
     if (message.type === 'resize-ui') {
       const width = Math.max(360, Math.min(760, Math.round(message.width)));
       const height = Math.max(520, Math.min(1000, Math.round(message.height)));

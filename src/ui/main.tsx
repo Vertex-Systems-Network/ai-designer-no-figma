@@ -52,8 +52,31 @@ function HeaderIcon({kind}:{kind:'sun'|'moon'|'settings'|'resize'|'refresh'|'cop
   if(kind==='undo')return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h7a5 5 0 1 1-4.7 6.7M4 7l3-3M4 7l3 3"/></svg>;
   return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m4 10.5 4 4 8-9"/></svg>;
 }
-function load<T>(key: string, fallback: T): T { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
-function save(key: string, value: unknown): void { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage; keep the current session usable. */ } }
+// Durable copy from figma.clientStorage (see bootstrap below); localStorage is only a best-effort cache.
+const durable = new Map<string, unknown>();
+function load<T>(key: string, fallback: T): T {
+  if (durable.has(key)) return durable.get(key) as T;
+  try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; }
+}
+function save(key: string, value: unknown): void {
+  durable.set(key, value);
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Figma may deny iframe storage. */ }
+  try { parent.postMessage({ pluginMessage: { type: 'storage-set', key, value } }, '*'); } catch { /* outside Figma */ }
+}
+/** Wait briefly for the plugin host's stored settings so pairing survives plugin restarts. */
+function loadDurableSettings(timeoutMs = 1500): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { window.removeEventListener('message', onMessage); resolve(); }, timeoutMs);
+    function onMessage(event: MessageEvent) {
+      const msg = event.data?.pluginMessage as { type?: string; values?: Record<string, unknown> } | undefined;
+      if (msg?.type !== 'storage-snapshot') return;
+      for (const [key, value] of Object.entries(msg.values ?? {})) durable.set(key, value);
+      clearTimeout(timer); window.removeEventListener('message', onMessage); resolve();
+    }
+    window.addEventListener('message', onMessage);
+    try { parent.postMessage({ pluginMessage: { type: 'storage-request' } }, '*'); } catch { clearTimeout(timer); resolve(); }
+  });
+}
 function ensureIds<T extends {id?:string}>(values:T[],prefix:string):(T&{id:string})[]{const used=new Set<string>();return values.map(value=>{let id=typeof value.id==='string'&&value.id.trim()?value.id: createLocalId(prefix);if(used.has(id))id=createLocalId(prefix);used.add(id);return{...value,id};});}
 function App() {
   const [tab, setTab] = useState<Tab>('Generate');
@@ -539,8 +562,8 @@ window.addEventListener('unhandledrejection', event => showRuntimeFailure(event.
 try {
   const container = document.getElementById('root');
   if (!container) throw new Error('Plugin UI root element is missing.');
-  createRoot(container, { onUncaughtError: error => showRuntimeFailure(error) })
-    .render(<React.StrictMode><App/></React.StrictMode>);
+  void loadDurableSettings().then(() => createRoot(container, { onUncaughtError: error => showRuntimeFailure(error) })
+    .render(<React.StrictMode><App/></React.StrictMode>));
 } catch (error) {
   showRuntimeFailure(error);
 }

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed (found live): the pairing token, settings and asset-library access were lost on every plugin restart, because the iframe's `localStorage` is not persistent. They are now stored in `figma.clientStorage`.
 - KI-003 live verified: in a rebuilt plugin, Undo of a set-bounds + rename + set-fill patch now restores the name, width and token-bound fill without errors.
 - Fixed (found live): Undo of a bounds/rename/fill patch could fail half-way with an unloaded-font error, leaving the name and width changed. Patch apply and undo now load every text target's fonts first and rewrite text only when it changed.
 - Imported pages get a unique name (`Name (2)`) instead of duplicating an existing page name; seen live when an exported selection was re-imported.
