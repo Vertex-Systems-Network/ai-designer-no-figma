@@ -7,6 +7,8 @@ import { parseEditPatch } from '../shared/edit-patch';
 import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
 import { parseDesignPlan } from '../shared/design-plan';
 import { composeResponsivePlan } from '../shared/responsive-composition';
+import { buildComponentKit } from '../shared/component-kit';
+import { parseWithMigration } from '../shared/spec-migrations';
 import { parseComponentFamily } from '../shared/component-family';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
@@ -95,10 +97,19 @@ export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promi
     const findings=auditDesignQuality(checked.value);
     return textResult({valid:true,findings,summary:{warnings:findings.filter(item=>item.severity==='warning').length,suggestions:findings.filter(item=>item.severity==='suggestion').length},visualVerification:'NOT TESTED'});
   });
+  server.registerTool('figma_build_component_kit',{description:'Build a reusable native component kit (primary/secondary buttons, text input, metric card, top navigation, table row and a usage frame of real instances) bound to named color and text-style tokens. Colors are adjusted to WCAG AA contrast. Set insert:true to queue it into the paired Figma file; otherwise the validated schema 1.0 JSON is returned for review or editing.',inputSchema:z.object({brandColor:z.string().regex(/^#[0-9A-Fa-f]{6}$/),name:z.string().min(1).max(80).optional(),fontFamily:z.string().min(1).max(80).optional(),typeScale:z.tuple([z.number().min(8).max(96),z.number().min(8).max(96),z.number().min(8).max(96),z.number().min(8).max(96),z.number().min(8).max(160)]).optional(),spacing:z.array(z.number().min(1).max(128)).min(4).max(12).optional(),radius:z.number().min(0).max(48).optional(),theme:z.enum(['light','dark']).optional(),insert:z.boolean().optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{
+      const spec=buildComponentKit({brandColor:args.brandColor,...(args.name?{name:args.name}:{}),...(args.fontFamily?{fontFamily:args.fontFamily}:{}),...(args.typeScale?{typeScale:args.typeScale}:{}),...(args.spacing?{spacing:args.spacing}:{}),...(args.radius!==undefined?{radius:args.radius}:{}),...(args.theme?{theme:args.theme}:{})});
+      const checked=parseDesignSpec(JSON.stringify(spec));
+      if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Generated kit failed validation.',issues:checked.issues}},true);
+      if(!args.insert)return textResult({json:JSON.stringify(checked.value),findings:auditDesignQuality(checked.value)});
+      return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))),findings:auditDesignQuality(checked.value)});
+    }catch(error){return faultResult(error);}
+  });
   server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Creates a new page and selects its first root frame so you can immediately capture and visually inspect it.',inputSchema:z.object({json:z.string().min(1).max(512_000),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    const checked=parseDesignSpec(args.json);
+    const {result:checked,report}=await parseWithMigration(args.json);
     if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation.',issues:checked.issues}},true);
-    try{return textResult(summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))));}catch(error){return faultResult(error);}
+    try{return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(args))),...(report?{migrated:report}:{})});}catch(error){return faultResult(error);}
   });
   server.registerTool('figma_apply_patch',{description:'Validate and queue explicit text/fill/name/bounds/Auto Layout/component-swap/image-replacement operations. The plugin checks every target against its current selection before applying. After a patch, capture the frame again and inspect the returned image.',inputSchema:z.object({json:z.string().min(1).max(262_144),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const checked=parseEditPatch(args.json);

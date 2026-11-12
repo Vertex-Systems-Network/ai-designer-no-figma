@@ -1,5 +1,6 @@
 import { buildDesignPrompt, type DesignPromptSettings } from '../shared/prompts';
 import { auditDesignQuality, parseDesignSpec, type DesignQualityFinding } from '../shared/spec';
+import { parseWithMigration } from '../shared/spec-migrations';
 
 /**
  * Provider-independent design loop used when the plugin talks to a model directly
@@ -57,6 +58,10 @@ export async function* runDesignAgent(brief: string, settings: DesignPromptSetti
 
   yield { type: 'stage', stage: 'validate', message: 'Validating against design schema 1.0…' };
   let result = parseDesignSpec(text);
+  if (!result.valid) {
+    const migrated = await parseWithMigration(text);
+    if (migrated.result.valid && migrated.report) { result = migrated.result; text = JSON.stringify(migrated.result.value); yield { type: 'stage', stage: 'repair', message: `Normalised ${migrated.report.applied.length} legacy field(s) without another model call.` }; }
+  }
   let rounds = 0;
   while (!result.valid && rounds < maxRepairs) {
     rounds++;

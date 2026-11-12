@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Issue #2: `buildComponentKit` and the MCP tool `figma_build_component_kit` create token-bound native components (buttons, input, card, navigation, table row, usage instances) with WCAG AA colors. The Design System tab can now build the kit in Figma and import or export presets.
+- Issue #5: added a versioned migration layer (`spec-migrations.ts`) that upgrades loose or unversioned model output to schema 1.0 and reports each change. MCP import and the design agent use it.
+- Issue #7: `npm run bench` performance fixtures; results are in `docs/PERFORMANCE.md`.
+- Issue #3: the patch preview now lists the selected layers that stay unchanged.
+- Qodo review fixes: runtime bearer auth through a terminal pairing code, bridge instance identity, per-port pairing codes, trusted lockout reset, a hub URL file, owner-only token configs, and the stdio entry guard.
 - Security: plugin pairing now requires a 6-digit user code (MCP tool `figma_get_pairing_code`, file `~/.ai-designer-no-figma/pairing-code`); 5 wrong codes lock pairing for 60 s and rotate the code. Previously any web page sending `Origin: null` could obtain the plugin bridge token.
 - Fixed: the hub (`mcp:remote` / `mcp:hub`) also started the stdio server's bridge, creating two bridges with different codes.
 - Fixed: the local runtime rejected the Figma plugin iframe's `null` origin, so model generation could not work inside Figma. Generation is now limited to one job at a time.

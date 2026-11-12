@@ -29,7 +29,8 @@
     "audit:local": "node scripts/audit-local.mjs",
     "mcp:remote": "tsx src/mcp/remote.ts",
     "setup:clients": "node scripts/setup-clients.mjs",
-    "mcp:hub": "tsx src/mcp/remote.ts"
+    "mcp:hub": "tsx src/mcp/remote.ts",
+    "bench": "tsx tools/benchmark/benchmark.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
