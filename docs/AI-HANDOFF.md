@@ -76,3 +76,7 @@ User imported the smoke-test schema in Figma Desktop, showing a native Test Card
 ## 2026-11-12 autonomous round-trip follow-up
 
 Added a host-behavior regression that renders the exact smoke-test frame through the real plugin module, mutates the created native text node to “Edited in Figma” in the mocked host, then exports the selected frame and checks the updated text. This checks the complete local render/edit/export code path rather than export alone. Mocked Plugin API behavior is not a new observation of the user's updated desktop build; that rerun remains unverified. Next: Phase 6 live acceptance if a controllable paired editor is accessible; otherwise use this fixture to resolve concrete reports.
+
+## 2026-11-12 optional remote AI MCP tunnel
+
+Added `npm run mcp:remote`: shared local pairing bridge (8788) plus a separate loopback Streamable HTTP MCP endpoint (8790/mcp), authenticated by an independently generated bearer secret. A tunnel exposes only 8790 to a compatible cloud AI client; the Figma plugin remains local and open. Protocol tests cover unauthorized/origin rejection, loopback binding and remote call → paired plugin simulation → returned job result. Live browser Figma, Cloudflare/ngrok transport, and actual online AI client authentication are NOT TESTED. See [`REMOTE-MCP-TUNNEL.md`](integrations/REMOTE-MCP-TUNNEL.md). Next: live pairing/tunnel acceptance with a compatible client; no Figma hosted MCP token.

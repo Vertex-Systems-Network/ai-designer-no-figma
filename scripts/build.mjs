@@ -42,6 +42,7 @@ await esbuild({
 });
 await esbuild({ entryPoints: ['src/runtime/server.ts'], bundle: true, outfile: 'dist/runtime.mjs', platform: 'node', target: 'node20', format: 'esm', packages: 'external' });
 await esbuild({ entryPoints: ['src/mcp/server.ts'], bundle: true, outfile: 'dist/mcp.mjs', platform: 'node', target: 'node20', format: 'esm', packages: 'external' });
+await esbuild({ entryPoints: ['src/mcp/remote.ts'], bundle: true, outfile: 'dist/remote-mcp.mjs', platform: 'node', target: 'node20', format: 'esm', packages: 'external' });
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 manifest.main = 'plugin.js';
 manifest.ui = 'ui.html';

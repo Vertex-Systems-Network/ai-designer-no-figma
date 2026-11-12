@@ -9,9 +9,9 @@ const [zipBytes, checksums, manifest, buildReport] = await Promise.all([
 const digest = createHash('sha256').update(zipBytes).digest('hex');
 if (!checksums.includes(`${digest}  ai-designer-no-figma-0.1.0.zip`)) throw new Error('Archive SHA-256 does not match SHA256SUMS.txt.');
 if (buildReport.sha256 !== digest) throw new Error('Archive SHA-256 does not match BUILD-REPORT.json.');
-for (const path of [`dist/${manifest.main}`,`dist/${manifest.ui}`,'dist/runtime.mjs','dist/mcp.mjs']) await access(path);
+for (const path of [`dist/${manifest.main}`,`dist/${manifest.ui}`,'dist/runtime.mjs','dist/mcp.mjs','dist/remote-mcp.mjs']) await access(path);
 const listing = execFileSync('unzip',['-Z1',archive],{encoding:'utf8'}).split(/\r?\n/).filter(Boolean);
-for (const path of ['dist/manifest.json','dist/plugin.js','dist/ui.html','dist/runtime.mjs','dist/mcp.mjs','AGENTS.md','docs/FEATURE-REGISTRY.json','scripts/repository-audit.mjs','tools/repository-audit/audit.test.ts']) {
+for (const path of ['dist/manifest.json','dist/plugin.js','dist/ui.html','dist/runtime.mjs','dist/mcp.mjs','dist/remote-mcp.mjs','AGENTS.md','docs/FEATURE-REGISTRY.json','scripts/repository-audit.mjs','tools/repository-audit/audit.test.ts']) {
   if (!listing.includes(path)) throw new Error(`Release archive is missing ${path}.`);
 }
 execFileSync('unzip',['-t',archive],{stdio:'ignore'});
