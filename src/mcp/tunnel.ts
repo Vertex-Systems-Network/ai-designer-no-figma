@@ -78,11 +78,21 @@ function cliTunnel(command: string, args: string[], provider: 'ngrok' | 'cloudfl
   });
 }
 
-async function localTunnel(port: number, subdomain: string): Promise<OpenTunnel> {
+/** True when localtunnel gave us the subdomain we asked for (it silently hands out a random one when the name is busy). */
+export const hasSubdomain = (url: string, subdomain: string) => new URL(url).hostname.split('.')[0] === subdomain;
+
+/**
+ * localtunnel keeps a name reserved for a short while after the previous connection ends (for example right after a restart),
+ * and then hands out a random name instead. Retry for up to ~60 s so the saved address survives restarts; only then accept a random one.
+ */
+async function localTunnel(port: number, subdomain: string, sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))): Promise<OpenTunnel> {
   const { default: localtunnel } = await import('localtunnel');
-  const tunnel = await localtunnel({ port, subdomain, local_host: '127.0.0.1' });
-  const closed = new Promise<string>((done) => { tunnel.on('close', () => done('localtunnel closed')); tunnel.on('error', (error: Error) => done(`localtunnel error: ${error.message}`)); });
-  return { url: tunnel.url, closed, close: () => tunnel.close() };
+  for (let attempt = 0; ; attempt++) {
+    const tunnel = await localtunnel({ port, subdomain, local_host: '127.0.0.1' });
+    if (!hasSubdomain(tunnel.url, subdomain) && attempt < 5) { tunnel.close(); await sleep(10_000); continue; }
+    const closed = new Promise<string>((done) => { tunnel.on('close', () => done('localtunnel closed')); tunnel.on('error', (error: Error) => done(`localtunnel error: ${error.message}`)); });
+    return { url: tunnel.url, closed, close: () => tunnel.close() };
+  }
 }
 
 export type Openers = { [K in Exclude<TunnelProvider, 'auto'>]: () => Promise<OpenTunnel> };
@@ -110,8 +120,8 @@ export function superviseTunnel(options: { config: TunnelConfig; secret: string;
   const pause = (ms: number) => options.wait ? options.wait(ms) : new Promise<void>((done) => { const timer = setTimeout(done, ms); wake = () => { clearTimeout(timer); done(); }; });
   // Every opener gets a deadline; a tunnel that arrives after the deadline is closed instead of leaking.
   const open = (provider: Exclude<TunnelProvider, 'auto'>) => new Promise<OpenTunnel>((resolve, reject) => {
-    let late = false;
-    const timer = setTimeout(() => { late = true; reject(new Error(`no tunnel within ${Math.round(openTimeoutMs / 1000)} s`)); }, openTimeoutMs);
+    let late = false; const limit = provider === 'localtunnel' && options.openTimeoutMs === undefined ? 90_000 : openTimeoutMs;
+    const timer = setTimeout(() => { late = true; reject(new Error(`no tunnel within ${Math.round(limit / 1000)} s`)); }, limit);
     options.openers[provider]().then((tunnel) => { if (late || stopped) tunnel.close(); else { clearTimeout(timer); resolve(tunnel); } }, (error: unknown) => { clearTimeout(timer); reject(error); });
   });
   const run = async () => {
