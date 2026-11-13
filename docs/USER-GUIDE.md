@@ -126,6 +126,7 @@ npm run mcp:browser
 That single command starts the hub **and** a tunnel to it, and keeps them running:
 
 - **Fixed address.** On the first run it picks a permanent name (for example `https://adnf-3f9c1a2b4d.loca.lt`) and saves it in `~/.ai-designer-no-figma/browser-mode.json`. Every later start uses the same address, so you add the connector **once**.
+- **Same address after a restart.** localtunnel briefly keeps a name reserved after a connection ends, so a quick restart could get a random name. The hub now closes the tunnel cleanly on Ctrl+C and, if the saved name is still reserved, retries it for about a minute before accepting another name. The secret part of the URL only changes if you delete `remote-mcp-token`.
 - **Self-healing.** If the tunnel drops (network blip, sleep, provider restart) it reconnects by itself with back-off. If the address ever has to change, the terminal prints `TUNNEL ADDRESS CHANGED` with the new URL.
 - **Provider fallback.** `auto` mode tries an ngrok static domain (if configured), then localtunnel (nothing to install), then Cloudflare.
 

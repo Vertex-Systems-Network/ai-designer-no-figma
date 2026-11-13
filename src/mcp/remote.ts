@@ -97,6 +97,8 @@ async function main(){
         onReady:(url,changed)=>console.error(`\n[ai-designer] ${changed?'TUNNEL ADDRESS CHANGED, update the connector URL in ChatGPT / Claude.ai:':'BROWSER MODE READY. Connector URL for ChatGPT (Developer mode → Create) or Claude.ai (Settings → Connectors → Add custom connector):'}\n\n    ${url}\n\n[ai-designer] This URL is a password for your paired Figma file. Do not share or open it in a browser. Stop with Ctrl+C.\n`)});
     }catch(error){console.error(`[ai-designer] Browser mode could not start: ${error instanceof Error?error.message:String(error)}`);shutdown();process.exitCode=1;return;}
   }
-  process.once('SIGINT',shutdown);process.once('SIGTERM',shutdown);
+  // Close the tunnel before exiting so the provider frees the saved name and the next start gets the same address.
+  const exit=()=>{shutdown();(setTimeout(()=>process.exit(0),1500) as unknown as {unref?:()=>void}).unref?.();};
+  process.once('SIGINT',exit);process.once('SIGTERM',exit);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)void main().catch(error=>{console.error(error);process.exitCode=1;});

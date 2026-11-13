@@ -79,3 +79,11 @@ describe('browser-mode tunnel hardening', () => {
     expect(Date.now() - started).toBeLessThan(500);
   });
 });
+
+describe('fixed localtunnel name', () => {
+  it('detects when localtunnel handed out a different name', async () => {
+    const { hasSubdomain } = await import('./tunnel');
+    expect(hasSubdomain('https://adnf-1c6e2beabd.loca.lt', 'adnf-1c6e2beabd')).toBe(true);
+    expect(hasSubdomain('https://quick-cats-sing.loca.lt', 'adnf-1c6e2beabd')).toBe(false);
+  });
+});
