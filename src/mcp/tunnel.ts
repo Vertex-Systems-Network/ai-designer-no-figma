@@ -85,23 +85,24 @@ export const hasSubdomain = (url: string, subdomain: string) => new URL(url).hos
  * localtunnel keeps a name reserved for a short while after the previous connection ends (for example right after a restart),
  * and then hands out a random name instead. Retry for up to ~60 s so the saved address survives restarts; only then accept a random one.
  */
-async function localTunnel(port: number, subdomain: string, sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))): Promise<OpenTunnel> {
+async function localTunnel(port: number, subdomain: string, log: (line: string) => void = () => {}, sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))): Promise<OpenTunnel> {
   const { default: localtunnel } = await import('localtunnel');
+  log(`Opening tunnel https://${subdomain}.loca.lt …`);
   for (let attempt = 0; ; attempt++) {
     const tunnel = await localtunnel({ port, subdomain, local_host: '127.0.0.1' });
-    if (!hasSubdomain(tunnel.url, subdomain) && attempt < 5) { tunnel.close(); await sleep(10_000); continue; }
+    if (!hasSubdomain(tunnel.url, subdomain) && attempt < 5) { tunnel.close(); log(`Saved address is still held by the previous session; retrying in 10 s (${attempt + 1}/5)…`); await sleep(10_000); continue; }
     const closed = new Promise<string>((done) => { tunnel.on('close', () => done('localtunnel closed')); tunnel.on('error', (error: Error) => done(`localtunnel error: ${error.message}`)); });
     return { url: tunnel.url, closed, close: () => tunnel.close() };
   }
 }
 
 export type Openers = { [K in Exclude<TunnelProvider, 'auto'>]: () => Promise<OpenTunnel> };
-export function defaultOpeners(port: number, config: TunnelConfig, spawnFn: typeof spawn = spawn): Openers {
+export function defaultOpeners(port: number, config: TunnelConfig, spawnFn: typeof spawn = spawn, log: (line: string) => void = () => {}): Openers {
   return {
     ngrok: () => config.ngrokDomain
       ? cliTunnel('ngrok', ['http', '--log=stdout', `--url=${config.ngrokDomain}`, String(port)], 'ngrok', spawnFn)
       : cliTunnel('ngrok', ['http', '--log=stdout', String(port)], 'ngrok', spawnFn),
-    localtunnel: () => localTunnel(port, config.subdomain),
+    localtunnel: () => localTunnel(port, config.subdomain, log),
     cloudflare: () => cliTunnel('cloudflared', ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${port}`], 'cloudflare', spawnFn),
   };
 }
