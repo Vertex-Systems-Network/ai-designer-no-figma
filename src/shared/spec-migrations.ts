@@ -140,7 +140,11 @@ function normalizePaint(value: unknown, path: string, note: Note): unknown {
 function normalizeAliases(node: Record<string, unknown>, path: string, note: Note): void {
   if (node.paints === undefined && Array.isArray(node.fills)) { node.paints = node.fills; delete node.fills; note(`${path}: fills → paints`); }
   if (Array.isArray(node.paints)) node.paints = node.paints.map((paint, index) => normalizePaint(paint, `${path}.paints[${index}]`, note));
-  for (const key of ['fill', 'color', 'stroke']) { const c = normalizeColor(node[key]); if (c && c.color !== node[key]) { node[key] = c.color; note(`${path}: ${key} colour normalised`); if (c.opacity !== undefined && key === 'stroke' && node.strokeOpacity === undefined) node.strokeOpacity = c.opacity; } }
+  for (const key of ['fill', 'color', 'stroke']) { const c = normalizeColor(node[key]); if (c && c.color !== node[key]) { node[key] = c.color; note(`${path}: ${key} colour normalised`); if (c.opacity !== undefined && c.opacity < 1) {
+        if (key === 'stroke') { if (node.strokeOpacity === undefined) node.strokeOpacity = c.opacity; }
+        // Alpha in fill/text colour becomes a solid paint with opacity (paints win over fill/color when rendering).
+        else if (node.paints === undefined) { node.paints = [{ type: 'solid', color: c.color, opacity: c.opacity }]; note(`${path}: ${key} alpha → paints opacity`); }
+      } } }
   // corner radius
   if (node.radius === undefined && typeof node.cornerRadius === 'number') { node.radius = node.cornerRadius; delete node.cornerRadius; note(`${path}: cornerRadius → radius`); }
   const corners = ['topLeftRadius', 'topRightRadius', 'bottomRightRadius', 'bottomLeftRadius'];

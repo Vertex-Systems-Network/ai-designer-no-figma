@@ -164,6 +164,10 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     (node as FrameNode).clipsContent = false;
   } else if(spec.type==='component') {
     node=figma.createComponent();
+  } else if (spec.layout && spec.layout.mode !== 'none') {
+    // A group with Auto Layout keeps the frame representation (Figma groups cannot lay out children).
+    node = figma.createFrame();
+    (node as FrameNode).fills = [];
   } else {
     // group: children use coordinates relative to the group's own x/y. Render them into the parent at the
     // group's offset, then wrap them in a real Figma group, whose bounds Figma derives from the children.
@@ -172,6 +176,8 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     for (const child of spec.children) members.push(await renderNode({ ...child, x: (child.x ?? 0) + offsetX, y: (child.y ?? 0) + offsetY } as DesignNodeSpec, parent, control, fontFallback));
     if (spec.fill || spec.gradient || spec.paints) warn(`Group "${spec.name}" cannot have fills in Figma; wrap the children in a frame instead.`);
     if (!members.length) { warn(`Group "${spec.name}" is empty and was skipped.`); const placeholder = figma.createFrame(); placeholder.name = spec.name; placeholder.fills = []; parent.appendChild(placeholder); placeholder.resize(Math.max(1, spec.width), Math.max(1, spec.height)); placeholder.x = offsetX; placeholder.y = offsetY; logicalIds.set(placeholder.id, spec.id); return placeholder; }
+    // Figma groups have no constraints of their own; members without explicit constraints inherit the group's.
+    if (spec.constraints) for (const [index, member] of members.entries()) if (!spec.children[index]?.constraints) applyConstraints(member, spec.constraints);
     const group = figma.group(members, parent);
     group.name = spec.name; group.opacity = spec.opacity ?? 1;
     if (spec.rotation !== undefined) group.rotation = spec.rotation;
@@ -192,14 +198,14 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   node.opacity = spec.opacity ?? 1;
   applyConstraints(node,spec.constraints);
   if(spec.fillToken)bindToken(node,spec.fillToken,control);
-  if (spec.type==='frame'||spec.type==='component') {
+  if (spec.type==='frame'||spec.type==='component'||spec.type==='group') {
     applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if(spec.type==='frame'||spec.type==='component')(node as FrameNode).clipsContent=spec.clipsContent??false;
     applyCornerStyle(node,spec);
     if(spec.type==='component')control.components.set(spec.id,node as ComponentNode);
   }
   logicalIds.set(node.id, spec.id);
-  if ((spec.type === 'frame' || spec.type==='component') && 'children' in spec) {
+  if ((spec.type === 'frame' || spec.type==='component' || spec.type==='group') && 'children' in spec) {
     const frame = node as FrameNode;
     applyLayout(frame,spec.layout);
     if(spec.type==='frame'||spec.type==='component')frame.layoutGrids=makeLayoutGrids(spec.layoutGrids);
@@ -303,6 +309,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string, options: Rende
     if (!found || found.type !== 'PAGE') throw new Error(`PAGE_NOT_FOUND: No page with id ${options.targetPageId}.`);
     target = found; await target.loadAsync();
   }
+  const existingIds = new Set(target ? target.children.map((child) => child.id) : []);
   try {
     await prepareDesignSystem(spec,control,fontFallback);
     for (const pageSpec of spec.pages) {
@@ -320,7 +327,8 @@ async function renderSpec(spec: DesignSpec, fontFallback: string, options: Rende
     }
   } catch (error) {
     for (const page of createdPages) page.remove();
-    for (const node of createdNodes) if (!node.removed) node.remove();
+    // Remove everything this render added to an existing page, including partly rendered roots and group members.
+    if (target) for (const child of [...target.children]) if (!existingIds.has(child.id) && !child.removed) child.remove();
     throw error;
   } finally {
     cancelActiveRender = undefined; activeWarnings = undefined;

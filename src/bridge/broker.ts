@@ -81,9 +81,12 @@ export class JobBroker {
     this.expire();
     if (!Array.isArray(operations) || operations.length < 1 || operations.length > this.maxJobs) throw new BridgeFault('INVALID_BATCH','Bridge batch must contain between 1 and the active job limit operations.');
     const sessionId=this.resolveSession(options.sessionId);
+    const root=options.operationId?.trim()||randomUUID();
+    // Retrying the same batch (same root ID, session and operations) returns the jobs already queued.
+    const prior=operations.map((_,index)=>this.jobs.get(this.operationIds.get(`${root}:${index}`)??''));
+    if(prior.every(job=>job)&&prior.every((job,index)=>job!.sessionId===sessionId&&JSON.stringify(job!.operation)===JSON.stringify(operations[index])))return prior.map(job=>structuredClone(job!));
     const activeJobs=[...this.jobs.values()].filter(job=>['queued','running'].includes(job.status)).length;
     if(activeJobs+operations.length>this.maxJobs)throw new BridgeFault('QUEUE_FULL',`Bridge queue can accept ${Math.max(0,this.maxJobs-activeJobs)} more jobs; the batch needs ${operations.length}.`);
-    const root=options.operationId?.trim()||randomUUID();
     const staged=operations.map((operation,index)=>{
       const operationId=`${root}:${index}`;
       if(operationId.length>128)throw new BridgeFault('INVALID_OPERATION_ID','Batch operation IDs must be no longer than 128 characters after their index is added.');

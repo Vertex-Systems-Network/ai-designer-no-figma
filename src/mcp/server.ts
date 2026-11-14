@@ -8,7 +8,8 @@ import { auditDesignQuality, parseDesignSpec } from '../shared/spec';
 import { parseDesignPlan } from '../shared/design-plan';
 import { composeResponsivePlan } from '../shared/responsive-composition';
 import { buildComponentKit } from '../shared/component-kit';
-import { parseWithMigration } from '../shared/spec-migrations';
+import { migrateDesignSpec } from '../shared/spec-migrations';
+import { validateDesignSpec } from '../shared/spec';
 import { parseComponentFamily } from '../shared/component-family';
 import type { EditPatch } from '../shared/protocol';
 import { startBridgeServer } from '../bridge/server';
@@ -119,25 +120,34 @@ export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promi
       return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(withAgent(args)))),findings:auditDesignQuality(checked.value)});
     }catch(error){return faultResult(error);}
   });
-  server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Call figma_get_schema first for every supported property, gradient format and a full example. Images: use "src" (absolute file path or http(s) URL) or "assetRef" from figma_upload_image instead of large base64 — the server uploads them for you. By default each import creates a new page; pass targetPageId to draw into an existing page, or replacePage:true to replace the page with the same name. The result lists created pages, node count and warnings (font substitutions, skipped features).',inputSchema:z.object({json:z.string().min(1).max(512_000),targetPageId:z.string().min(1).max(64).optional(),replacePage:z.boolean().optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+  server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Call figma_get_schema first for every supported property, gradient format and a full example. Images: use "src" (absolute file path or http(s) URL) or "assetRef" from figma_upload_image instead of large base64 — the server uploads them for you. By default each import creates a new page; pass targetPageId to draw into an existing page, or replacePage:true to replace the page with the same name. The result lists created pages, node count and warnings (font substitutions, skipped features).',inputSchema:z.object({json:z.string().min(1).max(512_000),targetPageId:z.string().min(1).max(64).optional(),replacePage:z.boolean().optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(100).optional()})},async(args)=>{
     let raw:unknown;
     try{raw=JSON.parse(args.json.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));}catch{return textResult({error:{code:'INVALID_JSON',message:'Design JSON is not valid JSON. Check commas, quotes and braces.'}},true);}
+    // Normalise first (fills→paints, top-level children, type case…) so image sources are found in every supported spelling.
+    let migrated:ReturnType<typeof migrateDesignSpec>|undefined;
+    try{migrated=migrateDesignSpec(raw);}catch{/* strict validation below reports the problem */}
+    const value=migrated?.value??raw;
+    // Batch roots stay short enough for the broker's ":index" suffix.
+    const root=args.operationId?.slice(0,100);
     let images:Awaited<ReturnType<typeof extractImageSources>>;
-    try{images=await extractImageSources(raw);}catch(error){return textResult({error:{code:'IMAGE_SOURCE_FAILED',message:error instanceof Error?error.message:String(error)}},true);}
-    const {result:checked,report}=await parseWithMigration(JSON.stringify(raw));
-    if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation. Call figma_get_schema for the exact format.',issues:checked.issues}},true);
+    try{images=await extractImageSources(value,undefined,undefined,root);}catch(error){return textResult({error:{code:'IMAGE_SOURCE_FAILED',message:error instanceof Error?error.message:String(error)}},true);}
+    const checked=validateDesignSpec(value);const report=migrated&&migrated.report.applied.length?migrated.report:undefined;
+    if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation. Call figma_get_schema for the exact format.',issues:checked.issues},...(report?{migrated:report}:{})},true);
     try{
       const render:BridgeOperation={type:'render-spec',spec:checked.value,...(args.targetPageId?{targetPageId:args.targetPageId}:{}),...(args.replacePage?{replacePage:true}:{})};
-      const options=queueOptions(withAgent(args));
-      if(!images.operations.length)return textResult({...summary(broker.enqueue(render,options)),...(report?{migrated:report}:{})});
-      const jobs=broker.enqueueBatch([...images.operations,render],options);const renderJob=jobs[jobs.length-1]!;
-      return textResult({...summary(renderJob),uploadedImages:images.uploaded,uploadJobIds:jobs.slice(0,-1).map(job=>job.jobId),...(report?{migrated:report}:{})});
+      const base=withAgent(args);
+      // Each image is its own batch (≤ 82 jobs for 5 MB), queued in order before the render, so several large
+      // images never exceed the broker's per-batch limit. The plugin runs a session's jobs in order.
+      const uploadJobs:BridgeJob[]=[];
+      for(const [index,batch] of images.batches.entries())uploadJobs.push(...broker.enqueueBatch(batch,queueOptions({...base,...(root?{operationId:`${root}:img${index}`}:{})})));
+      const renderJob=broker.enqueue(render,queueOptions({...base,...(root?{operationId:root}:{})}));
+      return textResult({...summary(renderJob),...(images.uploaded.length?{uploadedImages:images.uploaded,uploadJobIds:uploadJobs.map(job=>job.jobId)}:{}),...(report?{migrated:report}:{})});
     }catch(error){return faultResult(error);}
   });
-  server.registerTool('figma_upload_image',{description:'Upload a PNG/JPEG/GIF (up to 5 MB) to the open Figma file WITHOUT placing it, and get an assetRef to use in design specs: {"type":"image","assetRef":"<ref>"} or a paint {"type":"image","assetRef":"<ref>","scaleMode":"FILL"}. Give exactly one of filePath (absolute path or ~ on the computer running this server), url (http/https) or base64. The MIME type is detected automatically. Uploads stay available until the plugin restarts.',inputSchema:z.object({filePath:z.string().min(1).max(1024).optional(),url:z.string().url().max(2048).optional(),base64:z.string().min(16).max(Math.ceil(MAX_RASTER_BYTES/3)*4+64).optional(),name:z.string().max(160).optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+  server.registerTool('figma_upload_image',{description:'Upload a PNG/JPEG/GIF (up to 5 MB) to the open Figma file WITHOUT placing it, and get an assetRef to use in design specs: {"type":"image","assetRef":"<ref>"} or a paint {"type":"image","assetRef":"<ref>","scaleMode":"FILL"}. Give exactly one of filePath (absolute path or ~ on the computer running this server), url (http/https) or base64. The MIME type is detected automatically. Uploads stay available until the plugin restarts.',inputSchema:z.object({filePath:z.string().min(1).max(1024).optional(),url:z.string().url().max(2048).optional(),base64:z.string().min(16).max(Math.ceil(MAX_RASTER_BYTES/3)*4+64).optional(),name:z.string().max(160).optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(100).optional()})},async(args)=>{
     try{
       const image=await loadImage({...(args.filePath!==undefined?{filePath:args.filePath}:{}),...(args.url!==undefined?{url:args.url}:{}),...(args.base64!==undefined?{base64:args.base64}:{})});
-      const jobs=broker.enqueueBatch(storeImageOperations(image,args.name??'Image'),queueOptions(withAgent(args)));
+      const jobs=broker.enqueueBatch(storeImageOperations(image,args.name??'Image',args.operationId),queueOptions(withAgent(args)));
       return textResult({assetRef:image.sha256,mimeType:image.mimeType,width:image.width,height:image.height,bytes:image.bytes.byteLength,status:'queued',jobIds:jobs.map(job=>job.jobId),usage:{node:{type:'image',assetRef:image.sha256,scaleMode:'FILL'},paint:{type:'image',assetRef:image.sha256,scaleMode:'FILL'}}});
     }catch(error){return faultResult(error);}
   });
