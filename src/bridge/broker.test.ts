@@ -49,6 +49,9 @@ describe('local Figma job broker',()=>{
     expect(jobs.map(job=>job.operation.type)).toEqual(['begin-image-transfer','image-transfer-chunk','finish-image-transfer']);
     expect(broker.takeNext('figma-session-1')?.jobId).toBe(jobs[0]?.jobId);
     expect(()=>broker.enqueueBatch(operations,{operationId:'another-transfer'})).toThrowError(/batch needs 3/);
+    // A retry of the same batch returns the queued jobs instead of failing; different contents are still rejected.
+    expect(broker.enqueueBatch(operations,{operationId:'large-image'}).map(job=>job.jobId)).toEqual(jobs.map(job=>job.jobId));
+    expect(()=>broker.enqueueBatch([operations[0]!,{type:'image-transfer-chunk' as const,transferId:'01234567-89ab-cdef-0123-456789abcdef',index:0,bytes:[9]},operations[2]!],{operationId:'large-image'})).toThrowError(/already used|more jobs/);
     expect(broker.getSessions()).toHaveLength(1);
   });
 });

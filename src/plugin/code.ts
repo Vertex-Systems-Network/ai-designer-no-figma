@@ -49,13 +49,22 @@ function exportCornerStyle(node:SceneNode):CornerStyleSpec{
 }
 function paint(hex: string, opacity=1): SolidPaint { return { type: 'SOLID', color: rgb(hex), opacity }; }
 
-type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode>; colors: Map<string,{variable:Variable;color:string}>; textStyles: Map<string,TextStyle> };
+type RenderControl = { cancelled: boolean; nodes: number; components: Map<string,ComponentNode>; colors: Map<string,{variable:Variable;color:string}>; textStyles: Map<string,TextStyle>; warnings: string[] };
+/** Images uploaded with figma_upload_image, keyed by sha256 (assetRef) → Figma image hash. Lives for the plugin session. */
+const uploadedImages=new Map<string,string>();
+let activeWarnings:string[]|undefined;
+function warn(message:string):void{if(activeWarnings&&activeWarnings.length<100&&!activeWarnings.includes(message))activeWarnings.push(message);}
+function resolveImageHash(item:{assetRef?:string;data?:string}):string{
+  if(item.assetRef){const hash=uploadedImages.get(item.assetRef);if(!hash)throw new Error(`IMAGE_ASSET_NOT_FOUND: assetRef ${item.assetRef.slice(0,12)}… is not loaded in this Figma session. Upload it again with figma_upload_image (uploads are kept until the plugin restarts).`);return hash;}
+  if(!item.data)throw new Error('IMAGE_SOURCE_MISSING: Image needs data or assetRef.');
+  return figma.createImage(decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES)).hash;
+}
 function gradientPaint(spec:GradientSpec,opacity=1):GradientPaint {
   const transform:Transform = spec.transform??(spec.direction==='horizontal' ? [[1,0,0],[0,1,0]] : [[0,-1,1],[1,0,0]]);
   return {type:'GRADIENT_LINEAR',gradientTransform:transform,gradientStops:spec.stops.map(stop=>({position:stop.position,color:{...rgb(stop.color),a:stop.opacity??1}})),visible:true,opacity,blendMode:'NORMAL'};
 }
 function applyNodePaint(node:SceneNode,fill?:string,gradient?:GradientSpec,shadow?:ShadowSpec,paints?:PaintStackItemSpec[],shadows?:ShadowSpec[],effects?:EffectSpec[]):void {
-  if('fills' in node){if(paints?.length)node.fills=buildPaintStack(paints,item=>figma.createImage(decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES)).hash);else if(gradient)node.fills=[gradientPaint(gradient)];else if(fill)node.fills=[paint(fill)];}
+  if('fills' in node){if(paints?.length)node.fills=buildPaintStack(paints,resolveImageHash);else if(gradient)node.fills=[gradientPaint(gradient)];else if(fill)node.fills=[paint(fill)];}
   if('effects' in node){const effectSpecs=effects?.length?buildEffectStack(effects):buildShadowStack(shadows?.length?shadows:shadow?[shadow]:[]);if(effectSpecs.length)node.effects=effectSpecs;}
 }
 function applyLayout(frame:FrameNode,layout:LayoutSpec|undefined):void {
@@ -108,14 +117,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
   let node: SceneNode;
   if (spec.type === 'text') {
-    const requestedFont = { family: spec.fontFamily || fontFallback, style: fontStyle(spec.fontWeight ?? 400) };
-    let loadedFont = requestedFont;
-    const candidates = [requestedFont, { family: fontFallback, style: 'Regular' }, { family: 'Inter', style: 'Regular' }];
-    let loaded = false;
-    for (const candidate of candidates) {
-      try { await figma.loadFontAsync(candidate); loadedFont = candidate; loaded = true; break; } catch { /* try a safe fallback */ }
-    }
-    if (!loaded) throw new Error('No supported font could be loaded. Install Inter or choose an available fallback font.');
+    const loadedFont = await resolveFont(spec.fontFamily || fontFallback, spec.fontWeight ?? 400, spec.fontStyle, fontFallback);
     const text = figma.createText();
     text.characters = spec.text;
     // Apply a referenced style first; explicit per-layer fields in the spec are
@@ -125,7 +127,6 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     text.fontSize = spec.fontSize ?? 16;
     text.textAlignHorizontal = spec.align ?? 'LEFT';
     if(spec.textAlignVertical)text.textAlignVertical=spec.textAlignVertical;
-    if(spec.textAutoResize)text.textAutoResize=spec.textAutoResize;
     if(spec.paragraphSpacing!==undefined)text.paragraphSpacing=spec.paragraphSpacing;
     if(spec.letterSpacing)text.letterSpacing=spec.letterSpacing;
     if(spec.textDecoration)text.textDecoration=spec.textDecoration;
@@ -153,7 +154,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     if(spec.fill||spec.gradient||spec.paints||spec.shadow||spec.shadows||spec.effects)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     node=vector;
   } else if(spec.type==='image') {
-    const bytes=decodeBase64(spec.data,MAX_EMBEDDED_IMAGE_BYTES);const image=figma.createImage(bytes);const rectangle=figma.createRectangle();rectangle.fills=[{type:'IMAGE',imageHash:image.hash,scaleMode:spec.scaleMode??'FIT',...(spec.scaleMode==='CROP'&&spec.imageTransform?{imageTransform:spec.imageTransform}:{}),...(spec.scaleMode==='TILE'&&spec.scalingFactor!==undefined?{scalingFactor:spec.scalingFactor}:{})}];node=rectangle;
+    const rectangle=figma.createRectangle();rectangle.fills=[{type:'IMAGE',imageHash:resolveImageHash(spec),scaleMode:spec.scaleMode??'FILL',...(spec.scaleMode==='CROP'&&spec.imageTransform?{imageTransform:spec.imageTransform}:{}),...(spec.scaleMode==='TILE'&&spec.scalingFactor!==undefined?{scalingFactor:spec.scalingFactor}:{})}];node=rectangle;
   } else if(spec.type==='instance') {
     const component=control.components.get(spec.componentRef);
     if(!component||component.removed)throw new Error(`COMPONENT_NOT_FOUND: Component "${spec.componentRef}" must be created before its instance.`);
@@ -163,27 +164,48 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     (node as FrameNode).clipsContent = false;
   } else if(spec.type==='component') {
     node=figma.createComponent();
-  } else {
+  } else if (spec.layout && spec.layout.mode !== 'none') {
+    // A group with Auto Layout keeps the frame representation (Figma groups cannot lay out children).
     node = figma.createFrame();
     (node as FrameNode).fills = [];
+  } else {
+    // group: children use coordinates relative to the group's own x/y. Render them into the parent at the
+    // group's offset, then wrap them in a real Figma group, whose bounds Figma derives from the children.
+    const offsetX = spec.x ?? 0, offsetY = spec.y ?? 0;
+    const members: SceneNode[] = [];
+    for (const child of spec.children) members.push(await renderNode({ ...child, x: (child.x ?? 0) + offsetX, y: (child.y ?? 0) + offsetY } as DesignNodeSpec, parent, control, fontFallback));
+    if (spec.fill || spec.gradient || spec.paints) warn(`Group "${spec.name}" cannot have fills in Figma; wrap the children in a frame instead.`);
+    if (!members.length) { warn(`Group "${spec.name}" is empty and was skipped.`); const placeholder = figma.createFrame(); placeholder.name = spec.name; placeholder.fills = []; parent.appendChild(placeholder); placeholder.resize(Math.max(1, spec.width), Math.max(1, spec.height)); placeholder.x = offsetX; placeholder.y = offsetY; logicalIds.set(placeholder.id, spec.id); return placeholder; }
+    // Figma groups have no constraints of their own; members without explicit constraints inherit the group's.
+    if (spec.constraints) for (const [index, member] of members.entries()) if (!spec.children[index]?.constraints) applyConstraints(member, spec.constraints);
+    const group = figma.group(members, parent);
+    group.name = spec.name; group.opacity = spec.opacity ?? 1;
+    if (spec.rotation !== undefined) group.rotation = spec.rotation;
+    if (spec.effects?.length || spec.shadows?.length || spec.shadow) applyNodePaint(group, undefined, undefined, spec.shadow, undefined, spec.shadows, spec.effects);
+    logicalIds.set(group.id, spec.id);
+    return group;
   }
   node.name = spec.name;
   parent.appendChild(node);
-  node.resize(spec.width, spec.height);
+  // Text that sizes itself must not be resized: resize() switches a text layer to fixed sizing.
+  if (spec.type === 'text' && spec.textAutoResize === 'WIDTH_AND_HEIGHT') { /* keep intrinsic size */ }
+  else if (spec.type === 'text' && spec.textAutoResize === 'HEIGHT') node.resize(spec.width, (node as TextNode).height);
+  else node.resize(spec.width, spec.height);
+  if (spec.type === 'text' && spec.textAutoResize) (node as TextNode).textAutoResize = spec.textAutoResize;
   node.x = spec.x ?? 0;
   node.y = spec.y ?? 0;
   if(spec.rotation!==undefined)node.rotation=spec.rotation;
   node.opacity = spec.opacity ?? 1;
   applyConstraints(node,spec.constraints);
   if(spec.fillToken)bindToken(node,spec.fillToken,control);
-  if (spec.type==='frame'||spec.type==='group'||spec.type==='component') {
+  if (spec.type==='frame'||spec.type==='component'||spec.type==='group') {
     applyNodePaint(node,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     if(spec.type==='frame'||spec.type==='component')(node as FrameNode).clipsContent=spec.clipsContent??false;
     applyCornerStyle(node,spec);
     if(spec.type==='component')control.components.set(spec.id,node as ComponentNode);
   }
   logicalIds.set(node.id, spec.id);
-  if ((spec.type === 'frame' || spec.type === 'group' || spec.type==='component') && 'children' in spec) {
+  if ((spec.type === 'frame' || spec.type==='component' || spec.type==='group') && 'children' in spec) {
     const frame = node as FrameNode;
     applyLayout(frame,spec.layout);
     if(spec.type==='frame'||spec.type==='component')frame.layoutGrids=makeLayoutGrids(spec.layoutGrids);
@@ -197,6 +219,45 @@ function fontStyle(weight: number): string {
   if (weight >= 600) return 'Semi Bold';
   if (weight >= 500) return 'Medium';
   return 'Regular';
+}
+
+/** Style names Figma fonts use for each CSS weight, most common spelling first. */
+export const WEIGHT_STYLES: Record<number, string[]> = {
+  100: ['Thin', 'Hairline'], 200: ['ExtraLight', 'Extra Light', 'UltraLight', 'Ultra Light'], 300: ['Light'], 400: ['Regular', 'Normal', 'Book'],
+  500: ['Medium'], 600: ['SemiBold', 'Semi Bold', 'DemiBold', 'Demi Bold'], 700: ['Bold'], 800: ['ExtraBold', 'Extra Bold', 'UltraBold', 'Ultra Bold'], 900: ['Black', 'Heavy'],
+};
+const normalizeStyle = (style: string) => style.toLowerCase().replace(/[\s_-]+/g, '');
+let availableFonts: Font[] | undefined;
+/**
+ * Pick the closest installed style for a family and weight (or an exact fontStyle), load it, and record a warning
+ * whenever the result differs from what the spec asked for, so the job result never hides a font substitution.
+ */
+async function resolveFont(family: string, weight: number, requestedStyle: string | undefined, fallbackFamily: string): Promise<FontName> {
+  availableFonts ??= await Promise.resolve().then(() => figma.listAvailableFontsAsync()).catch(() => [] as Font[]);
+  const stylesOf = (name: string) => availableFonts!.filter((font) => font.fontName.family.toLowerCase() === name.toLowerCase()).map((font) => font.fontName);
+  const rounded = Math.min(900, Math.max(100, Math.round(weight / 100) * 100));
+  const wanted = requestedStyle ? [requestedStyle] : WEIGHT_STYLES[rounded] ?? ['Regular'];
+  const pick = (name: string): FontName | undefined => {
+    const styles = stylesOf(name); if (!styles.length) return undefined;
+    for (const style of wanted) { const hit = styles.find((font) => normalizeStyle(font.style) === normalizeStyle(style)); if (hit) return hit; }
+    // nearest weight that the family does have
+    const byDistance = Object.entries(WEIGHT_STYLES).sort(([a], [b]) => Math.abs(Number(a) - rounded) - Math.abs(Number(b) - rounded));
+    for (const [, names] of byDistance) for (const style of names) { const hit = styles.find((font) => normalizeStyle(font.style) === normalizeStyle(style)); if (hit) return hit; }
+    return styles[0];
+  };
+  const asked = `${family} ${requestedStyle ?? wanted[0]}`;
+  const candidates: FontName[] = [];
+  const exact = pick(family); if (exact) candidates.push(exact);
+  if (!availableFonts.length) candidates.push({ family, style: requestedStyle ?? fontStyle(weight) }); // font list unavailable: try the conventional name
+  const fallback = pick(fallbackFamily) ?? { family: fallbackFamily, style: 'Regular' }; candidates.push(fallback, { family: 'Inter', style: 'Regular' });
+  for (const candidate of candidates) {
+    try {
+      await figma.loadFontAsync(candidate);
+      if (normalizeStyle(`${candidate.family}${candidate.style}`) !== normalizeStyle(asked)) warn(`Font "${asked}" is not installed; used "${candidate.family} ${candidate.style}".`);
+      return candidate;
+    } catch { /* try the next candidate */ }
+  }
+  throw new Error('No supported font could be loaded. Install Inter or choose an available fallback font.');
 }
 
 function placeAssetNode(node:SceneNode,width:number,height:number,name:string):void{
@@ -233,35 +294,66 @@ async function insertRaster(name:string,mimeType:string,input:number[]){
 }
 
 
-async function renderSpec(spec: DesignSpec, fontFallback: string): Promise<number> {
+export type RenderOptions = { targetPageId?: string; replacePage?: boolean };
+export type RenderReport = { created: number; nodes: number; pages: Array<{ id: string; name: string; replaced?: boolean }>; warnings: string[] };
+async function renderSpec(spec: DesignSpec, fontFallback: string, options: RenderOptions = {}): Promise<RenderReport> {
   const checked = validateDesignSpec(spec);
   if (!checked.valid) throw new Error(`Invalid specification: ${checked.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`);
-  const createdPages: PageNode[] = [];
-  const control: RenderControl = { cancelled: false, nodes: 0, components:new Map(), colors:new Map(), textStyles:new Map() };
+  const createdPages: PageNode[] = []; const createdNodes: SceneNode[] = []; const replaced = new Map<PageNode, PageNode>();
+  const control: RenderControl = { cancelled: false, nodes: 0, components:new Map(), colors:new Map(), textStyles:new Map(), warnings: [] };
+  activeWarnings = control.warnings;
   cancelActiveRender = () => { control.cancelled = true; };
+  let target: PageNode | undefined;
+  if (options.targetPageId) {
+    const found = await figma.getNodeByIdAsync(options.targetPageId);
+    if (!found || found.type !== 'PAGE') throw new Error(`PAGE_NOT_FOUND: No page with id ${options.targetPageId}.`);
+    target = found; await target.loadAsync();
+  }
+  const existingIds = new Set(target ? target.children.map((child) => child.id) : []);
   try {
     await prepareDesignSystem(spec,control,fontFallback);
     for (const pageSpec of spec.pages) {
       if (control.cancelled) throw new Error('RENDER_CANCELLED: Rendering was cancelled.');
+      if (target) { for (const childSpec of pageSpec.children) createdNodes.push(await renderNode(childSpec, target, control, fontFallback)); continue; }
       const page = figma.createPage();
       createdPages.push(page);
-      page.name = uniquePageName(pageSpec.name, ((page.parent as DocumentNode | null)?.children ?? []).filter((p) => p !== page).map((p) => p.name));
+      const others = ((page.parent as DocumentNode | null)?.children ?? []).filter((p) => p !== page);
+      // replacePage: build the new page first and swap it in only after the whole render succeeded.
+      const old = options.replacePage ? others.find((p) => p.name === pageSpec.name) : undefined;
+      if (old) replaced.set(page, old);
+      page.name = old ? pageSpec.name : uniquePageName(pageSpec.name, others.map((p) => p.name));
       await page.loadAsync();
       for (const childSpec of pageSpec.children) await renderNode(childSpec, page, control, fontFallback);
     }
   } catch (error) {
     for (const page of createdPages) page.remove();
+    // Remove everything this render added to an existing page, including partly rendered roots and group members.
+    if (target) for (const child of [...target.children]) if (!existingIds.has(child.id) && !child.removed) child.remove();
     throw error;
   } finally {
-    cancelActiveRender = undefined;
+    cancelActiveRender = undefined; activeWarnings = undefined;
   }
-  await figma.setCurrentPageAsync(createdPages[0]!);
-  const firstFrame = createdPages[0]!.children.find((node) => node.type === 'FRAME');
+  for (const [page, old] of replaced) { const root = old.parent as DocumentNode; const index = root.children.indexOf(old); if (figma.currentPage === old) await figma.setCurrentPageAsync(page); old.remove(); root.insertChild(Math.max(0, index), page); }
+  const shownPage = target ?? createdPages[0]!;
+  await figma.setCurrentPageAsync(shownPage);
+  const firstFrame = target ? createdNodes.find((node) => node.type === 'FRAME') : shownPage.children.find((node) => node.type === 'FRAME');
   if (firstFrame) {
     figma.currentPage.selection = [firstFrame];
     figma.viewport.scrollAndZoomIntoView([firstFrame]);
   }
-  return createdPages.reduce((sum, page) => sum + page.children.length, 0);
+  const pages = target ? [{ id: target.id, name: target.name }] : createdPages.map((page) => ({ id: page.id, name: page.name, ...(replaced.has(page) ? { replaced: true } : {}) }));
+  const created = target ? createdNodes.length : createdPages.reduce((sum, page) => sum + page.children.length, 0);
+  return { created, nodes: control.nodes, pages, warnings: control.warnings };
+}
+
+/** Delete a page by id. Refuses the last page in the file. */
+async function deletePage(pageId: string): Promise<{ deleted: { id: string; name: string } }> {
+  const page = await figma.getNodeByIdAsync(pageId);
+  if (!page || page.type !== 'PAGE') throw new Error(`PAGE_NOT_FOUND: No page with id ${pageId}.`);
+  if (figma.root.children.length <= 1) throw new Error('PAGE_DELETE_REFUSED: A Figma file needs at least one page.');
+  if (figma.currentPage === page) await figma.setCurrentPageAsync(figma.root.children.find((p) => p !== page)!);
+  const info = { id: page.id, name: page.name }; page.remove();
+  return { deleted: info };
 }
 
 async function captureSelectionPreview(): Promise<{kind:'visual-preview';mimeType:'image/jpeg';base64:string;width:number;height:number;nodeName:string}> {
@@ -522,7 +614,7 @@ async function exportSelectedDesign(): Promise<DesignSpec> {
           if(node.type==='RECTANGLE'&&(paintItem.opacity??1)===1){
             const visibleStrokes='strokes' in node?node.strokes.filter(stroke=>stroke.visible!==false&&(stroke.opacity??1)>0):[];const cornerStyle=exportCornerStyle(node);const hasShapeDecoration=visibleStrokes.length>0||Boolean(cornerStyle.cornerSmoothing)||Boolean(cornerStyle.radius)||Boolean(cornerStyle.cornerRadii&&Object.values(cornerStyle.cornerRadii).some(value=>value>0));
             const encoded=await toStackItem(paintItem);if(encoded.type!=='image')throw new Error('Internal image paint conversion failed.');
-            if(hasShapeDecoration)paints=[encoded];else imageData={mimeType:encoded.mimeType,data:encoded.data,scaleMode:encoded.scaleMode??'FIT',...(encoded.imageTransform?{imageTransform:encoded.imageTransform}:{}),...(encoded.scalingFactor!==undefined?{scalingFactor:encoded.scalingFactor}:{})};
+            if(hasShapeDecoration)paints=[encoded];else imageData={mimeType:encoded.mimeType as 'image/png'|'image/jpeg',data:encoded.data!,scaleMode:encoded.scaleMode??'FILL',...(encoded.imageTransform?{imageTransform:encoded.imageTransform}:{}),...(encoded.scalingFactor!==undefined?{scalingFactor:encoded.scalingFactor}:{})};
           }else paints=[await toStackItem(paintItem)];
         }
         else if(paintItem)throw new Error(`Layer "${node.name}" uses unsupported ${paintItem.type.toLowerCase()} paint.`);
@@ -628,6 +720,8 @@ function bridgeOperationLabel(operation:BridgeOperation):string{
   if(operation.type==='render-component-family')return `Creating ${operation.family.name} component variants`;
   if(operation.type==='export-component-family')return 'Exporting selected component family';
   if(operation.type==='render-spec')return `Inserting ${operation.spec.name}`;
+  if(operation.type==='delete-page')return 'Deleting a page';
+  if(operation.type==='list-pages')return 'Listing pages';
   if(operation.type==='apply-patch')return `Applying ${operation.patch.operations.length} reviewed edit(s)`;
   if(operation.type==='insert-svg')return `Importing SVG ${operation.name}`;
   if(operation.type==='insert-image')return `Importing image ${operation.name}`;
@@ -656,7 +750,10 @@ async function finishImageTransfer(operation:Extract<BridgeOperation,{type:'fini
   cleanupImageTransfers();const transfer=pendingImageTransfers.get(operation.transferId);if(!transfer)throw new Error('IMAGE_TRANSFER_NOT_FOUND: Start the image transfer again.');pendingImageTransfers.delete(operation.transferId);
   if(transfer.receivedBytes!==transfer.totalBytes)throw new Error('IMAGE_TRANSFER_INCOMPLETE: Some image chunks are missing.');
   if(sha256(transfer.bytes)!==transfer.sha256)throw new Error('IMAGE_TRANSFER_CHECKSUM_FAILED: Reassemble the file and retry its transfer.');
-  validateRasterAsset(transfer.bytes,transfer.mimeType);const asset=await insertRaster(transfer.name,transfer.mimeType,Array.from(transfer.bytes));
+  const info=validateRasterAsset(transfer.bytes,transfer.mimeType);
+  // store: keep the image for design specs (assetRef = sha256) instead of placing it on the canvas.
+  if(operation.store){uploadedImages.set(transfer.sha256,figma.createImage(transfer.bytes).hash);return{assetRef:transfer.sha256,width:info.width,height:info.height,mimeType:info.mimeType,bytes:info.size,stored:true};}
+  const asset=await insertRaster(transfer.name,transfer.mimeType,Array.from(transfer.bytes));
   figma.ui.postMessage({type:'asset-result',ok:true,message:'Chunked MCP image was checksum-verified, inserted and read back as a native Figma image fill.',...asset});return{...asset,sha256:transfer.sha256};
 }
 async function executeBridgeJob(job:BridgeJob):Promise<void>{
@@ -677,7 +774,9 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     else if(operation.type==='inspect-design-system')result=await inventoryLocalDesignSystem(figma);
     else if(operation.type==='render-component-family')result=await renderComponentFamily(operation.family,figma);
     else if(operation.type==='export-component-family'){const selected=figma.currentPage.selection;if(selected.length!==1||selected[0]?.type!=='COMPONENT_SET')throw new Error('Select exactly one component set to export.');result={family:exportComponentFamily(selected[0])};}
-    else if(operation.type==='render-spec')result={created:await renderSpec(operation.spec,'Inter'),message:'Editable Figma layers were inserted.'};
+    else if(operation.type==='render-spec'){const report=await renderSpec(operation.spec,'Inter',{...(operation.targetPageId?{targetPageId:operation.targetPageId}:{}),...(operation.replacePage?{replacePage:true}:{})});result={...report,message:report.warnings.length?`Editable Figma layers were inserted with ${report.warnings.length} warning(s).`:'Editable Figma layers were inserted.'};}
+    else if(operation.type==='delete-page')result=await deletePage(operation.pageId);
+    else if(operation.type==='list-pages')result={pages:figma.root.children.map(page=>({id:page.id,name:page.name,current:page===figma.currentPage}))};
     else if(operation.type==='capture-selection')result=await captureSelectionPreview();
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
     else if(operation.type==='insert-svg'){const asset=await insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported and read back as editable vector geometry.',...asset});}
@@ -756,8 +855,8 @@ figma.ui.onmessage = async (message: UiToHost) => {
     if (message.type === 'inspect-selection') inspectSelection();
     if (message.type === 'render') {
       try {
-        const created = await renderSpec(message.spec, message.fontFallback || 'Inter');
-        figma.ui.postMessage({ type: 'render-result', ok: true, message: 'Editable Figma nodes created.', created });
+        const report = await renderSpec(message.spec, message.fontFallback || 'Inter');
+        figma.ui.postMessage({ type: 'render-result', ok: true, message: report.warnings.length ? `Editable Figma nodes created. ${report.warnings.join(' ')}` : 'Editable Figma nodes created.', created: report.created });
       } catch (error) {
         const messageText = error instanceof Error ? error.message : 'Render failed.';
         if (messageText.startsWith('RENDER_CANCELLED:')) figma.ui.postMessage({ type: 'render-result', ok: false, message: 'Render cancelled; newly created page was removed.' });

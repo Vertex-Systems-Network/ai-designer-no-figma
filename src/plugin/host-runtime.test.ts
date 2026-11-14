@@ -72,7 +72,7 @@ describe('Figma plugin host compatibility', () => {
   });
 
   it('renders and exports bounded solid, gradient and embedded image fill stacks',()=>{
-    expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints,item=>figma.createImage');
+    expect(hostSource).toContain('paints?.length)node.fills=buildPaintStack(paints,resolveImageHash)');
     expect(hostSource).toContain('paints=await Promise.all(visible.map(item=>toStackItem');
     expect(hostSource).toContain("type:'image',mimeType,data:encodeBase64(bytes)");
     expect(hostSource).toContain("item.type==='GRADIENT_RADIAL'");
@@ -86,7 +86,7 @@ describe('Figma plugin host compatibility', () => {
   it('imports and exports text case, decoration and letter spacing',()=>{
     expect(hostSource).toContain('text.letterSpacing=spec.letterSpacing');
     expect(hostSource).toContain('text.textAlignVertical=spec.textAlignVertical');
-    expect(hostSource).toContain('text.textAutoResize=spec.textAutoResize');
+    expect(hostSource).toContain('(node as TextNode).textAutoResize = spec.textAutoResize');
     expect(hostSource).toContain('text.paragraphSpacing=spec.paragraphSpacing');
     expect(hostSource).toContain('text.textDecoration=spec.textDecoration');
     expect(hostSource).toContain('text.textCase=spec.textCase');

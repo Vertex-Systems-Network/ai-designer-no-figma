@@ -210,6 +210,14 @@ The agent tools available over MCP include:
 
 Each tool returns the real plugin result or an explicit failure; nothing is faked.
 
+More tools:
+
+- `figma_get_schema`: the full design-schema reference and an example.
+- `figma_upload_image`: add an image by file path, URL or base64.
+- `figma_list_pages` and `figma_delete_page`: manage pages.
+
+**For agents writing design JSON:** read [DESIGN-SCHEMA.md](DESIGN-SCHEMA.md). It covers gradients, fonts, text alignment, per-corner radius, groups, images by path or URL, and page replacement.
+
 ## 8. Troubleshooting
 
 | Message or symptom | Cause | Fix |
@@ -218,6 +226,8 @@ Each tool returns the real plugin result or an explicit failure; nothing is fake
 | *"Pairing is temporarily locked"* | 5 wrong codes in a row. | Ask the AI app for the code again. That unlocks pairing and issues a new code. |
 | *"No AI Designer bridge found"* | No server is running. | Start the AI app (with the entry from 4.1) or `npm run mcp:hub`. |
 | The AI app says it has no AI Designer tool, or talks about a different product | The config entry is missing; Claude Desktop may have dropped it. | Quit the app fully, run `setup:clients --write` again, then check `--status` and **Settings → Developer**. |
+| Imported design is missing images | The image was embedded as base64 over 256 KB, or a path was not absolute. | Use `"src"` with an absolute file path or URL, or `figma_upload_image`. See [DESIGN-SCHEMA.md](DESIGN-SCHEMA.md#images). |
+| Wrong font or weight after import | The family or style is not installed. | Check the warnings in the job result, then install the font or pick another. |
 | *"An error occurred while loading the plugin environment"* | Stale or broken build. | `git pull`, `npm run build`, run the plugin again; if it persists, open **Plugins → Development → Show/Hide console** and report the first red line. |
 | The plugin asks for a code after every restart | Old build without a plugin `id`. | Update, then re-import `dist/manifest.json` once. |
 | `mcp:browser` prints *"cloudflared is not installed"* | Tunnel tool missing. | Install it (5.1). Local mode keeps working meanwhile. |
