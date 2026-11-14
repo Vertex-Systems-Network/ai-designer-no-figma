@@ -247,6 +247,8 @@
         "src/mcp/server.ts",
         "src/mcp/remote.ts",
         "src/mcp/tunnel.ts",
+        "src/mcp/image-sources.ts",
+        "src/mcp/schema-guide.ts",
         "src/ui/bridge-discovery.ts",
         "src/shared/component-family.ts",
         "src/plugin/component-family.ts",
@@ -267,6 +269,8 @@
       "tests": [
         "src/mcp/server.integration.test.ts",
         "src/mcp/tunnel.test.ts",
+        "src/mcp/image-sources.test.ts",
+        "src/shared/spec-aliases.test.ts",
         "src/bridge/design-requests.test.ts",
         "src/mcp/agent-name.test.ts",
         "src/mcp/remote.integration.test.ts",

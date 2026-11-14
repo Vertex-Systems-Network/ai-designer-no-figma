@@ -380,12 +380,33 @@
     "cornerRadii": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["topLeft", "topRight", "bottomRight", "bottomLeft"],
+      "required": [
+        "topLeft",
+        "topRight",
+        "bottomRight",
+        "bottomLeft"
+      ],
       "properties": {
-        "topLeft": { "type": "number", "minimum": 0, "maximum": 10000 },
-        "topRight": { "type": "number", "minimum": 0, "maximum": 10000 },
-        "bottomRight": { "type": "number", "minimum": 0, "maximum": 10000 },
-        "bottomLeft": { "type": "number", "minimum": 0, "maximum": 10000 }
+        "topLeft": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "topRight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "bottomRight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "bottomLeft": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        }
       }
     },
     "page": {
@@ -549,8 +570,14 @@
                 "clipsContent": {
                   "type": "boolean"
                 },
-                "cornerRadii": { "$ref": "#/$defs/cornerRadii" },
-                "cornerSmoothing": { "type": "number", "minimum": 0, "maximum": 1 },
+                "cornerRadii": {
+                  "$ref": "#/$defs/cornerRadii"
+                },
+                "cornerSmoothing": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
                 "fillToken": {
                   "type": "string",
                   "minLength": 1,
@@ -595,8 +622,14 @@
                 "clipsContent": {
                   "type": "boolean"
                 },
-                "cornerRadii": { "$ref": "#/$defs/cornerRadii" },
-                "cornerSmoothing": { "type": "number", "minimum": 0, "maximum": 1 },
+                "cornerRadii": {
+                  "$ref": "#/$defs/cornerRadii"
+                },
+                "cornerSmoothing": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
                 "fillToken": {
                   "type": "string",
                   "minLength": 1,
@@ -670,9 +703,7 @@
             {
               "type": "object",
               "required": [
-                "type",
-                "mimeType",
-                "data"
+                "type"
               ],
               "properties": {
                 "type": {
@@ -681,7 +712,8 @@
                 "mimeType": {
                   "enum": [
                     "image/png",
-                    "image/jpeg"
+                    "image/jpeg",
+                    "image/gif"
                   ]
                 },
                 "data": {
@@ -711,7 +743,11 @@
                 "gradient": false,
                 "shadow": false,
                 "paints": false,
-                "shadows": false
+                "shadows": false,
+                "assetRef": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
               }
             }
           ]
@@ -834,7 +870,12 @@
                     "TRUNCATE"
                   ]
                 },
-                "radius": false
+                "radius": false,
+                "fontStyle": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
               }
             }
           ]
@@ -882,8 +923,14 @@
                     "OUTSIDE"
                   ]
                 },
-                "cornerRadii": { "$ref": "#/$defs/cornerRadii" },
-                "cornerSmoothing": { "type": "number", "minimum": 0, "maximum": 1 }
+                "cornerRadii": {
+                  "$ref": "#/$defs/cornerRadii"
+                },
+                "cornerSmoothing": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
               }
             }
           ]
@@ -1217,9 +1264,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "type",
-            "mimeType",
-            "data"
+            "type"
           ],
           "properties": {
             "type": {
@@ -1228,7 +1273,8 @@
             "mimeType": {
               "enum": [
                 "image/png",
-                "image/jpeg"
+                "image/jpeg",
+                "image/gif"
               ]
             },
             "data": {
@@ -1257,6 +1303,11 @@
               "type": "number",
               "minimum": 0,
               "maximum": 1
+            },
+            "assetRef": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "sha256 returned by figma_upload_image; use instead of data/mimeType for large images"
             }
           }
         }

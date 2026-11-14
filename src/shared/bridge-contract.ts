@@ -7,7 +7,9 @@ export type BridgeOperation =
   | { type: 'inspect-design-system' }
   | { type: 'render-component-family'; family: ComponentFamily }
   | { type: 'export-component-family' }
-  | { type: 'render-spec'; spec: DesignSpec }
+  | { type: 'render-spec'; spec: DesignSpec; targetPageId?: string; replacePage?: boolean }
+  | { type: 'delete-page'; pageId: string }
+  | { type: 'list-pages' }
   | { type: 'apply-patch'; patch: EditPatch }
   | { type: 'export-selection' }
   | { type: 'capture-selection' }
@@ -15,7 +17,7 @@ export type BridgeOperation =
   | { type:'insert-image'; name:string; mimeType:string; bytes:number[] }
   | {type:'begin-image-transfer';transferId:string;name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number}
   | {type:'image-transfer-chunk';transferId:string;index:number;bytes:number[]}
-  | {type:'finish-image-transfer';transferId:string};
+  | {type:'finish-image-transfer';transferId:string;store?:boolean};
 
 export type BridgeJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type BridgeError = { code: string; message: string };

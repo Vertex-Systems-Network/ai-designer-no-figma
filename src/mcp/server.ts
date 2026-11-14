@@ -17,7 +17,10 @@ import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { visualPreviewToolResult } from './visual-preview';
+import { extractImageSources, loadImage, storeImageOperations } from './image-sources';
+import { DESIGN_SCHEMA_GUIDE } from './schema-guide';
 import { prepareVisualRepair, verifyVisualRepair } from '../shared/visual-repair';
+import designSpecSchema from '../../schema/design-spec-1.0.schema.json' with { type: 'json' };
 import { MAX_MCP_ASSET_BYTES, MAX_RASTER_BYTES, MAX_SVG_BYTES, MCP_ASSET_CHUNK_BYTES, sanitizeSvg, validateRasterAsset } from '../shared/assets';
 
 function textResult(value: Record<string,unknown>, isError=false) {
@@ -116,11 +119,35 @@ export function createMcpServer(broker:JobBroker,options:{pairingCode?:()=>Promi
       return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(withAgent(args)))),findings:auditDesignQuality(checked.value)});
     }catch(error){return faultResult(error);}
   });
-  server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Creates a new page and selects its first root frame so you can immediately capture and visually inspect it.',inputSchema:z.object({json:z.string().min(1).max(512_000),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
-    const {result:checked,report}=await parseWithMigration(args.json);
-    if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation.',issues:checked.issues}},true);
-    try{return textResult({...summary(broker.enqueue({type:'render-spec',spec:checked.value},queueOptions(withAgent(args)))),...(report?{migrated:report}:{})});}catch(error){return faultResult(error);}
+  server.registerTool('figma_import_design_schema',{description:'Validate and queue a schema 1.0 design JSON for insertion as editable native Figma nodes. Call figma_get_schema first for every supported property, gradient format and a full example. Images: use "src" (absolute file path or http(s) URL) or "assetRef" from figma_upload_image instead of large base64 — the server uploads them for you. By default each import creates a new page; pass targetPageId to draw into an existing page, or replacePage:true to replace the page with the same name. The result lists created pages, node count and warnings (font substitutions, skipped features).',inputSchema:z.object({json:z.string().min(1).max(512_000),targetPageId:z.string().min(1).max(64).optional(),replacePage:z.boolean().optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    let raw:unknown;
+    try{raw=JSON.parse(args.json.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));}catch{return textResult({error:{code:'INVALID_JSON',message:'Design JSON is not valid JSON. Check commas, quotes and braces.'}},true);}
+    let images:Awaited<ReturnType<typeof extractImageSources>>;
+    try{images=await extractImageSources(raw);}catch(error){return textResult({error:{code:'IMAGE_SOURCE_FAILED',message:error instanceof Error?error.message:String(error)}},true);}
+    const {result:checked,report}=await parseWithMigration(JSON.stringify(raw));
+    if(!checked.valid||!checked.value)return textResult({error:{code:'INVALID_DESIGN_SPEC',message:'Design JSON failed validation. Call figma_get_schema for the exact format.',issues:checked.issues}},true);
+    try{
+      const render:BridgeOperation={type:'render-spec',spec:checked.value,...(args.targetPageId?{targetPageId:args.targetPageId}:{}),...(args.replacePage?{replacePage:true}:{})};
+      const options=queueOptions(withAgent(args));
+      if(!images.operations.length)return textResult({...summary(broker.enqueue(render,options)),...(report?{migrated:report}:{})});
+      const jobs=broker.enqueueBatch([...images.operations,render],options);const renderJob=jobs[jobs.length-1]!;
+      return textResult({...summary(renderJob),uploadedImages:images.uploaded,uploadJobIds:jobs.slice(0,-1).map(job=>job.jobId),...(report?{migrated:report}:{})});
+    }catch(error){return faultResult(error);}
   });
+  server.registerTool('figma_upload_image',{description:'Upload a PNG/JPEG/GIF (up to 5 MB) to the open Figma file WITHOUT placing it, and get an assetRef to use in design specs: {"type":"image","assetRef":"<ref>"} or a paint {"type":"image","assetRef":"<ref>","scaleMode":"FILL"}. Give exactly one of filePath (absolute path or ~ on the computer running this server), url (http/https) or base64. The MIME type is detected automatically. Uploads stay available until the plugin restarts.',inputSchema:z.object({filePath:z.string().min(1).max(1024).optional(),url:z.string().url().max(2048).optional(),base64:z.string().min(16).max(Math.ceil(MAX_RASTER_BYTES/3)*4+64).optional(),name:z.string().max(160).optional(),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{
+      const image=await loadImage({...(args.filePath!==undefined?{filePath:args.filePath}:{}),...(args.url!==undefined?{url:args.url}:{}),...(args.base64!==undefined?{base64:args.base64}:{})});
+      const jobs=broker.enqueueBatch(storeImageOperations(image,args.name??'Image'),queueOptions(withAgent(args)));
+      return textResult({assetRef:image.sha256,mimeType:image.mimeType,width:image.width,height:image.height,bytes:image.bytes.byteLength,status:'queued',jobIds:jobs.map(job=>job.jobId),usage:{node:{type:'image',assetRef:image.sha256,scaleMode:'FILL'},paint:{type:'image',assetRef:image.sha256,scaleMode:'FILL'}}});
+    }catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_list_pages',{description:'List the pages of the open Figma file with their ids (use with targetPageId, replacePage or figma_delete_page).',inputSchema:z.object({sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{return textResult(summary(broker.enqueue({type:'list-pages'},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_delete_page',{description:'Delete one page from the open Figma file by id (from figma_list_pages or an import result). Use only for pages you created or the user asked you to remove; it cannot delete the last page. Figma keeps it in undo history (Ctrl+Z).',inputSchema:z.object({pageId:z.string().min(1).max(64),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
+    try{return textResult(summary(broker.enqueue({type:'delete-page',pageId:args.pageId},queueOptions(withAgent(args)))));}catch(error){return faultResult(error);}
+  });
+  server.registerTool('figma_get_schema',{description:'Return the full design-spec 1.0 JSON Schema, a reference of every supported property (gradients, text alignment, fonts, per-corner radius, groups, images) and a complete example. Read this before writing figma_import_design_schema input.',inputSchema:z.object({})},async()=>textResult({guide:DESIGN_SCHEMA_GUIDE,jsonSchema:designSpecSchema}));
   server.registerTool('figma_apply_patch',{description:'Validate and queue explicit text/fill/name/bounds/Auto Layout/component-swap/image-replacement operations. The plugin checks every target against its current selection before applying. After a patch, capture the frame again and inspect the returned image.',inputSchema:z.object({json:z.string().min(1).max(262_144),sessionId:z.string().min(8).max(128).optional(),agentLabel:z.string().max(80).optional(),operationId:z.string().max(128).optional()})},async(args)=>{
     const checked=parseEditPatch(args.json);
     if(!checked.valid)return textResult({error:{code:'INVALID_EDIT_PATCH',message:checked.message}},true);

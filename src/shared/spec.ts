@@ -14,7 +14,7 @@ export type LayoutSpec = {
 };
 export type GradientSpec = { direction: 'horizontal' | 'vertical'; transform?: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
 export type RadialGradientSpec = { transform: [[number,number,number],[number,number,number]]; stops: Array<{ position: number; color: string; opacity?: number }> };
-export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'radial-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'angular-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'diamond-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'image'; mimeType:'image/png'|'image/jpeg'; data:string; scaleMode?:'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number; opacity?:number };
+export type PaintStackItemSpec = { type: 'solid'; color: string; opacity?: number } | { type: 'linear-gradient'; gradient: GradientSpec; opacity?: number } | { type:'radial-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'angular-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'diamond-gradient'; gradient:RadialGradientSpec; opacity?:number } | { type:'image'; mimeType?:'image/png'|'image/jpeg'|'image/gif'; data?:string; assetRef?:string; scaleMode?:'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number; opacity?:number };
 export type CornerRadiiSpec = { topLeft:number; topRight:number; bottomRight:number; bottomLeft:number };
 export type ShadowSpec = { color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number };
 export type EffectSpec = { type: 'drop-shadow'|'inner-shadow'; color: string; opacity: number; offsetX: number; offsetY: number; blur: number; spread?: number } | { type: 'layer-blur'|'background-blur'; blur: number } | { type:'progressive-layer-blur'; startRadius:number; endRadius:number; startOffset:{x:number;y:number}; endOffset:{x:number;y:number} } | { type:'progressive-background-blur'; startRadius:number; endRadius:number; startOffset:{x:number;y:number}; endOffset:{x:number;y:number} };
@@ -49,6 +49,8 @@ export type TextNodeSpec = BaseNode & {
   fontFamily?: string;
   fontSize?: number;
   fontWeight?: number;
+  /** Exact Figma font style, e.g. "Bold Italic"; wins over fontWeight when the family has it. */
+  fontStyle?: string;
   lineHeight?: number;
   letterSpacing?: LetterSpacingSpec;
   paragraphSpacing?: number;
@@ -64,7 +66,7 @@ export type ContainerNodeSpec = (BaseNode & { type: 'frame'; children: DesignNod
 export type ComponentNodeSpec = BaseNode & { type: 'component'; children: DesignNodeSpec[]; layout?: LayoutSpec; layoutGrids?: GridSpec[]; clipsContent?:boolean; cornerRadii?:CornerRadiiSpec; cornerSmoothing?:number };
 export type InstanceNodeSpec = BaseNode & { type: 'instance'; componentRef: string };
 export type VectorNodeSpec = BaseNode & { type: 'vector'; path: string };
-export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType: 'image/png'|'image/jpeg'; data: string; scaleMode?: 'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number };
+export type ImageNodeSpec = BaseNode & { type: 'image'; mimeType?: 'image/png'|'image/jpeg'|'image/gif'; data?: string; assetRef?: string; scaleMode?: 'FIT'|'FILL'|'CROP'|'TILE'; imageTransform?:[[number,number,number],[number,number,number]]; scalingFactor?:number };
 export type ShapeNodeSpec = BaseNode & ({ type:'rectangle'; cornerRadii?:CornerRadiiSpec; cornerSmoothing?:number; stroke?:string; strokeOpacity?:number; strokeWidth?:number; strokeAlign?:'INSIDE'|'CENTER'|'OUTSIDE' }|{type:'ellipse';stroke?:string;strokeOpacity?:number;strokeWidth?:number;strokeAlign?:'INSIDE'|'CENTER'|'OUTSIDE'});
 export type LineNodeSpec = BaseNode & { type: 'line'; stroke?: string; strokeOpacity?:number; strokeWidth?: number };
 export type DesignNodeSpec = TextNodeSpec | ContainerNodeSpec | ComponentNodeSpec | InstanceNodeSpec | VectorNodeSpec | ImageNodeSpec | ShapeNodeSpec | LineNodeSpec;
@@ -93,6 +95,65 @@ function valueAtInstancePath(input: unknown, instancePath: string): unknown {
   }, input);
 }
 
+/** An image needs exactly one source: embedded base64 (data + mimeType) or an uploaded assetRef (figma_upload_image). */
+function checkImageSource(image: { data?: string; mimeType?: string; assetRef?: string }, path: string, issues: ValidationIssue[]): void {
+  if (image.assetRef !== undefined) {
+    if (image.data !== undefined) issues.push({ path: `${path}.assetRef`, message: 'Use either assetRef or data, not both.' });
+    return;
+  }
+  if (image.data === undefined || image.mimeType === undefined) { issues.push({ path, message: 'Image needs data + mimeType (base64 up to 256 KB) or assetRef from figma_upload_image (any size up to 5 MB; MCP also accepts "src": file path or URL).' }); return; }
+  try {
+    const bytes = decodeBase64(image.data, MAX_EMBEDDED_IMAGE_BYTES);
+    const info = validateRasterAsset(bytes, image.mimeType);
+    if (info.mimeType !== image.mimeType) issues.push({ path: `${path}.mimeType`, message: `Image MIME type does not match its data (looks like ${info.mimeType}).` });
+  } catch (error) { issues.push({ path: `${path}.data`, message: `${error instanceof Error ? error.message : 'Invalid embedded image.'} For images over 256 KB use figma_upload_image or "src".` }); }
+}
+
+type SchemaError = NonNullable<typeof validateSchema.errors>[number];
+const pretty = (path: string) => path.replace(/^\//, '').replace(/\/(\d+)/g, '[$1]').replace(/\//g, '.') || '$';
+const paintTypes = ['solid', 'linear-gradient', 'radial-gradient', 'angular-gradient', 'diamond-gradient', 'image'];
+const effectTypes = ['drop-shadow', 'inner-shadow', 'layer-blur', 'background-blur', 'progressive-layer-blur', 'progressive-background-blur'];
+/**
+ * Turn raw Ajv errors into messages that point at the real problem. For every oneOf (layers, paints, effects)
+ * the branches whose `type` does not match are dropped, so only the errors of the intended branch remain;
+ * an unknown `type` gets one clear message listing the valid ones.
+ */
+function explainSchemaErrors(input: unknown, errors: SchemaError[]): ValidationIssue[] {
+  const wrong: Array<{ path: string; prefix: string }> = [];
+  for (const error of errors) {
+    if ((error.keyword !== 'const' && error.keyword !== 'enum') || !error.instancePath.endsWith('/type')) continue;
+    const prefix = /^(.*\/oneOf\/\d+)\//.exec(error.schemaPath)?.[1];
+    if (prefix) wrong.push({ path: error.instancePath.slice(0, -5), prefix });
+  }
+  const sameLevel = (path: string, base: string) => path === base || (path.startsWith(`${base}/`) && !path.slice(base.length + 1).includes('/'));
+  // Inside a paint's gradient Ajv reports both gradient definitions; keep only the one this paint type uses.
+  const wrongGradientDef = (error: SchemaError) => {
+    const at = /^(.*\/paints\/\d+)\/gradient(\/|$)/.exec(error.instancePath)?.[1]; if (!at) return false;
+    const type = (valueAtInstancePath(input, at) as { type?: unknown } | undefined)?.type;
+    const def = type === 'linear-gradient' ? '#/$defs/gradient/' : '#/$defs/radialGradient/';
+    return error.schemaPath.startsWith('#/$defs/') && !error.schemaPath.startsWith(def);
+  };
+  const fromWrongBranch = (error: SchemaError) => wrongGradientDef(error) || wrong.some((w) => sameLevel(error.instancePath, w.path) && error.schemaPath.startsWith(`${w.prefix}/`));
+  const issues: ValidationIssue[] = []; const unknownAt = new Set<string>();
+  for (const error of errors) {
+    if (error.keyword !== 'oneOf') continue;
+    const type = (valueAtInstancePath(input, error.instancePath) as { type?: unknown } | undefined)?.type;
+    const list = /\/(paints|effects)\/\d+$/.exec(error.instancePath)?.[1];
+    const known = list === 'paints' ? paintTypes : list === 'effects' ? effectTypes : [...supportedNodeTypes];
+    if (typeof type !== 'string' || known.includes(type)) continue;
+    unknownAt.add(error.instancePath);
+    issues.push({ path: pretty(error.instancePath), message: `Unsupported ${list === 'paints' ? 'paint' : list === 'effects' ? 'effect' : 'layer'} type ${JSON.stringify(type)}. Use one of: ${known.join(', ')}.` });
+  }
+  for (const error of errors) {
+    if (error.keyword === 'oneOf' || fromWrongBranch(error) || [...unknownAt].some((at) => error.instancePath === at || error.instancePath.startsWith(`${at}/`))) continue;
+    const field = error.keyword === 'required' ? `${error.instancePath}/${(error.params as { missingProperty: string }).missingProperty}` : error.keyword === 'additionalProperties' ? `${error.instancePath}/${(error.params as { additionalProperty: string }).additionalProperty}` : error.instancePath;
+    const message = error.keyword === 'required' ? 'missing required property' : error.keyword === 'additionalProperties' ? 'unknown property (call figma_get_schema for the supported ones)' : error.message ?? 'invalid value';
+    issues.push({ path: pretty(field), message });
+  }
+  const unique = new Map(issues.map((issue) => [`${issue.path}|${issue.message}`, issue]));
+  return unique.size ? [...unique.values()].slice(0, 50) : [{ path: '$', message: 'Design JSON does not match schema 1.0. Call figma_get_schema for the exact format.' }];
+}
+
 export function validateDesignSpec(input: unknown, rawBytes?: number): ValidationResult {
   let serialized: string | undefined;
   if (rawBytes === undefined) {
@@ -102,25 +163,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
   }
   const size = rawBytes ?? utf8ByteLength(serialized!);
   if (size > MAX_SPEC_BYTES) return { valid: false, issues: [{ path: '$', message: `Specification exceeds ${MAX_SPEC_BYTES} bytes.` }] };
-  if (!validateSchema(input)) {
-    const errors = validateSchema.errors ?? [];
-    const unsupportedTypes = new Map<string, string>();
-    for (const error of errors) {
-      if (error.keyword !== 'oneOf') continue;
-      const candidate = valueAtInstancePath(input, error.instancePath);
-      if (!candidate || typeof candidate !== 'object' || !('type' in candidate)) continue;
-      const type = (candidate as {type?:unknown}).type;
-      if (typeof type === 'string' && !supportedNodeTypes.includes(type as typeof supportedNodeTypes[number])) {
-        unsupportedTypes.set(error.instancePath, `Unsupported layer type "${type}". Use one of: ${supportedNodeTypes.join(', ')}.`);
-      }
-    }
-    const issues: ValidationIssue[] = [...unsupportedTypes].map(([path,message]) => ({path:path||'$',message}));
-    for (const error of errors) {
-      if ([...unsupportedTypes.keys()].some((path) => error.instancePath === path || error.instancePath.startsWith(`${path}/`))) continue;
-      issues.push({ path: error.instancePath || '$', message: error.message ?? 'Invalid value' });
-    }
-    return { valid: false, issues };
-  }
+  if (!validateSchema(input)) return { valid: false, issues: explainSchemaErrors(input, validateSchema.errors ?? []) };
   const spec = input as DesignSpec;
   const seen = new Set<string>();
   const componentIds = new Set<string>();
@@ -136,8 +179,8 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     component: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','children','layout','layoutGrids','clipsContent','cornerRadii','cornerSmoothing','constraints','fillToken'],
     instance: ['type','id','name','x','y','width','height','rotation','opacity','componentRef','constraints'],
     vector: ['type','id','name','x','y','width','height','rotation','fill','opacity','shadow','shadows','effects','paints','path','constraints'],
-    image: ['type','id','name','x','y','width','height','rotation','opacity','mimeType','data','scaleMode','imageTransform','scalingFactor','constraints'],
-    text: ['type','id','name','x','y','width','height','rotation','fill','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
+    image: ['type','id','name','x','y','width','height','rotation','opacity','mimeType','data','assetRef','scaleMode','imageTransform','scalingFactor','constraints'],
+    text: ['type','id','name','x','y','width','height','rotation','fill','opacity','gradient','paints','shadow','shadows','effects','text','fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','paragraphSpacing','textAlignVertical','textAutoResize','textDecoration','textCase','color','align','textStyleToken','constraints','fillToken'],
     rectangle: ['type','id','name','x','y','width','height','rotation','fill','radius','cornerRadii','cornerSmoothing','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     ellipse: ['type','id','name','x','y','width','height','rotation','fill','radius','opacity','gradient','paints','shadow','shadows','effects','constraints','fillToken','stroke','strokeOpacity','strokeWidth','strokeAlign'],
     line: ['type','id','name','x','y','width','height','rotation','fill','opacity','stroke','strokeOpacity','strokeWidth','constraints'],
@@ -162,13 +205,7 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (node.type === 'text' && node.textStyleToken && !typography.has(node.textStyleToken)) issues.push({ path: `${path}.textStyleToken`, message: `Unknown text style token: ${node.textStyleToken}` });
     if (node.type === 'text' && node.color !== undefined && node.fill !== undefined) issues.push({ path: `${path}.color`, message: 'Use either color or fill for text color, not both.' });
     if(node.type==='group'&&'layoutGrids' in node)issues.push({path:`${path}.layoutGrids`,message:'Layout grids can only be attached to frames or components.'});
-    if (node.type === 'image') {
-      try {
-        const bytes = decodeBase64(node.data, MAX_EMBEDDED_IMAGE_BYTES);
-        const image = validateRasterAsset(bytes, node.mimeType);
-        if (image.mimeType !== node.mimeType) issues.push({ path: `${path}.mimeType`, message: 'Image MIME type does not match its data.' });
-      } catch (error) { issues.push({ path: `${path}.data`, message: error instanceof Error ? error.message : 'Invalid embedded image.' }); }
-    }
+    if (node.type === 'image') checkImageSource(node, path, issues);
     if (node.type === 'frame' || node.type === 'group' || node.type === 'component') node.children.forEach((child, index) => visit(child, `${path}.children[${index}]`, depth + 1));
     if (node.type === 'component') componentIds.add(node.id);
     if (node.type === 'instance' && !componentIds.has(node.componentRef)) issues.push({ path: `${path}.componentRef`, message: `Component reference "${node.componentRef}" must point to a component declared earlier in the document.` });
@@ -176,14 +213,14 @@ export function validateDesignSpec(input: unknown, rawBytes?: number): Validatio
     if (node.gradient && (node.gradient.stops.length < 2 || node.gradient.stops.some((stop, index) => index > 0 && stop.position < node.gradient!.stops[index - 1]!.position))) issues.push({ path: `${path}.gradient.stops`, message: 'Gradient needs at least two stops ordered by position.' });
     const validStops=(stops:Array<{position:number}>):boolean=>stops.length>=2&&!stops.some((stop,index)=>index>0&&stop.position<stops[index-1]!.position);
     const validTransform=(matrix:[[number,number,number],[number,number,number]]):boolean=>Math.abs(matrix[0][0]*matrix[1][1]-matrix[0][1]*matrix[1][0])>1e-6;
-    if(node.type==='image'&&node.imageTransform&&((node.scaleMode??'FIT')!=='CROP'||!validTransform(node.imageTransform)))issues.push({path:`${path}.imageTransform`,message:'Image transform is allowed only for CROP mode and must be invertible.'});
-    if(node.type==='image'&&node.scalingFactor!==undefined&&((node.scaleMode??'FIT')!=='TILE'||!Number.isFinite(node.scalingFactor)||node.scalingFactor<=0||node.scalingFactor>10))issues.push({path:`${path}.scalingFactor`,message:'Image scalingFactor must be greater than 0 and at most 10, and is allowed only for TILE mode.'});
+    if(node.type==='image'&&node.imageTransform&&((node.scaleMode??'FILL')!=='CROP'||!validTransform(node.imageTransform)))issues.push({path:`${path}.imageTransform`,message:'Image transform is allowed only for CROP mode and must be invertible.'});
+    if(node.type==='image'&&node.scalingFactor!==undefined&&((node.scaleMode??'FILL')!=='TILE'||!Number.isFinite(node.scalingFactor)||node.scalingFactor<=0||node.scalingFactor>10))issues.push({path:`${path}.scalingFactor`,message:'Image scalingFactor must be greater than 0 and at most 10, and is allowed only for TILE mode.'});
     if(node.gradient?.transform&&!validTransform(node.gradient.transform))issues.push({path:`${path}.gradient.transform`,message:'Gradient transform must be invertible.'});
     node.paints?.forEach((item,index)=>{
       if(item.type==='linear-gradient'&&(!validStops(item.gradient.stops)||(item.gradient.transform&&!validTransform(item.gradient.transform))))issues.push({path:`${path}.paints[${index}].gradient`,message:'Linear gradient needs ordered stops and an invertible optional transform.'});
       if((item.type==='radial-gradient'||item.type==='angular-gradient'||item.type==='diamond-gradient')&&(!validStops(item.gradient.stops)||!validTransform(item.gradient.transform)))issues.push({path:`${path}.paints[${index}].gradient`,message:'Transformed gradient needs ordered stops and an invertible transform.'});
     });
-    node.paints?.forEach((item,index)=>{if(item.type!=='image')return;if(item.imageTransform&&((item.scaleMode??'FIT')!=='CROP'||!validTransform(item.imageTransform)))issues.push({path:`${path}.paints[${index}].imageTransform`,message:'Image transform is allowed only for CROP mode and must be invertible.'});if(item.scalingFactor!==undefined&&((item.scaleMode??'FIT')!=='TILE'||!Number.isFinite(item.scalingFactor)||item.scalingFactor<=0||item.scalingFactor>10))issues.push({path:`${path}.paints[${index}].scalingFactor`,message:'Image scalingFactor must be greater than 0 and at most 10, and is allowed only for TILE mode.'});try{const bytes=decodeBase64(item.data,MAX_EMBEDDED_IMAGE_BYTES);const image=validateRasterAsset(bytes,item.mimeType);if(image.mimeType!==item.mimeType)issues.push({path:`${path}.paints[${index}].mimeType`,message:'Image MIME type does not match its data.'});}catch(error){issues.push({path:`${path}.paints[${index}].data`,message:error instanceof Error?error.message:'Invalid embedded image paint.'});}});
+    node.paints?.forEach((item,index)=>{if(item.type!=='image')return;if(item.imageTransform&&((item.scaleMode??'FILL')!=='CROP'||!validTransform(item.imageTransform)))issues.push({path:`${path}.paints[${index}].imageTransform`,message:'Image transform is allowed only for CROP mode and must be invertible.'});if(item.scalingFactor!==undefined&&((item.scaleMode??'FILL')!=='TILE'||!Number.isFinite(item.scalingFactor)||item.scalingFactor<=0||item.scalingFactor>10))issues.push({path:`${path}.paints[${index}].scalingFactor`,message:'Image scalingFactor must be greater than 0 and at most 10, and is allowed only for TILE mode.'});checkImageSource(item,`${path}.paints[${index}]`,issues);});
   };
   spec.pages.forEach((page, p) => {
     addId(page.id, `pages[${p}].id`);

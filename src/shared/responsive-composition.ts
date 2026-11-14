@@ -24,7 +24,7 @@ export function composeResponsivePlan(json:string, widths:[number,number]):Respo
     if(copy.width<=0||copy.width>10000||copy.x!==undefined&&copy.x<0||((copy.x??0)+copy.width>nextWidth+0.001))issues.push(`${node.id}: horizontal bounds exceed ${nextWidth}px parent.`);
     if(node.type==='text'&&node.textAutoResize==='WIDTH_AND_HEIGHT')issues.push(`${node.id}: automatic text width is unsupported.`);
     if(node.type==='image'||node.type==='vector'){
-      const payload=node.type==='image'?node.data:node.path;
+      const payload=node.type==='image'?(node.data??node.assetRef??''):node.path;
       if(assets.has(node.id)&&assets.get(node.id)!==payload)issues.push(`${node.id}: asset payload changed.`);
       assets.set(node.id,payload);
     }

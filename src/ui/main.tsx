@@ -3,7 +3,8 @@ import { buildComponentKit } from '../shared/component-kit';
 const defaultBridgeUrl = 'http://localhost:8788';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { auditDesignQuality, parseDesignSpec, type DesignSpec, type ValidationIssue } from '../shared/spec';
+import { auditDesignQuality, type DesignSpec, type ValidationIssue } from '../shared/spec';
+import { parseWithMigration } from '../shared/spec-migrations';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
 import { MAX_PATCH_IMAGE_BYTES, parseEditPatch } from '../shared/edit-patch';
 import { encodeBase64 } from '../shared/base64';
@@ -370,7 +371,7 @@ function App() {
     if(!prompt.trim()){setError('Describe the interface you want to create.');return;}
     if(!/^#[0-9a-f]{6}$/i.test(brandColor)){setError('Brand color must be a six-digit hex value.');return;}
     setBusy(true);setError('');setNotice('Asking the selected local model for structured design JSON…');setIssues([]);setSpec(null);
-    try {const output=await callModel({prompt:`${prompt}${designSystemBrief()}`});const result=parseDesignSpec(output);setIssues(result.issues);
+    try {const output=await callModel({prompt:`${prompt}${designSystemBrief()}`});const result=(await parseWithMigration(output)).result;setIssues(result.issues);
       if(!result.valid||!result.value)throw new Error(result.issues.map(i=>`${i.path}: ${i.message}`).join('\n')||'Model returned an invalid specification.');
       historySource.current={prompt:prompt.trim(),model};setSpec(result.value);setJsonInput(JSON.stringify(result.value,null,2));setNotice('Specification validated. Review it, then insert editable layers into Figma.');
     }catch(err){if(err instanceof DOMException&&err.name==='AbortError')setNotice('Generation cancelled.');else setError(err instanceof Error?err.message:'Generation failed.');}finally{setBusy(false);}
@@ -387,7 +388,8 @@ function App() {
     }catch{ /* Keep a visible, selectable copy field below. */ }
     setCopyFallback(value);setNotice('Automatic clipboard access is blocked here. Copy the selected text below with Ctrl+C.');setError('');
   }
-  function validateImport(){const result=parseDesignSpec(jsonInput);setIssues(result.issues);setError('');if(!result.valid||!result.value){setSpec(null);setError('Review the validation findings and correct the JSON.');return;}setSpec(result.value);if(preparedPrompt){historySource.current={prompt:prompt.trim(),model:'External AI handoff'};setPreparedPrompt('');}else{historySource.current={prompt:`Imported JSON: ${result.value.name}`,model:'Manual JSON import'};}setNotice('Specification is valid. Insert is ready.');}
+  // Same converter as MCP imports, so pasted JSON from Penpot/Figma-API style tools is accepted too.
+  async function validateImport(){const result=(await parseWithMigration(jsonInput)).result;setIssues(result.issues);setError('');if(!result.valid||!result.value){setSpec(null);setError('Review the validation findings and correct the JSON.');return;}setSpec(result.value);if(preparedPrompt){historySource.current={prompt:prompt.trim(),model:'External AI handoff'};setPreparedPrompt('');}else{historySource.current={prompt:`Imported JSON: ${result.value.name}`,model:'Manual JSON import'};}setNotice('Specification is valid. Insert is ready.');}
   function insert(){if(!spec)return;const source=historySource.current??{prompt:`Imported JSON: ${spec.name}`,model:'Manual JSON import'};pendingRenderHistory.current={id:createLocalId('history'),prompt:source.prompt,model:source.model,createdAt:new Date().toISOString(),spec};setBusy(true);setError('');setNotice('Creating editable native Figma layers…');post({type:'render',spec,fontFallback});}
   function reuseHistoryItem(item:HistoryItem){
     historySource.current={prompt:item.prompt,model:item.model};

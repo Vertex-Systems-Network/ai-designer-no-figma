@@ -4,6 +4,26 @@
 
 
 
+
+## Unreleased: design fidelity (Penpot → Figma report)
+
+Fixes 12 issues found while importing a Penpot design into Figma through the Figma Local connector:
+
+1. `figma_get_schema` returns the JSON Schema, a property reference and an example; new `docs/DESIGN-SCHEMA.md`.
+2. Validation errors name the real field (`…gradient.stops[0].color: missing required property`). Paint and effect mistakes no longer report "Unsupported layer type".
+3. Linear gradients accept `angle`, `start`/`end`, `handles`, `offset` stops and percentages; `direction` defaults to horizontal.
+4. Fonts: weights map to the installed style (800 → ExtraBold / Extra Bold); new `fontStyle`; fallbacks are reported as job warnings.
+5. `textAutoResize` is applied after sizing, so `WIDTH_AND_HEIGHT` no longer wraps.
+6. Text alignment accepts `textAlign`, `textAlignHorizontal` and lowercase values.
+7. Image `scaleMode` defaults to `FILL`.
+8. Groups become real Figma groups; children are relative to the group's x/y, and Figma sizes the group from its children.
+9. Per-corner radius accepts `radius:[tl,tr,br,bl]`, `radius:{topLeft,…}` and `topLeftRadius`-style fields.
+10. Images by `src` (file path or URL) or `assetRef` from `figma_upload_image`, up to 5 MB, sent in chunks. Large base64 is uploaded automatically, and images no longer drop out of imports.
+11. `targetPageId`, `replacePage`, `figma_list_pages` and `figma_delete_page`.
+12. Import results report `pages`, `nodes` and `warnings`.
+
+Also: `#RRGGBBAA` and `rgba()` colours, `fills` as an alias of `paints`, letter-spacing numbers, and line-height objects.
+
 ## Unreleased: plugin → agent requests, tunnel hardening, illustrated guide
 
 - With an agent paired, Generate and Edit selection send the brief straight to it (bridge request queue + MCP tool `figma_get_design_requests`; the server instructions tell agents to check it). Without an agent, the copy-paste prompt flow is unchanged.
