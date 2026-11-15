@@ -341,6 +341,7 @@ async function renderSpec(spec: DesignSpec, fontFallback: string, options: Rende
   await figma.setCurrentPageAsync(shownPage);
   const firstFrame = target ? createdNodes.find((node) => node.type === 'FRAME') : shownPage.children.find((node) => node.type === 'FRAME');
   if (firstFrame) {
+    lastRenderedFrameId = firstFrame.id;
     figma.currentPage.selection = [firstFrame];
     figma.viewport.scrollAndZoomIntoView([firstFrame]);
   }
@@ -359,10 +360,20 @@ async function deletePage(pageId: string): Promise<{ deleted: { id: string; name
   return { deleted: info };
 }
 
-async function captureSelectionPreview(): Promise<{kind:'visual-preview';mimeType:'image/jpeg';base64:string;width:number;height:number;nodeName:string}> {
+let lastRenderedFrameId: string | undefined;
+const capturable = (node: BaseNode | null | undefined): node is FrameNode | ComponentNode | InstanceNode => !!node && ['FRAME','COMPONENT','INSTANCE'].includes(node.type);
+/** The frame to review: an explicit node, else the selection (or its nearest frame), else the last rendered frame, else the page's only frame. */
+async function resolveCaptureTarget(nodeId?: string): Promise<SceneNode> {
+  if (nodeId) { const found = await figma.getNodeByIdAsync(nodeId); if (!capturable(found)) throw new Error(`VISUAL_FRAME_REQUIRED: Node ${nodeId} is not a frame, component or instance.`); return found; }
   const selected = figma.currentPage.selection;
-  if (selected.length !== 1) throw new Error('VISUAL_SELECTION_REQUIRED: Select exactly one Figma frame to capture a visual review preview.');
-  const node = selected[0]!;
+  if (selected.length === 1) { let node: BaseNode | null = selected[0]!; while (node && !capturable(node)) node = node.parent; if (capturable(node)) return node; }
+  if (lastRenderedFrameId) { const last = await figma.getNodeByIdAsync(lastRenderedFrameId); if (capturable(last) && !last.removed) return last; }
+  const frames = figma.currentPage.children.filter(capturable);
+  if (frames.length === 1) return frames[0]!;
+  throw new Error('VISUAL_SELECTION_REQUIRED: Pass nodeId (from the import result or figma_get_selection) or select one frame to capture.');
+}
+async function captureSelectionPreview(nodeId?: string): Promise<{kind:'visual-preview';mimeType:'image/jpeg';base64:string;width:number;height:number;nodeName:string;nodeId:string}> {
+  const node = await resolveCaptureTarget(nodeId);
   if (!['FRAME','COMPONENT','INSTANCE'].includes(node.type) || !('exportAsync' in node)) throw new Error('VISUAL_FRAME_REQUIRED: Select a frame, component, or instance for visual review.');
   if (!(node.width > 0 && node.height > 0) || node.height / node.width > 8 || node.width / node.height > 8) throw new Error('VISUAL_BOUNDS_UNSUPPORTED: Selected frame aspect ratio is too extreme to capture safely.');
   const maxBytes = 700 * 1024;
@@ -370,7 +381,7 @@ async function captureSelectionPreview(): Promise<{kind:'visual-preview';mimeTyp
     const height = Math.max(1, Math.round(width * node.height / node.width));
     if (height > 8192) throw new Error('VISUAL_BOUNDS_UNSUPPORTED: Preview height would exceed 8192 pixels.');
     const bytes = await node.exportAsync({format:'JPG',constraint:{type:'WIDTH',value:width},contentsOnly:true,colorProfile:'SRGB'});
-    if (bytes.length <= maxBytes) return {kind:'visual-preview',mimeType:'image/jpeg',base64:encodeBase64(bytes),width,height,nodeName:node.name};
+    if (bytes.length <= maxBytes) return {kind:'visual-preview',mimeType:'image/jpeg',base64:encodeBase64(bytes),width,height,nodeName:node.name,nodeId:node.id};
   }
   throw new Error('VISUAL_PREVIEW_TOO_LARGE: Preview is still over 700 KB at 512 pixels wide. Simplify or reduce the selected frame before visual review.');
 }
@@ -780,7 +791,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     else if(operation.type==='render-spec'){const report=await renderSpec(operation.spec,'Inter',{...(operation.targetPageId?{targetPageId:operation.targetPageId}:{}),...(operation.replacePage?{replacePage:true}:{})});result={...report,message:report.warnings.length?`Editable Figma layers were inserted with ${report.warnings.length} warning(s).`:'Editable Figma layers were inserted.'};}
     else if(operation.type==='delete-page')result=await deletePage(operation.pageId);
     else if(operation.type==='list-pages')result={pages:figma.root.children.map(page=>({id:page.id,name:page.name,current:page===figma.currentPage}))};
-    else if(operation.type==='capture-selection')result=await captureSelectionPreview();
+    else if(operation.type==='capture-selection')result=await captureSelectionPreview(operation.nodeId);
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}
     else if(operation.type==='insert-svg'){const asset=await insertSvg(operation.name,operation.svg);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied SVG imported and read back as editable vector geometry.',...asset});}
     else if(operation.type==='insert-image'){const asset=await insertRaster(operation.name,operation.mimeType,operation.bytes);result=asset;figma.ui.postMessage({type:'asset-result',ok:true,message:'MCP supplied image imported and read back as a native image fill.',...asset});}

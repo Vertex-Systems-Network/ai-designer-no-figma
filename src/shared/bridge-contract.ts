@@ -12,7 +12,7 @@ export type BridgeOperation =
   | { type: 'list-pages' }
   | { type: 'apply-patch'; patch: EditPatch }
   | { type: 'export-selection' }
-  | { type: 'capture-selection' }
+  | { type: 'capture-selection'; nodeId?: string }
   | { type:'insert-svg'; name:string; svg:string }
   | { type:'insert-image'; name:string; mimeType:string; bytes:number[] }
   | {type:'begin-image-transfer';transferId:string;name:string;mimeType:'image/png'|'image/jpeg'|'image/gif';totalBytes:number;sha256:string;chunkCount:number}
