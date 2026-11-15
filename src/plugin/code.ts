@@ -813,7 +813,7 @@ function configureBridge(endpoint:string,token:string,sessionId:string):void{
 
 function sendCurrentUser():void{
   const user=figma.currentUser;
-  figma.ui.postMessage({type:'current-user',name:user?.name??'Figma user',photoUrl:user?.photoUrl??null,signedIn:Boolean(user&&user.name!=='Anonymous')});
+  figma.ui.postMessage({type:'current-user',fileName:figma.root?.name,name:user?.name??'Figma user',photoUrl:user?.photoUrl??null,signedIn:Boolean(user&&user.name!=='Anonymous')});
 }
 
 figma.on('selectionchange', inspectSelection);

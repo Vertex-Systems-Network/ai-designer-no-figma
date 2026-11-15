@@ -54,4 +54,12 @@ describe('local Figma job broker',()=>{
     expect(()=>broker.enqueueBatch([operations[0]!,{type:'image-transfer-chunk' as const,transferId:'01234567-89ab-cdef-0123-456789abcdef',index:0,bytes:[9]},operations[2]!],{operationId:'large-image'})).toThrowError(/already used|more jobs/);
     expect(broker.getSessions()).toHaveLength(1);
   });
+  it('sends jobs without a sessionId to the Figma window used most recently',()=>{
+    let now=1000;const broker=new JobBroker({now:()=>now});
+    broker.connect('window-aaaa','0.2.0','File A');now+=10;broker.connect('window-bbbb','0.2.0','File B');
+    expect(broker.enqueue({type:'inspect-selection'}).sessionId).toBe('window-bbbb');
+    now+=10;broker.heartbeat('window-aaaa',true);
+    expect(broker.enqueue({type:'inspect-selection'}).sessionId).toBe('window-aaaa');
+    expect(broker.getSessions().map(s=>s.fileName)).toEqual(['File A','File B']);
+  });
 });

@@ -266,3 +266,14 @@ Further reading:
 - `docs/KNOWN-ISSUES.md`: open issues;
 - `docs/EXECUTION-PLAN.md`: live verification status;
 - `docs/ARCHITECTURE.md`: internals.
+
+## Several Figma windows and several AIs
+
+- Each Figma window with the plugin open pairs once (same bridge, same code) and reports its file name.
+- An AI that does not pass `sessionId` works in the window you used most recently, and then **stays on that window** for the rest of its conversation. Open a second AI, click into the other Figma window, and its first job goes there. Both can work at the same time.
+- `figma_get_connection_status` lists every window with `fileName` and `sessionId`; pass `sessionId` to move an AI to a specific window.
+- While an AI works, the plugin shows that AI's name and badge (ChatGPT, Claude, Cursor, Gemini, Copilot…) next to the AI Designer loader.
+
+## Images from the AI
+
+Connected AIs are told to supply real images wherever a design needs one: they generate or find the picture and send it as an image node with `src` (https URL or absolute file path) or upload it first with `figma_upload_image`.
