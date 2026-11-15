@@ -1,3 +1,4 @@
+import { toFigmaPath } from '../shared/svg-path';
 import { uniquePageName } from '../shared/page-names';
 import { MAX_DEPTH, MAX_NODES, MAX_EMBEDDED_IMAGE_BYTES, validateDesignSpec, type ConstraintsSpec, type DesignNodeSpec, type DesignSpec, type EffectSpec, type GradientSpec, type GridSpec, type LayoutSpec, type PaintStackItemSpec, type RadialGradientSpec, type ShadowSpec } from '../shared/spec';
 import type { EditPatch, HostToUi, UiToHost } from '../shared/protocol';
@@ -119,6 +120,8 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
   if (spec.type === 'text') {
     const loadedFont = await resolveFont(spec.fontFamily || fontFallback, spec.fontWeight ?? 400, spec.fontStyle, fontFallback);
     const text = figma.createText();
+    // Set the loaded font before writing characters: a new text layer defaults to Inter Regular, which may not be loaded.
+    text.fontName = loadedFont;
     text.characters = spec.text;
     // Apply a referenced style first; explicit per-layer fields in the spec are
     // intentional overrides and must win over the style defaults.
@@ -150,7 +153,7 @@ async function renderNode(spec: DesignNodeSpec, parent: BaseNode & ChildrenMixin
     node = line;
   } else if(spec.type==='vector') {
     const vector=figma.createVector();
-    vector.vectorPaths=[{windingRule:'NONZERO',data:spec.path}];
+    vector.vectorPaths=[{windingRule:'NONZERO',data:toFigmaPath(spec.path)}];
     if(spec.fill||spec.gradient||spec.paints||spec.shadow||spec.shadows||spec.effects)applyNodePaint(vector,spec.fill,spec.gradient,spec.shadow,spec.paints,spec.shadows,spec.effects);
     node=vector;
   } else if(spec.type==='image') {
