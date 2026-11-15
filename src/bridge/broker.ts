@@ -36,18 +36,20 @@ export class JobBroker {
   takeRequests(): DesignRequest[] { const taken = this.requests; this.requests = []; return taken; }
   pendingRequestCount(): number { return this.requests.length; }
 
-  connect(sessionId: string, pluginVersion: string): BridgeSession {
+  connect(sessionId: string, pluginVersion: string, fileName?: string): BridgeSession {
     this.validateSessionId(sessionId);
     const now = this.now();
     const previous = this.sessions.get(sessionId);
-    const session = { sessionId, pluginVersion: pluginVersion.slice(0,80), connectedAt: previous?.connectedAt ?? now, lastSeenAt: now };
+    const name = fileName?.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,160) || previous?.fileName;
+    const session: BridgeSession = { sessionId, pluginVersion: pluginVersion.slice(0,80), connectedAt: previous?.connectedAt ?? now, lastSeenAt: now, activeAt: now, ...(name?{fileName:name}:{}) };
     this.sessions.set(sessionId, session);
     return { ...session };
   }
 
-  heartbeat(sessionId: string): BridgeSession {
+  heartbeat(sessionId: string, active = false): BridgeSession {
     const session = this.requireSession(sessionId);
     session.lastSeenAt = this.now();
+    if (active) session.activeAt = session.lastSeenAt;
     return { ...session };
   }
 
@@ -146,9 +148,16 @@ export class JobBroker {
       return requested;
     }
     if (sessions.length===0) throw new BridgeFault('FIGMA_DISCONNECTED','No paired Figma plugin session is connected.');
-    if (sessions.length>1) throw new BridgeFault('SESSION_REQUIRED','More than one Figma plugin session is active. Provide a sessionId from figma_get_connection_status.');
-    return sessions[0]!.sessionId;
+    return this.preferredSession(sessions);
   }
+
+  /** With several Figma windows open, the one the user used most recently wins. */
+  preferredSession(sessions = this.getSessions()): string {
+    if (sessions.length===0) throw new BridgeFault('FIGMA_DISCONNECTED','No paired Figma plugin session is connected.');
+    return [...sessions].sort((a,b)=>(b.activeAt??b.connectedAt)-(a.activeAt??a.connectedAt))[0]!.sessionId;
+  }
+
+  isConnected(sessionId: string): boolean { return this.getSessions().some((session)=>session.sessionId===sessionId); }
 
   private requireSession(id: string): BridgeSession {
     const session=this.sessions.get(id);

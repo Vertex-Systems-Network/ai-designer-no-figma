@@ -15,7 +15,7 @@ export type HostToUi =
   | { type:'asset-library-response';requestId:string;operation:'list'|'read'|'save'|'delete'|'clear';ok:boolean;assets?:AssetSummary[];asset?:StoredAsset|AssetSummary;duplicate?:boolean;message?:string }
   | { type: 'agent-status'; status:'disconnected'|'connecting'|'connected'|'working'|'error'; sessionId?:string; jobId?:string; agentLabel?:string; operation?:string; message?:string }
   | { type: 'agent-event'; id:string; jobId:string; agentLabel:string; operation:string; status:'started'|'completed'|'failed'; timestamp:number; message:string }
-  | { type: 'current-user'; name:string; photoUrl:string|null; signedIn:boolean }
+  | { type: 'current-user'; fileName?:string; name:string; photoUrl:string|null; signedIn:boolean }
   | { type: 'bridge-job-result'; jobId:string; ok:boolean; result?:unknown; error?:{code:string;message:string} }
   | { type: 'error'; code: string; message: string };
 

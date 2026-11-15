@@ -35,4 +35,4 @@ export type BridgeJob = {
   /** Set when an AI client asked to stop a job the plugin is already running. */
   cancelRequested?: boolean;
 };
-export type BridgeSession = { sessionId: string; pluginVersion: string; connectedAt: number; lastSeenAt: number };
+export type BridgeSession = { sessionId: string; pluginVersion: string; connectedAt: number; lastSeenAt: number; fileName?: string; activeAt?: number };

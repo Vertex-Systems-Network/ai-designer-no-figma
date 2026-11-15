@@ -5,6 +5,14 @@
 
 
 
+## Unreleased
+
+- Fixed: text layers failing with "unloaded font Inter Regular" when another font was requested.
+- Fixed: vector paths with H/V, relative, S/T or arc commands ("Invalid command at H24").
+- Several Figma windows: AIs target the most recently used window and stay on it; sessions report file names.
+- The working loader shows which AI is working (name and badge).
+- AI instructions: supply real images where a design needs them.
+
 ## Unreleased: design fidelity (Penpot → Figma report)
 
 Fixes 12 issues found while importing a Penpot design into Figma through the Figma Local connector:

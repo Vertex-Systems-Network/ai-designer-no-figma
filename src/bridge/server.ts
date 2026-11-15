@@ -114,14 +114,14 @@ async function handle(req:IncomingMessage,res:ServerResponse,broker:JobBroker,to
     sendJson(res,200,{ok:true,service:'local-figma-bridge',instanceId,activeSessions:broker.getSessions().length});return;
   }
   if(req.method==='POST'&&url.pathname==='/bridge/sessions/connect'){
-    const data=await readBody(req) as {sessionId?:unknown;pluginVersion?:unknown};
+    const data=await readBody(req) as {sessionId?:unknown;pluginVersion?:unknown;fileName?:unknown};
     if(typeof data.sessionId!=='string'||typeof data.pluginVersion!=='string')throw new BridgeFault('INVALID_SESSION','sessionId and pluginVersion are required.');
-    sendJson(res,200,{session:broker.connect(data.sessionId,data.pluginVersion)});return;
+    sendJson(res,200,{session:broker.connect(data.sessionId,data.pluginVersion,typeof data.fileName==='string'?data.fileName:undefined)});return;
   }
   if(req.method==='POST'&&url.pathname==='/bridge/sessions/heartbeat'){
-    const data=await readBody(req) as {sessionId?:unknown};
+    const data=await readBody(req) as {sessionId?:unknown;active?:unknown};
     if(typeof data.sessionId!=='string')throw new BridgeFault('INVALID_SESSION','sessionId is required.');
-    sendJson(res,200,{session:broker.heartbeat(data.sessionId),cancel:broker.cancellationsFor(data.sessionId)});return;
+    sendJson(res,200,{session:broker.heartbeat(data.sessionId,data.active===true),cancel:broker.cancellationsFor(data.sessionId)});return;
   }
   if(req.method==='POST'&&url.pathname==='/bridge/sessions/requests'){
     const data=await readBody(req) as {sessionId?:unknown;kind?:unknown;prompt?:unknown};
