@@ -277,3 +277,13 @@ Further reading:
 ## Images from the AI
 
 Connected AIs are told to supply real images wherever a design needs one: they generate or find the picture and send it as an image node with `src` (https URL or absolute file path) or upload it first with `figma_upload_image`.
+
+## Build like Figma's own MCP: `figma_run_code`
+
+`figma_run_code` lets the connected AI write Figma Plugin API JavaScript that runs inside the AI Designer plugin in your open file, the same approach Figma's official MCP (`use_figma`) uses. The AI can use everything the Plugin API offers: Auto Layout with fill/hug sizing, components and variants, variables, text and effect styles.
+
+- The script is the body of an async function with `figma`, `console` and `assets` in scope; it returns JSON (node ids, notes).
+- Images: upload with `figma_upload_image`, then use `assets.imageHash(assetRef)` in an `IMAGE` fill.
+- If the script throws, the layers it added to the current page are removed; the error and the last log lines are returned.
+- The plugin has no network access, so a script cannot send your file anywhere.
+- Recommended loop: one section per call → `figma_capture_selection` → fix → next section.

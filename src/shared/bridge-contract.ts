@@ -10,6 +10,7 @@ export type BridgeOperation =
   | { type: 'render-spec'; spec: DesignSpec; targetPageId?: string; replacePage?: boolean }
   | { type: 'delete-page'; pageId: string }
   | { type: 'list-pages' }
+  | { type: 'run-code'; code: string }
   | { type: 'apply-patch'; patch: EditPatch }
   | { type: 'export-selection' }
   | { type: 'capture-selection'; nodeId?: string }

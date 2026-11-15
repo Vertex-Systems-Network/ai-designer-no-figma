@@ -7,6 +7,8 @@
 
 ## Unreleased
 
+- New `figma_run_code`: the AI writes Figma Plugin API code (Auto Layout, components, variables, styles) like Figma's own MCP.
+
 - Fixed: text layers failing with "unloaded font Inter Regular" when another font was requested.
 - Fixed: vector paths with H/V, relative, S/T or arc commands ("Invalid command at H24").
 - Several Figma windows: AIs target the most recently used window and stay on it; sessions report file names.
