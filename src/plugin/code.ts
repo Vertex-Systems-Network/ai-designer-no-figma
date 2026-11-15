@@ -360,6 +360,40 @@ async function deletePage(pageId: string): Promise<{ deleted: { id: string; name
   return { deleted: info };
 }
 
+/**
+ * Run Figma Plugin API code written by the paired AI client, the way Figma's own MCP "use_figma" does.
+ * The code runs inside this plugin's sandbox (no network: the manifest allows none) as the body of an async
+ * function receiving `figma`. Its return value is sent back as JSON (capped). Nodes it creates stay; on error,
+ * nodes it added to the current page are removed so a failed script does not leave half a design behind.
+ */
+async function runAgentCode(code: string): Promise<{ value: unknown; createdNodeIds: string[]; logs: string[] }> {
+  const page = figma.currentPage; const before = new Set(page.children.map((node) => node.id));
+  const logs: string[] = []; const log = (...items: unknown[]) => { if (logs.length < 200) logs.push(items.map((item) => typeof item === 'string' ? item : safeJson(item, 2000)).join(' ').slice(0, 2000)); };
+  const assets = { imageHash: (assetRef: string) => { const hash = uploadedImages.get(assetRef); if (!hash) throw new Error(`IMAGE_ASSET_NOT_FOUND: Upload ${assetRef.slice(0, 12)}… with figma_upload_image first.`); return hash; } };
+  let body: (figma: PluginAPI, console: { log: typeof log; warn: typeof log; error: typeof log }, assets: { imageHash: (assetRef: string) => string }) => Promise<unknown>;
+  try { body = new Function('figma', 'console', 'assets', `"use strict"; return (async () => {\n${code}\n})();`) as typeof body; }
+  catch (error) { throw new Error(`CODE_SYNTAX: ${error instanceof Error ? error.message : String(error)}`); }
+  try {
+    const value = await body(figma, { log, warn: log, error: log }, assets);
+    const created = page.children.filter((node) => !before.has(node.id));
+    if (created.length) figma.viewport.scrollAndZoomIntoView(created);
+    const frame = created.find((node) => node.type === 'FRAME'); if (frame) lastRenderedFrameId = frame.id;
+    return { value: JSON.parse(safeJson(value ?? null, 200_000)), createdNodeIds: created.map((node) => node.id), logs };
+  } catch (error) {
+    for (const node of page.children) if (!before.has(node.id) && !node.removed) node.remove();
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message.startsWith('CODE_') ? message : `CODE_ERROR: ${message}${logs.length ? ` | logs: ${logs.slice(-5).join(' / ')}` : ''}`);
+  }
+}
+function safeJson(value: unknown, max: number): string {
+  const seen = new WeakSet<object>();
+  const text = JSON.stringify(value, (_key, item: unknown) => {
+    if (typeof item === 'bigint') return String(item);
+    if (item && typeof item === 'object') { if (seen.has(item)) return '[circular]'; seen.add(item); if ('id' in item && 'type' in item && 'name' in item && typeof (item as { id: unknown }).id === 'string') { const n = item as SceneNode; return { id: n.id, type: n.type, name: n.name }; } }
+    return item;
+  }) ?? 'null';
+  return text.length > max ? JSON.stringify({ truncated: true, preview: text.slice(0, max - 100) }) : text;
+}
 let lastRenderedFrameId: string | undefined;
 const capturable = (node: BaseNode | null | undefined): node is FrameNode | ComponentNode | InstanceNode => !!node && ['FRAME','COMPONENT','INSTANCE'].includes(node.type);
 /** The frame to review: an explicit node, else the selection (or its nearest frame), else the last rendered frame, else the page's only frame. */
@@ -736,6 +770,7 @@ function bridgeOperationLabel(operation:BridgeOperation):string{
   if(operation.type==='render-spec')return `Inserting ${operation.spec.name}`;
   if(operation.type==='delete-page')return 'Deleting a page';
   if(operation.type==='list-pages')return 'Listing pages';
+  if(operation.type==='run-code')return 'Building in Figma';
   if(operation.type==='apply-patch')return `Applying ${operation.patch.operations.length} reviewed edit(s)`;
   if(operation.type==='insert-svg')return `Importing SVG ${operation.name}`;
   if(operation.type==='insert-image')return `Importing image ${operation.name}`;
@@ -790,6 +825,7 @@ async function executeBridgeJob(job:BridgeJob):Promise<void>{
     else if(operation.type==='export-component-family'){const selected=figma.currentPage.selection;if(selected.length!==1||selected[0]?.type!=='COMPONENT_SET')throw new Error('Select exactly one component set to export.');result={family:exportComponentFamily(selected[0])};}
     else if(operation.type==='render-spec'){const report=await renderSpec(operation.spec,'Inter',{...(operation.targetPageId?{targetPageId:operation.targetPageId}:{}),...(operation.replacePage?{replacePage:true}:{})});result={...report,message:report.warnings.length?`Editable Figma layers were inserted with ${report.warnings.length} warning(s).`:'Editable Figma layers were inserted.'};}
     else if(operation.type==='delete-page')result=await deletePage(operation.pageId);
+    else if(operation.type==='run-code')result=await runAgentCode(operation.code);
     else if(operation.type==='list-pages')result={pages:figma.root.children.map(page=>({id:page.id,name:page.name,current:page===figma.currentPage}))};
     else if(operation.type==='capture-selection')result=await captureSelectionPreview(operation.nodeId);
     else if(operation.type==='apply-patch'){await applyPatch(operation.patch);result={message:'Patch applied to selected layers.',undoCount:patchCheckpoints.length};}

@@ -173,6 +173,18 @@ describe('Figma host design-system discovery',()=>{
     expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'bridge-job-result',jobId:'job-1',ok:true,result:expect.objectContaining({components:[expect.objectContaining({id:'component-1'})],variables:[expect.objectContaining({id:'variable-1'})]})}));
     expect(currentPage.selection).toEqual([selected]);
   });
+
+  it('runs agent Plugin API code, returns its value and removes its nodes when it throws',async()=>{
+    const children:{id:string;type:string;name:string;removed?:boolean;remove:()=>void}[]=[];
+    const currentPage={id:'page-1',name:'Page',selection:[],get children(){return children.filter(node=>!node.removed);}};
+    let n=0;const createFrame=vi.fn(()=>{const node={id:`f${++n}`,type:'FRAME',name:'Frame',removed:false,remove(){node.removed=true;}};children.push(node);return node;});
+    const {ui}=await loadHostWithSelection([],{currentPage,createFrame,viewport:{scrollAndZoomIntoView:vi.fn()}});
+    await ui.onmessage?.({type:'bridge-job',job:{jobId:'job-ok',operationId:'op-ok',sessionId:'session-1',agentLabel:'Claude',operation:{type:'run-code',code:'const f = figma.createFrame(); f.name = "Hero"; console.log("made", f.id); return { id: f.id };'},status:'running',createdAt:1,updatedAt:1}});
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'bridge-job-result',jobId:'job-ok',ok:true,result:expect.objectContaining({value:{id:'f1'},createdNodeIds:['f1'],logs:['made f1']})}));
+    await ui.onmessage?.({type:'bridge-job',job:{jobId:'job-bad',operationId:'op-bad',sessionId:'session-1',agentLabel:'Claude',operation:{type:'run-code',code:'figma.createFrame(); throw new Error("boom");'},status:'running',createdAt:2,updatedAt:2}});
+    expect(ui.postMessage).toHaveBeenCalledWith(expect.objectContaining({type:'bridge-job-result',jobId:'job-bad',ok:false,error:expect.objectContaining({message:expect.stringContaining('CODE_ERROR: boom')})}));
+    expect(currentPage.children.map(node=>node.id)).toEqual(['f1']);
+  });
 });
 
 describe('Figma host patch behavior',()=>{
